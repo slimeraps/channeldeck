@@ -1,5 +1,6 @@
-import { app, type BrowserWindow, Menu, session } from 'electron'
+import { app, type BrowserWindow, dialog, Menu, session } from 'electron'
 import { APP_NAME } from '@shared/constants/app'
+import { closeDatabase, databasePath, initDatabase } from './db'
 import { registerAppHandlers } from './ipc/appHandlers'
 import { sendEvent, setIpcOrigin } from './ipc/handle'
 import { initLogger, logger } from './logger'
@@ -52,6 +53,21 @@ async function start(): Promise<void> {
     `[app] ${APP_NAME} ${app.getVersion()} starting (electron ${process.versions.electron})`
   )
   hardenSessions()
+
+  try {
+    const repos = initDatabase()
+    repos.eventLog.write({ kind: 'app.start', message: `${APP_NAME} ${app.getVersion()} started` })
+  } catch (error) {
+    logger.error('[db] could not open the database', error)
+    dialog.showErrorBox(
+      `${APP_NAME} can't open its database`,
+      `${databasePath()}\n\n${error instanceof Error ? error.message : String(error)}\n\n` +
+        'Details are in ~/Library/Logs/ChannelDeck/main.log.'
+    )
+    app.exit(1)
+    return
+  }
+
   setIpcOrigin(origin)
   registerAppHandlers()
 
@@ -80,6 +96,8 @@ if (!app.requestSingleInstanceLock()) {
   app.on('window-all-closed', () => {
     if (process.platform !== 'darwin') app.quit()
   })
+
+  app.on('will-quit', () => closeDatabase())
 
   start().catch((error: unknown) => {
     logger.error('[app] failed to start', error)

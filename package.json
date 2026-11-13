@@ -23,13 +23,16 @@
     "test": "ELECTRON_RUN_AS_NODE=1 electron ./node_modules/vitest/vitest.mjs run",
     "test:watch": "ELECTRON_RUN_AS_NODE=1 electron ./node_modules/vitest/vitest.mjs",
     "dist": "npm run build && electron-builder --mac dmg --arm64",
-    "postinstall": "install-electron && electron-builder install-app-deps"
+    "postinstall": "install-electron && electron-builder install-app-deps",
+    "db:generate": "drizzle-kit generate"
   },
   "dependencies": {
     "@tanstack/react-query": "^5.107.1",
+    "better-sqlite3": "^13.1.1",
     "class-variance-authority": "^0.7.1",
     "clsx": "^2.1.1",
     "cn": "^0.5.2",
+    "drizzle-orm": "^0.45.4",
     "electron-log": "^5.4.4",
     "lucide-react": "^1.72.0",
     "radix-ui": "^1.8.1",
@@ -42,10 +45,12 @@
   "devDependencies": {
     "@eslint/js": "^10.0.1",
     "@tailwindcss/vite": "^4.3.5",
+    "@types/better-sqlite3": "^9.6.0",
     "@types/node": "^24.19.2",
     "@types/react": "^19.3.0",
     "@types/react-dom": "^19.3.0",
     "@vitejs/plugin-react": "^6.3.0",
+    "drizzle-kit": "^0.31.11",
     "electron": "^45.3.1",
     "electron-builder": "^26.18.0",
     "electron-vite": "^6.0.0",
@@ -61,5 +66,13 @@
     "typescript-eslint": "^8.72.2",
     "vite": "^8.3.8",
     "vitest": "^5.1.0"
+  },
+  "allowScripts": {
+    "esbuild@0.18.20": true,
+    "esbuild@0.25.12": true,
+    "esbuild@0.28.2": true,
+    "better-sqlite3": false,
+    "electron-winstaller": false,
+    "fsevents": false
   }
 }

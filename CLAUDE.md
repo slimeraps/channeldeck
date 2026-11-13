@@ -27,7 +27,7 @@ Personal macOS (Apple Silicon) Electron app: Twitch clip bank + YouTube upload s
 ## Commands
 
 ```
-npm install            # postinstall runs electron-builder install-app-deps (rebuilds better-sqlite3 for Electron)
+npm install            # postinstall: install-electron, then electron-builder install-app-deps
 npm run dev            # electron-vite dev (hot reload)
 npm run typecheck      # tsc for node (main/preload/shared) and web (renderer) projects
 npm run lint           # eslint .
@@ -39,7 +39,7 @@ npm run build          # electron-vite build
 npm run dist           # build + electron-builder --mac dmg --arm64
 ```
 
-Tests run on Electron's Node so better-sqlite3 has a single native build. Don't add a second plain-Node build.
+Tests run on Electron's Node (ELECTRON_RUN_AS_NODE=1) so they match the app's runtime. better-sqlite3 13 ships N-API prebuilds that load in both Electron and Node, so there's no native compile step. npm 11 `allowScripts` in package.json lists which install scripts may run; better-sqlite3's is denied on purpose (it would only rebuild what the prebuild already provides).
 
 ## Folder layout
 
@@ -69,6 +69,7 @@ drizzle/                generated migrations (bundled into the app)
 tests/
   integration/          daily sync + download, planner run, full upload
   mocks/                msw handlers for YouTube and Helix, fixtures
+  helpers/              createTestDb() (in-memory DB with the real migrations), seed helpers, manualClock
 ```
 
 Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
