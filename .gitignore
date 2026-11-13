@@ -1,0 +1,28 @@
+# Dependencies and build output
+node_modules/
+out/
+dist/
+release/
+*.tsbuildinfo
+coverage/
+
+# Secrets — never commit
+client_secret*.json
+*.pem
+*.p12
+.env
+.env.*
+!.env.example
+
+# Local data
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.log
+
+# macOS / editors
+.DS_Store
+.idea/
+.vscode/*
+!.vscode/extensions.json
