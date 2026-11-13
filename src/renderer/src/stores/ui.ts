@@ -9,6 +9,8 @@ export interface EditorState {
   initialFilePath: string | null
   /** A publish time picked in the calendar (empty slot clicked). */
   initialPublishAtUtc: string | null
+  /** A clip chosen on the Clips page ("Post…"). */
+  initialClipId: string | null
   /** Bumps on every open so the form remounts with fresh state. */
   session: number
 }
@@ -27,7 +29,7 @@ interface UiState {
   deviceCode: DeviceCodeInfo | null
   setDeviceCode: (info: DeviceCodeInfo | null) => void
   setPage: (page: PageId) => void
-  openNewPost: (filePath?: string, publishAtUtc?: string) => void
+  openNewPost: (filePath?: string, publishAtUtc?: string, clipId?: string) => void
   openEditPost: (postId: string) => void
   closeEditor: () => void
 }
@@ -37,6 +39,7 @@ const closed: EditorState = {
   postId: null,
   initialFilePath: null,
   initialPublishAtUtc: null,
+  initialClipId: null,
   session: 0
 }
 
@@ -46,13 +49,14 @@ export const useUiStore = create<UiState>()((set) => ({
   deviceCode: null,
   setDeviceCode: (deviceCode) => set({ deviceCode }),
   setPage: (page) => set({ page }),
-  openNewPost: (filePath, publishAtUtc) =>
+  openNewPost: (filePath, publishAtUtc, clipId) =>
     set((s) => ({
       editor: {
         open: true,
         postId: null,
         initialFilePath: filePath ?? null,
         initialPublishAtUtc: publishAtUtc ?? null,
+        initialClipId: clipId ?? null,
         session: s.editor.session + 1
       }
     })),
@@ -63,6 +67,7 @@ export const useUiStore = create<UiState>()((set) => ({
         postId,
         initialFilePath: null,
         initialPublishAtUtc: null,
+        initialClipId: null,
         session: s.editor.session + 1
       }
     })),

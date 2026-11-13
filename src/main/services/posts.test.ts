@@ -526,3 +526,41 @@ describe('horizontal or vertical', () => {
     ).rejects.toThrow(/Pick a video/)
   })
 })
+
+describe('posting a clip', () => {
+  it('links the post to the clip and keeps it from going to a channel twice', async () => {
+    const twitch = seedTwitchAccount(t.repos).id
+    seedClip(t.repos, twitch, 'clipA')
+    const first = await service.save({ input: input({ clipId: 'clipA' }), mode: 'queue' })
+    expect(t.repos.posts.require(first.id)).toMatchObject({
+      source: 'twitch_clip',
+      clipId: 'clipA'
+    })
+    expect((await service.get(first.id)).input.clipId).toBe('clipA')
+
+    await expect(
+      service.save({ input: input({ clipId: 'clipA' }), mode: 'draft' })
+    ).rejects.toThrow(/already queued or posted on that channel/)
+    // Another channel is fine.
+    const other = seedAccount(t.repos).id
+    const second = await service.save({
+      input: input({ accountId: other, clipId: 'clipA' }),
+      mode: 'draft'
+    })
+    expect(second.source).toBe('twitch_clip')
+
+    // Switching to your own video unlinks the clip.
+    await service.save({
+      id: second.id,
+      input: input({ accountId: other, clipId: null }),
+      mode: 'draft'
+    })
+    expect(t.repos.posts.require(second.id)).toMatchObject({ source: 'manual', clipId: null })
+  })
+
+  it('refuses a clip that is no longer in the bank', async () => {
+    await expect(service.save({ input: input({ clipId: 'gone' }), mode: 'draft' })).rejects.toThrow(
+      /no longer in the clip bank/
+    )
+  })
+})

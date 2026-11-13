@@ -340,6 +340,10 @@ export const invokeContract = {
       games: z.array(z.object({ id: z.string(), name: z.string() }))
     })
   },
+  'clips:get': {
+    input: z.object({ id: z.string().min(1).max(100) }).strict(),
+    output: clipViewSchema
+  },
   'clips:setHidden': {
     input: clipIdsSchema.extend({ hidden: z.boolean() }),
     output: z.object({ updated: z.number().int() })

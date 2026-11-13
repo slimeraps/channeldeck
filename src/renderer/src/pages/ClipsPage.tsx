@@ -1,4 +1,4 @@
-import { Clapperboard, ExternalLink, Filter, Search, X } from 'lucide-react'
+import { CheckSquare, Clapperboard, ExternalLink, Filter, Search, Send, X } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { PickOrder } from '@shared/constants/enums'
 import type { ClipSearchInput, ClipView } from '@shared/schemas/twitch'
@@ -60,10 +60,12 @@ function numberOrUndefined(value: string): number | undefined {
 
 function ClipPreview({
   clip,
-  onClose
+  onClose,
+  onPost
 }: {
   clip: ClipView
   onClose: () => void
+  onPost: () => void
 }): React.JSX.Element {
   const video = clip.portraitUrl ?? clip.landscapeUrl
   return (
@@ -106,6 +108,9 @@ function ClipPreview({
               Open on Twitch <ExternalLink aria-hidden />
             </a>
           </Button>
+          <Button size="sm" onClick={onPost} disabled={!clip.landscapePath && !clip.portraitPath}>
+            <Send aria-hidden /> Post this clip…
+          </Button>
         </div>
       </DialogContent>
     </Dialog>
@@ -116,6 +121,7 @@ export function ClipsPage(): React.JSX.Element {
   const twitch = useTwitchAccounts()
   const youtube = useAccounts()
   const setPage = useUiStore((s) => s.setPage)
+  const openNewPost = useUiStore((s) => s.openNewPost)
   const accounts = twitch.data ?? []
 
   // 'all' = every channel at once (the default with more than one), or one channel's id.
@@ -208,6 +214,7 @@ export function ClipsPage(): React.JSX.Element {
 
   const items = clips.data?.items ?? []
   const total = clips.data?.total ?? 0
+  const allShownSelected = items.length > 0 && items.every((c) => selected.has(c.id))
   const setFilter = <K extends keyof Filters>(key: K, value: Filters[K]): void => {
     setFilters((f) => ({ ...f, [key]: value }))
     setLimit(PAGE)
@@ -394,6 +401,25 @@ export function ClipsPage(): React.JSX.Element {
         <span className="ml-auto text-xs text-muted-foreground">
           {total.toLocaleString()} clip{total === 1 ? '' : 's'}
         </span>
+        {items.length > 0 ? (
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setSelected(allShownSelected ? new Set() : new Set(items.map((c) => c.id)))
+            }
+            title={
+              items.length < total
+                ? `Selects the ${items.length} clips shown; "Show more" loads the rest`
+                : undefined
+            }
+          >
+            <CheckSquare aria-hidden />
+            {allShownSelected
+              ? 'Select none'
+              : `Select all${items.length < total ? ` ${items.length} shown` : ''}`}
+          </Button>
+        ) : null}
       </div>
 
       {showFilters ? (
@@ -550,6 +576,7 @@ export function ClipsPage(): React.JSX.Element {
               selected={selected.has(clip.id)}
               showChannel={view === 'all'}
               onOpen={() => setPreview(clip)}
+              onPost={() => openNewPost(undefined, undefined, clip.id)}
               onToggle={() =>
                 setSelected((s) => {
                   const next = new Set(s)
@@ -575,7 +602,16 @@ export function ClipsPage(): React.JSX.Element {
         </div>
       ) : null}
 
-      {preview ? <ClipPreview clip={preview} onClose={() => setPreview(null)} /> : null}
+      {preview ? (
+        <ClipPreview
+          clip={preview}
+          onClose={() => setPreview(null)}
+          onPost={() => {
+            setPreview(null)
+            openNewPost(undefined, undefined, preview.id)
+          }}
+        />
+      ) : null}
 
       <AlertDialog open={confirmDelete} onOpenChange={setConfirmDelete}>
         <AlertDialogContent>

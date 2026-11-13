@@ -119,4 +119,14 @@ describe('clip search across channels', () => {
       rmSync(dir, { recursive: true, force: true })
     }
   })
+
+  it('gets one clip with its channel, for Post…', () => {
+    expect(clips.get('b1')).toMatchObject({
+      id: 'b1',
+      twitchName: 'Bravo',
+      twitchColor: '#ec4899',
+      landscapePath: null
+    })
+    expect(() => clips.get('nope')).toThrow(/isn't in the bank/)
+  })
 })

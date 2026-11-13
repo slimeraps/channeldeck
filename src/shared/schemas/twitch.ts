@@ -98,6 +98,9 @@ export type ClipSearchInput = z.infer<typeof clipSearchSchema>
 
 export const clipViewSchema = z.object({
   id: z.string(),
+  /** Local files (null when not on disk), for posting the clip. */
+  landscapePath: z.string().nullable(),
+  portraitPath: z.string().nullable(),
   twitchAccountId: z.number().int(),
   twitchName: z.string(),
   twitchColor: z.string(),
