@@ -11,10 +11,19 @@ export interface EditorState {
   session: number
 }
 
+export interface DeviceCodeInfo {
+  userCode: string
+  verificationUri: string
+  expiresAtUtc: string
+}
+
 /** UI-only state. Data from main goes through TanStack Query, never here. */
 interface UiState {
   page: PageId
   editor: EditorState
+  /** Twitch Device Code sign-in in progress: the code to type at twitch.tv/activate. */
+  deviceCode: DeviceCodeInfo | null
+  setDeviceCode: (info: DeviceCodeInfo | null) => void
   setPage: (page: PageId) => void
   openNewPost: (filePath?: string) => void
   openEditPost: (postId: string) => void
@@ -26,6 +35,8 @@ const closed: EditorState = { open: false, postId: null, initialFilePath: null, 
 export const useUiStore = create<UiState>()((set) => ({
   page: 'queue',
   editor: closed,
+  deviceCode: null,
+  setDeviceCode: (deviceCode) => set({ deviceCode }),
   setPage: (page) => set({ page }),
   openNewPost: (filePath) =>
     set((s) => ({

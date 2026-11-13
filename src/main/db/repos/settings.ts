@@ -24,6 +24,12 @@ export interface SettingsStore {
   update(patch: SettingsPatch): Settings
   /** Removes stored overrides so the given keys use defaults again. */
   reset(keys: SettingKey[]): Settings
+  /**
+   * Ciphertext for secrets (e.g. the Twitch client secret), stored under "secret.<name>".
+   * Never part of get() or backups. Encrypt/decrypt with the secret box.
+   */
+  getSecret(name: string): Buffer | null
+  setSecret(name: string, cipherText: Buffer | null): void
 }
 
 export function createSettingsStore(
@@ -74,6 +80,36 @@ export function createSettingsStore(
         }
       })
       return readAll()
+    },
+
+    getSecret(name) {
+      const row = db
+        .select()
+        .from(settings)
+        .where(sql`${settings.key} = ${`secret.${name}`}`)
+        .get()
+      if (!row) return null
+      try {
+        return Buffer.from(JSON.parse(row.valueJson) as string, 'base64')
+      } catch {
+        return null
+      }
+    },
+
+    setSecret(name, cipherText) {
+      const key = `secret.${name}`
+      if (!cipherText) {
+        db.delete(settings)
+          .where(sql`${settings.key} = ${key}`)
+          .run()
+        return
+      }
+      const now = isoNow(clock)
+      const valueJson = JSON.stringify(cipherText.toString('base64'))
+      db.insert(settings)
+        .values({ key, valueJson, updatedAt: now })
+        .onConflictDoUpdate({ target: settings.key, set: { valueJson, updatedAt: now } })
+        .run()
     },
 
     reset(keys) {

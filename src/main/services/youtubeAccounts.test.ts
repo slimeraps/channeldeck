@@ -19,9 +19,9 @@ afterAll(() => server.close())
 function fakeStorage(): SafeStorageLike {
   const xor = (b: Buffer): Buffer => Buffer.from(b.map((x) => x ^ 0x5a))
   return {
-    isEncryptionAvailable: () => true,
-    encryptString: (s) => xor(Buffer.from(s, 'utf8')),
-    decryptString: (b) => xor(b).toString('utf8')
+    isAsyncEncryptionAvailable: async () => true,
+    encryptStringAsync: async (s) => xor(Buffer.from(s, 'utf8')),
+    decryptStringAsync: async (b) => ({ result: xor(b).toString('utf8'), shouldReEncrypt: false })
   }
 }
 
@@ -142,7 +142,7 @@ describe('adding a channel', () => {
     const row = t.repos.accounts.getByChannelId('UCdrift')
     expect(row?.encRefreshToken).toBeInstanceOf(Buffer)
     expect(row?.encRefreshToken?.toString('utf8')).not.toContain('rt-initial')
-    expect(secrets.decrypt(row!.encRefreshToken!)).toBe('rt-initial')
+    expect(await secrets.decrypt(row!.encRefreshToken!)).toBe('rt-initial')
 
     // channels.list was logged against today's Pacific quota day.
     expect(t.repos.quota.totalsForDay('2026-11-12')).toEqual({ uploadCalls: 0, units: 1 })
@@ -261,7 +261,9 @@ describe('expired sign-ins', () => {
 
     const updated = await service.reconnect(view!.id)
     expect(updated.tokenStatus).toBe('ok')
-    expect(secrets.decrypt(t.repos.accounts.require(view!.id).encRefreshToken!)).toBe('rt-fresh')
+    expect(await secrets.decrypt(t.repos.accounts.require(view!.id).encRefreshToken!)).toBe(
+      'rt-fresh'
+    )
   })
 
   it('reconnect refuses when you pick a different channel in Google', async () => {
@@ -271,14 +273,18 @@ describe('expired sign-ins', () => {
     google.channelsByAccessToken.set('at-other', [{ id: 'UCgaming', title: 'Gaming Channel' }])
 
     await expect(service.reconnect(view!.id)).rejects.toThrow(/but this is Drift Channel/)
-    expect(secrets.decrypt(t.repos.accounts.require(view!.id).encRefreshToken!)).toBe('rt-initial')
+    expect(await secrets.decrypt(t.repos.accounts.require(view!.id).encRefreshToken!)).toBe(
+      'rt-initial'
+    )
   })
 
   it('keeps the newest refresh token when Google rotates it', async () => {
     const [view] = await service.addChannel()
     google.rotateTo = 'rt-rotated'
     await service.refreshInfo(view!.id)
-    expect(secrets.decrypt(t.repos.accounts.require(view!.id).encRefreshToken!)).toBe('rt-rotated')
+    expect(await secrets.decrypt(t.repos.accounts.require(view!.id).encRefreshToken!)).toBe(
+      'rt-rotated'
+    )
   })
 })
 

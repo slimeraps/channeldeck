@@ -29,6 +29,13 @@
       "when": 1794544055085,
       "tag": "0003_post_retry_after",
       "breakpoints": true
+    },
+    {
+      "idx": 4,
+      "version": "6",
+      "when": 1794546338836,
+      "tag": "0004_clip_download_tracking",
+      "breakpoints": true
     }
   ]
 }

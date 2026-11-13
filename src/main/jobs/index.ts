@@ -4,7 +4,10 @@ import { getRepos } from '../db'
 import { logger } from '../logger'
 import { notify } from '../notify'
 import { createPowerGuard } from '../power'
-import { getYouTubeAccounts } from '../services'
+import { probeVideo } from '../media/ffprobe'
+import { getTwitchAccounts, getYouTubeAccounts, setSyncingProbe } from '../services'
+import { createClipDownloadJob } from './clipDownload'
+import { createClipSyncJob } from './clipSync'
 import { createJobRunner, type JobRunner } from './runner'
 import { createStatusSyncJob, type StatusSyncJob, type SyncSummary } from './statusSync'
 import { createUploadJob, type UploadJob } from './upload'
@@ -43,6 +46,41 @@ export function startJobs(): void {
     logger
   })
   runner.register(statusSync)
+
+  // Twitch clip bank: backfill + daily sync, then downloads.
+  const twitch = getTwitchAccounts()
+  const clipSync = createClipSyncJob({
+    repos,
+    helixFor: (id, signal) => twitch.helixFor(id, signal),
+    forceSync: twitch.forceSync,
+    notify,
+    emitChanged: () => emitToRenderer('twitch:changed', undefined),
+    logger
+  })
+  setSyncingProbe((id) => clipSync.syncingNow().has(id))
+  runner.register(clipSync)
+  runner.register(
+    createClipDownloadJob({
+      repos,
+      helixFor: (id, signal) => twitch.helixFor(id, signal),
+      verifyVideo: probeVideo,
+      emitChanged: () => emitToRenderer('twitch:changed', undefined),
+      logger
+    })
+  )
+  // A clip left "downloading" by a quit goes back to the queue.
+  for (const account of repos.twitchAccounts.list()) {
+    for (const clip of repos.clips.search({
+      twitchAccountId: account.id,
+      sort: 'oldest',
+      includeHidden: true,
+      limit: 100_000,
+      offset: 0
+    }).items) {
+      if (clip.downloadStatus === 'downloading')
+        repos.clips.setDownload(clip.id, { downloadStatus: 'pending' })
+    }
+  }
 
   powerMonitor.on('resume', () => {
     logger.info('[jobs] Mac woke up; checking for work')

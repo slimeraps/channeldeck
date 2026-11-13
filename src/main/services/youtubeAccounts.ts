@@ -139,14 +139,16 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
   }
 
   /** An authorized client for a stored channel. Refreshed tokens are re-encrypted and saved. */
-  function authClientFor(account: AccountRow): OAuth2Client {
+  async function authClientFor(account: AccountRow): Promise<OAuth2Client> {
     const cached = authClients.get(account.id)
     if (cached) return cached
     if (!account.encRefreshToken) {
       throw new UserFacingError(`${account.channelTitle} has no saved sign-in. Click Reconnect.`)
     }
     const config = requireConfig()
-    const refreshToken = secrets.decrypt(account.encRefreshToken)
+    const refreshToken = await secrets.decrypt(account.encRefreshToken, (fresh) =>
+      repos.accounts.update(account.id, { encRefreshToken: fresh })
+    )
     const client = new OAuth2Client({
       clientId: config.clientId,
       clientSecret: config.clientSecret
@@ -155,10 +157,16 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
     client.on('tokens', (tokens) => {
       // Google may rotate the refresh token; keep the newest one. Access tokens stay in memory.
       if (tokens.refresh_token && tokens.refresh_token !== refreshToken) {
-        repos.accounts.update(account.id, {
-          encRefreshToken: secrets.encrypt(tokens.refresh_token)
-        })
-        logger.info(`[google] stored a rotated refresh token for account ${account.id}`)
+        const rotated = tokens.refresh_token
+        void secrets
+          .encrypt(rotated)
+          .then((enc) => {
+            repos.accounts.update(account.id, { encRefreshToken: enc })
+            logger.info(`[google] stored a rotated refresh token for account ${account.id}`)
+          })
+          .catch((error: unknown) =>
+            logger.error('[google] could not store a rotated token', error)
+          )
       }
     })
     authClients.set(account.id, client)
@@ -212,20 +220,20 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
         `${account.channelTitle} needs you to sign in again. Click Reconnect.`
       )
     }
-    const realApi = (): YouTubeApi =>
+    const realApi = async (): Promise<YouTubeApi> =>
       createYouTubeApi({
-        auth: authClientFor(account),
+        auth: await authClientFor(account),
         recordCall: (method) => recordCall(method, account.id)
       })
     const api = repos.settings.getKey('dryRun')
       ? createDryRunYouTubeApi({
           // Read-only lookups still use the real API; writes are only logged.
           reads: {
-            channelsMine: () => realApi().channelsMine(),
-            videoCategories: (r, hl) => realApi().videoCategories(r, hl),
-            playlistsMine: () => realApi().playlistsMine(),
-            videosStatus: (ids) => realApi().videosStatus(ids),
-            videoStatusPart: (id) => realApi().videoStatusPart(id)
+            channelsMine: async () => (await realApi()).channelsMine(),
+            videoCategories: async (r, hl) => (await realApi()).videoCategories(r, hl),
+            playlistsMine: async () => (await realApi()).playlistsMine(),
+            videosStatus: async (ids) => (await realApi()).videosStatus(ids),
+            videoStatusPart: async (id) => (await realApi()).videoStatusPart(id)
           },
           recordCall: (method) => recordCall(method, account.id, true),
           log: (message, payload) => {
@@ -239,7 +247,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
           },
           ...(deps.dryRunUploadMs !== undefined ? { uploadMs: deps.dryRunUploadMs } : {})
         })
-      : realApi()
+      : await realApi()
     try {
       return await fn(api)
     } catch (error) {
@@ -330,7 +338,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
         )
       }
 
-      const encrypted = secrets.encrypt(refreshToken)
+      const encrypted = await secrets.encrypt(refreshToken)
       const added: AccountRow[] = []
       const duplicates: string[] = []
       for (const channel of channels) {
@@ -392,7 +400,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
       }
       authClients.delete(account.id)
       const updated = repos.accounts.update(account.id, {
-        encRefreshToken: secrets.encrypt(refreshToken),
+        encRefreshToken: await secrets.encrypt(refreshToken),
         tokenStatus: 'ok',
         channelTitle: match.title,
         channelHandle: match.handle,
@@ -532,7 +540,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
             clientId: config.clientId,
             clientSecret: config.clientSecret
           })
-          await client.revokeToken(secrets.decrypt(account.encRefreshToken))
+          await client.revokeToken(await secrets.decrypt(account.encRefreshToken))
           revoked = true
         } catch (error) {
           // Already revoked/expired tokens fail here too; removal goes ahead either way.

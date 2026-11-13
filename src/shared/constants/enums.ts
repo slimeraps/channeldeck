@@ -55,7 +55,9 @@ export const DOWNLOAD_STATUSES = [
   'downloading',
   'downloaded',
   'failed',
-  'not_downloadable'
+  'not_downloadable',
+  /** You deleted the local files; it won't download again until you ask. */
+  'deleted'
 ] as const
 export type DownloadStatus = (typeof DOWNLOAD_STATUSES)[number]
 

@@ -9,6 +9,7 @@ import {
   SelectTrigger,
   SelectValue
 } from '@renderer/components/ui/select'
+import { Input } from '@renderer/components/ui/input'
 import { Separator } from '@renderer/components/ui/separator'
 import { Switch } from '@renderer/components/ui/switch'
 import { useGoogleClientStatus, useImportClientFile } from '@renderer/hooks/useAccounts'
@@ -117,6 +118,43 @@ export function SettingsPage(): React.JSX.Element {
       </section>
 
       <section>
+        <h2 className="text-sm font-semibold">Clip bank</h2>
+        <Separator className="my-3" />
+        <SettingRow
+          title="Clip folder"
+          hint="Where Twitch clips are saved: <folder>/<channel>/<year>/<year-month>/, oldest first by name."
+        >
+          <div className="flex min-w-0 items-center gap-2">
+            <span className="max-w-64 truncate font-mono text-xs select-text" title={s?.clipsRoot}>
+              {s?.clipsRoot ?? '…'}
+            </span>
+            <Button
+              size="sm"
+              variant="secondary"
+              onClick={async () => {
+                const r = await invoke('settings:chooseClipsFolder')
+                if (r.changed) void settings.refetch()
+              }}
+            >
+              <FolderOpen aria-hidden />
+              Choose…
+            </Button>
+          </div>
+        </SettingRow>
+        <SettingRow
+          title="Daily clip sync"
+          hint="New clips are pulled once a day at this time, and at launch or wake if the last sync is over a day old."
+        >
+          <Input
+            type="time"
+            className="w-32"
+            value={s?.dailySyncTime ?? '04:00'}
+            onChange={(e) => e.target.value && update.mutate({ dailySyncTime: e.target.value })}
+          />
+        </SettingRow>
+      </section>
+
+      <section>
         <h2 className="text-sm font-semibold">Google</h2>
         <p className="mt-1 text-sm text-muted-foreground">
           The Desktop-app OAuth client from your Google Cloud project. Stored only on this Mac.
@@ -144,8 +182,7 @@ export function SettingsPage(): React.JSX.Element {
       <section>
         <h2 className="text-sm font-semibold">About</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Twitch, the clip folder and sync time, launch at login, and backups are added here as
-          their phases land.
+          Launch at login, keep in menu bar, and backups are added here in Phase 9.
         </p>
         <Separator className="my-3" />
         {info.isError ? (

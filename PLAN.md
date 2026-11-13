@@ -122,17 +122,17 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 
 ## Phase 6 — Twitch connect and clip bank
 
-- [ ] Settings: Twitch Client ID + Client Secret (secret encrypted)
-- [ ] Auth per decision 1; scope `channel:manage:clips` (broadcaster) or `editor:manage:clips` (editor), only the one needed; store broadcaster id, login, display name, avatar, `editor_id`; refresh-token rotation; failure → needs re-auth + pause sync
-- [ ] Typed Helix client: `Client-Id` + Bearer on every call, reads `Ratelimit-Remaining`/`Ratelimit-Reset`, backs off on 429
-- [ ] Daily sync at chosen time (default 04:00 local) + on launch/wake if last success > 24 h + Sync now; window = last success − 2 days → now; split into ≤ 7-day sub-windows; page with `after` until empty; upsert by clip id
-- [ ] Backfill on first connect from chosen start (default account creation date) in 7-day windows oldest-first; progress UI; cursor saved in `backfill_cursor_json`; resumes after quit
-- [ ] Adaptive windowing: if a window returns ≥ ~900 clips, split it in half and redo (guards the ~1,000 cap)
-- [ ] Get Games name cache
-- [ ] Download job: Get Clips Download right before downloading (≤ 10 ids/request), landscape + portrait when present, stream to temp → ffprobe verify → atomic move; retry with backoff; clips missing from the response → "Not downloadable"
-- [ ] On-disk layout and naming from the brief, plus thumbnail and `.json` sidecar
-- [ ] Clips page: tab per account; sort oldest (default) / newest / most viewed; filters (game, duration range, min views, featured, posted/unposted, date range, title search); card shows all listed fields + links to resulting YouTube videos; inline preview; bulk queue to channel / hide / re-download / delete local file
-- [ ] Notifications: sync results ("12 new clips")
+- [x] Settings: Twitch Client ID + Client Secret (secret encrypted)
+- [x] Auth per decision 1; scope `channel:manage:clips` (broadcaster) or `editor:manage:clips` (editor), only the one needed; store broadcaster id, login, display name, avatar, `editor_id`; refresh-token rotation; failure → needs re-auth + pause sync
+- [x] Typed Helix client: `Client-Id` + Bearer on every call, reads `Ratelimit-Remaining`/`Ratelimit-Reset`, backs off on 429
+- [x] Daily sync at chosen time (default 04:00 local) + on launch/wake if last success > 24 h + Sync now; window = last success − 2 days → now; split into ≤ 7-day sub-windows; page with `after` until empty; upsert by clip id
+- [x] Backfill on first connect from chosen start (default account creation date) in 7-day windows oldest-first; progress UI; cursor saved in `backfill_cursor_json`; resumes after quit
+- [x] Adaptive windowing: if a window returns ≥ ~900 clips, split it in half and redo (guards the ~1,000 cap)
+- [x] Get Games name cache
+- [x] Download job: Get Clips Download right before downloading (≤ 10 ids/request), landscape + portrait when present, stream to temp → ffprobe verify → atomic move; retry with backoff; clips missing from the response → "Not downloadable"
+- [x] On-disk layout and naming from the brief, plus thumbnail and `.json` sidecar
+- [x] Clips page: tab per account; sort oldest (default) / newest / most viewed; filters (game, duration range, min views, featured, posted/unposted, date range, title search); card shows all listed fields + links to resulting YouTube videos; inline preview; bulk queue to channel / hide / re-download / delete local file
+- [x] Notifications: sync results ("12 new clips")
 
 **Acceptance:** integration test: full daily sync + download against mocked Helix (pagination, overlap dedupe, 429 backoff, a null portrait URL, an omitted clip). Unit tests: window splitting, backfill resume from saved cursor, clip filename sorting oldest→newest. By hand: connect your Twitch account, run backfill, check the Finder folder sorts by date.
 

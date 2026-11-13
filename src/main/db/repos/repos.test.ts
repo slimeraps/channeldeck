@@ -56,7 +56,12 @@ describe('twitch accounts', () => {
       })
     ).toThrow(DuplicateError)
 
-    const cursor = { nextWindowStartUtc: '2024-01-08T00:00:00Z', windowsDone: 1, windowsTotal: 100 }
+    const cursor = {
+      nextWindowStartUtc: '2024-01-08T00:00:00Z',
+      endUtc: '2026-01-01T00:00:00Z',
+      windowsDone: 1,
+      windowsTotal: 100
+    }
     expect(t.repos.twitchAccounts.setBackfillCursor(acc.id, cursor).backfillCursorJson).toEqual(
       cursor
     )

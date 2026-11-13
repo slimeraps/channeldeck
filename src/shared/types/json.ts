@@ -19,10 +19,10 @@ export interface AccountDefaults {
 
 /** Where a resumable backfill stopped: the next 7-day window to fetch. */
 export interface BackfillCursor {
-  /** Start of the next window to fetch (UTC ISO). */
+  /** Start of the next 7-day window to fetch (UTC ISO). A window restarts if interrupted. */
   nextWindowStartUtc: string
-  /** Page cursor inside that window, if it was interrupted mid-window. */
-  after?: string
+  /** Where the backfill stops: when it began (later clips are the daily sync's job). */
+  endUtc: string
   windowsDone: number
   windowsTotal: number
 }

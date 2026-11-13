@@ -28,9 +28,12 @@ beforeAll(() => {
 afterAll(() => server.close())
 
 const secrets = createSecretBox({
-  isEncryptionAvailable: () => true,
-  encryptString: (s) => Buffer.from(s, 'utf8').reverse(),
-  decryptString: (b) => Buffer.from(b).reverse().toString('utf8')
+  isAsyncEncryptionAvailable: async () => true,
+  encryptStringAsync: async (s) => Buffer.from(s, 'utf8').reverse(),
+  decryptStringAsync: async (b) => ({
+    result: Buffer.from(b).reverse().toString('utf8'),
+    shouldReEncrypt: false
+  })
 })
 
 let t: TestDb
@@ -44,7 +47,7 @@ let notify: ReturnType<typeof vi.fn<(title: string, body: string) => void>>
 
 const logger = { info: vi.fn(), warn: vi.fn(), error: vi.fn() }
 
-beforeEach(() => {
+beforeEach(async () => {
   Object.assign(google, createGoogleState())
   t = createTestDb()
   dir = mkdtempSync(join(tmpdir(), 'cd-sync-'))
@@ -53,7 +56,7 @@ beforeEach(() => {
   accountId = t.repos.accounts.create({
     channelId: 'UCdrift',
     channelTitle: 'Drift Channel',
-    encRefreshToken: secrets.encrypt('rt-initial')
+    encRefreshToken: await secrets.encrypt('rt-initial')
   }).id
 
   const accounts = createYouTubeAccountsService({

@@ -40,7 +40,22 @@ export const INVOKE_CHANNELS = [
   'posts:deleteFromYouTube',
   'posts:syncStatus',
   'settings:get',
-  'settings:update'
+  'settings:update',
+  'settings:chooseClipsFolder',
+  'twitch:getConfig',
+  'twitch:setConfig',
+  'twitch:list',
+  'twitch:connect',
+  'twitch:cancelConnect',
+  'twitch:reconnect',
+  'twitch:update',
+  'twitch:syncNow',
+  'twitch:remove',
+  'clips:search',
+  'clips:setHidden',
+  'clips:redownload',
+  'clips:deleteLocal',
+  'clips:addToChannel'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 
@@ -49,7 +64,9 @@ export const EVENT_CHANNELS = [
   'ui:newPost',
   'accounts:changed',
   'posts:changed',
-  'posts:progress'
+  'posts:progress',
+  'twitch:changed',
+  'twitch:deviceCode'
 ] as const
 export type EventChannel = (typeof EVENT_CHANNELS)[number]
 
