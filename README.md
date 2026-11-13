@@ -28,6 +28,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 ### Post editor
 
 - ✅ New post from the **New post** button, **⌘N**, or by dropping a video anywhere on the window
+- ✅ **From clip library**: pick any banked Twitch clip as a post's video (search, channel and unposted filters); the post stays linked to the clip so it's never posted twice to a channel
 - ✅ Video facts read with ffprobe: duration, resolution, size, aspect ratio (phone rotation handled)
 - ✅ **Short** detection (vertical or square, 3 minutes or less) and a warning for videos over 15 minutes
 - ✅ Title (100 characters), description (5000 bytes) and tags (500 characters) with live counters measured the way YouTube measures them
@@ -81,6 +82,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ A color per Twitch channel (picked on the Channels page, like YouTube channels), shown on clip cards, Clips tabs, autopost rules and layouts
 - ✅ **All channels** view on the Clips page: sort, filter and bulk-select clips from every channel at once, or pick a few channels to show
 - ✅ Add clips as draft posts to any YouTube channel; a clip can never be added twice to the same channel
+- ✅ **Post…** on any clip (card or preview) opens the post editor with that clip; **Select all** for bulk actions
 
 ### Autoposting
 
@@ -219,6 +221,14 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### Unreleased
+
+- Added **From clip library…** to the post editor: pick a banked Twitch clip as the video. Title and "Clipped by" credit fill in, and the post stays linked to the clip.
+- Added **Post…** to every clip on the Clips page (and **Post this clip…** in the preview), opening the editor with that clip.
+- Added **Select all** to the Clips page (all clips shown; "Show more" loads the rest).
+- Fixed: removing a Twitch channel failed once any of its clips had been posted or canceled. Now only posts not on YouTube yet block removal; finished posts are kept and just unlinked from the clip, and autopost rules drop the channel.
+- Fixed: a clip sync still running while its channel was removed logged a database error.
 
 ### 1.1.0 (2026-11-13)
 

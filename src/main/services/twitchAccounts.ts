@@ -427,22 +427,29 @@ export function createTwitchAccountsService(deps: TwitchAccountsDeps) {
     /** Accounts whose next sync should run regardless of the schedule (read by the sync job). */
     forceSync: new Set<number>(),
 
+    /**
+     * Removes a Twitch channel and forgets its clips (files on disk stay). Posts not on YouTube
+     * yet still need their clip, so they block removal. Posts that are on YouTube or canceled
+     * are kept and just stop being linked to the clip.
+     */
     async remove(id: number): Promise<{ removedClips: number }> {
       const account = repos.twitchAccounts.require(id)
-      const usedClips = repos.clips.referencedIds(
+      const clipIds = new Set(
         repos.clips
           .search({
             twitchAccountId: id,
             sort: 'oldest',
             includeHidden: true,
-            limit: 100_000,
+            limit: 1_000_000,
             offset: 0
           })
           .items.map((c) => c.id)
       )
-      if (usedClips.size > 0) {
+      const linked = repos.posts.list({}).filter((p) => p.clipId && clipIds.has(p.clipId))
+      const pending = linked.filter((p) => p.status !== 'canceled' && !p.youtubeVideoId)
+      if (pending.length > 0) {
         throw new UserFacingError(
-          `${usedClips.size} of ${account.displayName}'s clips are used by posts. Delete or unschedule those posts first.`
+          `${pending.length} post${pending.length === 1 ? '' : 's'} made from ${account.displayName}'s clips ${pending.length === 1 ? "isn't" : "aren't"} on YouTube yet. Unschedule or delete ${pending.length === 1 ? 'it' : 'them'} first (Queue), then remove the channel.`
         )
       }
       try {
@@ -452,7 +459,18 @@ export function createTwitchAccountsService(deps: TwitchAccountsDeps) {
       } catch (error) {
         logger.warn('[twitch] revoke failed (removing anyway)', error)
       }
+      // Finished posts (on YouTube, or canceled) keep everything but the clip link.
+      for (const post of linked) repos.posts.update(post.id, { clipId: null })
       const removedClips = repos.clips.deleteUnreferenced(id)
+      // Autopost rules stop using this channel (a rule left with none shows as paused).
+      for (const rule of repos.autopostRules.list()) {
+        if (rule.twitchAccountIdsJson.includes(id)) {
+          repos.autopostRules.update(rule.id, {
+            twitchAccountIdsJson: rule.twitchAccountIdsJson.filter((x) => x !== id)
+          })
+        }
+      }
+      service.forceSync.delete(id)
       repos.twitchAccounts.remove(id)
       accessTokens.delete(id)
       repos.eventLog.write({

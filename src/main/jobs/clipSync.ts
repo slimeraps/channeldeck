@@ -229,6 +229,8 @@ export function createClipSyncJob(deps: ClipSyncDeps): ClipSyncJob {
         failures.delete(accountId)
       } catch (error) {
         if (signal.aborted) return
+        // Removed while it was syncing: nothing to record against a channel that's gone.
+        if (!repos.twitchAccounts.get(accountId)) return
         const count = (failures.get(accountId)?.count ?? 0) + 1
         const wait =
           FAILURE_BACKOFF_MS[Math.min(count, FAILURE_BACKOFF_MS.length) - 1] ?? 60 * 60_000

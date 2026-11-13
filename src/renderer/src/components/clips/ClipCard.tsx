@@ -1,4 +1,4 @@
-import { Check, CloudDownload, Eye, EyeOff, Star, TriangleAlert } from 'lucide-react'
+import { Check, CloudDownload, Eye, EyeOff, Send, Star, TriangleAlert } from 'lucide-react'
 import type { ClipView } from '@shared/schemas/twitch'
 import { Badge } from '@renderer/components/ui/badge'
 import { formatDuration, STATUS_LABELS } from '@renderer/lib/status'
@@ -19,12 +19,15 @@ export function ClipCard({
   selected,
   onToggle,
   onOpen,
+  onPost,
   showChannel = false
 }: {
   clip: ClipView
   selected: boolean
   onToggle: () => void
   onOpen: () => void
+  /** Open the post editor with this clip. */
+  onPost: () => void
   /** Label the Twitch channel (the All channels view). */
   showChannel?: boolean
 }): React.JSX.Element {
@@ -64,6 +67,18 @@ export function ClipCard({
         <span className="absolute right-1.5 bottom-1.5 rounded bg-black/80 px-1 text-[11px] text-white tabular-nums">
           {formatDuration(clip.durationSec)}
         </span>
+        {clip.landscapePath || clip.portraitPath ? (
+          <button
+            type="button"
+            onClick={(e) => {
+              e.stopPropagation()
+              onPost()
+            }}
+            className="absolute right-1.5 bottom-7 flex items-center gap-1 rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground opacity-0 shadow transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
+          >
+            <Send className="size-3" aria-hidden /> Post…
+          </button>
+        ) : null}
         {clip.isFeatured ? (
           <span
             className="absolute top-1.5 right-1.5 rounded bg-amber-500/90 p-0.5 text-black"

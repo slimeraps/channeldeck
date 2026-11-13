@@ -51,6 +51,9 @@ export function createClipsService(deps: ClipsServiceDeps) {
     const source = twitch.get(clip.twitchAccountId)
     return {
       id: clip.id,
+      landscapePath:
+        clip.landscapePath && existsSync(clip.landscapePath) ? clip.landscapePath : null,
+      portraitPath: clip.portraitPath && existsSync(clip.portraitPath) ? clip.portraitPath : null,
       twitchAccountId: clip.twitchAccountId,
       twitchName: source?.displayName ?? 'Removed channel',
       twitchColor: source?.color ?? '#71717a',
@@ -113,6 +116,13 @@ export function createClipsService(deps: ClipsServiceDeps) {
         total,
         games: repos.clips.gamesFor(input.twitchAccountIds)
       }
+    },
+
+    /** One clip, for "Post…" (opens the editor with it). */
+    get(id: string): ClipView {
+      const [clip] = requireClips([id])
+      const twitch = new Map(repos.twitchAccounts.list().map((a) => [a.id, a]))
+      return toView(clip as ClipRow, postsFor([id]), twitch)
     },
 
     setHidden(ids: string[], hidden: boolean): { updated: number } {

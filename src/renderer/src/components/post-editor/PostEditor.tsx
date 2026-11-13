@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Copy, Loader2, RefreshCw } from 'lucide-react'
+import { ChevronDown, Clapperboard, Copy, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { DESCRIPTION_MAX_BYTES, TITLE_MAX_CHARS } from '@shared/constants/limits'
@@ -18,9 +18,11 @@ import {
   titleLength,
   validatePost
 } from '@shared/schemas/post'
+import type { ClipView } from '@shared/schemas/twitch'
 import { MediaPanel } from '@renderer/components/post-editor/MediaPanel'
 import { PublishTimeField } from '@renderer/components/post-editor/PublishTimeField'
 import { TagInput } from '@renderer/components/post-editor/TagInput'
+import { ClipLibraryDialog } from '@renderer/components/post-editor/ClipLibraryDialog'
 import { FormatPicker } from '@renderer/components/post-editor/FormatPicker'
 import { TemplatePicker } from '@renderer/components/post-editor/TemplatePicker'
 import { ThumbnailPicker } from '@renderer/components/post-editor/ThumbnailPicker'
@@ -94,6 +96,31 @@ function withVideo(input: PostInput, info: MediaInfo): PostInput {
         .replace(/\.[^.]+$/, '')
         .replace(/[<>]/g, '')
         .slice(0, TITLE_MAX_CHARS)
+  }
+}
+
+/** A banked Twitch clip as the video: links it (never-twice) and starts title and credit. */
+function withClip(input: PostInput, clip: ClipView, info: MediaInfo): PostInput {
+  const credit = [clip.creatorName ? `Clipped by ${clip.creatorName}` : null, clip.url]
+    .filter(Boolean)
+    .join('\n')
+  // Replace text that came from the file name or a previously picked clip; keep your own.
+  const fromBefore = !input.title || Boolean(input.clipId)
+  return {
+    ...input,
+    filePath: info.path,
+    clipId: clip.id,
+    render: null,
+    title: fromBefore ? clip.title.replace(/[<>]/g, '').slice(0, TITLE_MAX_CHARS) : input.title,
+    description: !input.description || input.clipId ? credit : input.description
+  }
+}
+
+function clipFilesOf(clip: ClipView): NonNullable<PostDetail['clip']> {
+  return {
+    twitchAccountId: clip.twitchAccountId,
+    landscapePath: clip.landscapePath,
+    portraitPath: clip.portraitPath
   }
 }
 
@@ -177,6 +204,8 @@ interface FormProps {
   /** A video dropped on the window before the editor opened, already inspected. */
   initialMedia: MediaInfo | null
   initialMediaError: string | null
+  /** A clip picked on the Clips page ("Post…"), with initialMedia = its file. */
+  initialClip: ClipView | null
   /** A publish time picked in the calendar. */
   initialPublishAtUtc: string | null
   onClose: () => void
@@ -186,7 +215,8 @@ function initialInput(
   detail: PostDetail | null,
   usable: AccountView[],
   initialMedia: MediaInfo | null,
-  initialPublishAtUtc: string | null
+  initialPublishAtUtc: string | null,
+  initialClip: ClipView | null
 ): PostInput {
   if (detail) return detail.input
   let input = emptyInput()
@@ -195,7 +225,11 @@ function initialInput(
   }
   const first = usable.find((a) => a.enabled && a.tokenStatus === 'ok') ?? usable[0]
   if (first) input = applyDefaults(input, first, new Set())
-  if (initialMedia) input = withVideo(input, initialMedia)
+  if (initialMedia) {
+    input = initialClip
+      ? withClip(input, initialClip, initialMedia)
+      : withVideo(input, initialMedia)
+  }
   return input
 }
 
@@ -205,6 +239,7 @@ function PostEditorForm({
   initialMedia,
   initialMediaError,
   initialPublishAtUtc,
+  initialClip,
   onClose
 }: FormProps): React.JSX.Element {
   const qc = useQueryClient()
@@ -212,9 +247,14 @@ function PostEditorForm({
   const openEditPost = useUiStore((s) => s.openEditPost)
 
   const [input, setInput] = useState<PostInput>(() =>
-    initialInput(detail, usable, initialMedia, initialPublishAtUtc)
+    initialInput(detail, usable, initialMedia, initialPublishAtUtc, initialClip)
   )
   const [media, setMedia] = useState<MediaInfo | null>(detail?.media ?? initialMedia)
+  /** The linked Twitch clip's files (for the Format switch); null for your own videos. */
+  const [clipFiles, setClipFiles] = useState<PostDetail['clip']>(
+    detail?.clip ?? (initialClip ? clipFilesOf(initialClip) : null)
+  )
+  const [libraryOpen, setLibraryOpen] = useState(false)
   const [thumbnail, setThumbnail] = useState<ThumbnailInfo | null>(detail?.thumbnail ?? null)
   const [touched, setTouched] = useState<Set<keyof PostInput>>(
     () => new Set(detail ? (Object.keys(detail.input) as (keyof PostInput)[]) : [])
@@ -246,14 +286,23 @@ function PostEditorForm({
     staleTime: 5 * 60_000
   })
 
-  async function loadVideo(fetcher: () => Promise<MediaInfo | null>): Promise<void> {
+  /** @param keepClip switching between the linked clip's own files (Format switch). */
+  async function loadVideo(
+    fetcher: () => Promise<MediaInfo | null>,
+    keepClip = false
+  ): Promise<void> {
     setMediaBusy(true)
     try {
       const info = await fetcher()
       if (!info) return
       setMedia(info)
       // A different video starts without a vertical render; the Format switch sets one.
-      setInput((prev) => ({ ...withVideo(prev, info), render: null }))
+      setInput((prev) => ({
+        ...withVideo(prev, info),
+        render: null,
+        ...(keepClip ? {} : { clipId: null })
+      }))
+      if (!keepClip) setClipFiles(null)
       setTouched((prev) => new Set(prev).add('filePath'))
     } catch (error) {
       toast.error((error as Error).message)
@@ -357,15 +406,54 @@ function PostEditorForm({
                 }}
               />
             </Field>
+            <div className="-mt-3 flex items-center gap-2">
+              <Button
+                size="sm"
+                variant="outline"
+                disabled={readOnly || mediaBusy}
+                onClick={() => setLibraryOpen(true)}
+              >
+                <Clapperboard aria-hidden /> From clip library…
+              </Button>
+              {input.clipId ? (
+                <span className="truncate text-xs text-muted-foreground">
+                  Twitch clip · won’t be posted twice to the same channel
+                </span>
+              ) : null}
+            </div>
+            {libraryOpen ? (
+              <ClipLibraryDialog
+                onClose={() => setLibraryOpen(false)}
+                onPick={(clip) => {
+                  setLibraryOpen(false)
+                  const path = clip.landscapePath ?? clip.portraitPath
+                  if (!path) return
+                  void (async () => {
+                    setMediaBusy(true)
+                    try {
+                      const info = await invoke('media:inspectVideo', { path })
+                      setMedia(info)
+                      setInput((prev) => withClip(prev, clip, info))
+                      setClipFiles(clipFilesOf(clip))
+                      setTouched((prev) => new Set(prev).add('filePath').add('title'))
+                    } catch (error) {
+                      toast.error((error as Error).message)
+                    } finally {
+                      setMediaBusy(false)
+                    }
+                  })()
+                }}
+              />
+            ) : null}
             <FormatPicker
               input={input}
               media={media}
-              clip={detail?.clip ?? null}
+              clip={clipFiles}
               disabled={readOnly || mediaBusy}
               onChoose={({ filePath, render }) => {
                 void (async () => {
                   if (filePath && filePath !== input.filePath) {
-                    await loadVideo(() => invoke('media:inspectVideo', { path: filePath }))
+                    await loadVideo(() => invoke('media:inspectVideo', { path: filePath }), true)
                   }
                   setInput((prev) => ({ ...prev, render }))
                 })()
@@ -760,14 +848,32 @@ export function PostEditor(): React.JSX.Element | null {
     retry: false,
     gcTime: 0
   })
+  // "Post…" on the Clips page: the clip and its video file.
+  const fromClip = useQuery({
+    queryKey: ['clipPost', editor.session, editor.initialClipId],
+    queryFn: async (): Promise<{ clip: ClipView; media: MediaInfo }> => {
+      const clip = await invoke('clips:get', { id: editor.initialClipId as string })
+      const path = clip.landscapePath ?? clip.portraitPath
+      if (!path) throw new Error('This clip isn’t downloaded yet, so it can’t be posted.')
+      return { clip, media: await invoke('media:inspectVideo', { path }) }
+    },
+    enabled: editor.open && editor.initialClipId !== null,
+    retry: false,
+    gcTime: 0
+  })
 
   if (!editor.open) return null
-  const failed = detail.isError ? detail.error.message : null
+  const failed = detail.isError
+    ? detail.error.message
+    : fromClip.isError
+      ? fromClip.error.message
+      : null
   const loading =
     !failed &&
     ((editor.postId !== null && !detail.data) ||
       accounts.isLoading ||
-      (editor.initialFilePath !== null && dropped.isLoading))
+      (editor.initialFilePath !== null && dropped.isLoading) ||
+      (editor.initialClipId !== null && fromClip.isLoading))
 
   return (
     <Dialog open onOpenChange={(open) => !open && close()}>
@@ -791,7 +897,8 @@ export function PostEditor(): React.JSX.Element | null {
             key={editor.session}
             detail={detail.data ?? null}
             usable={accounts.data ?? []}
-            initialMedia={dropped.data ?? null}
+            initialMedia={dropped.data ?? fromClip.data?.media ?? null}
+            initialClip={fromClip.data?.clip ?? null}
             initialMediaError={dropped.isError ? dropped.error.message : null}
             initialPublishAtUtc={editor.initialPublishAtUtc}
             onClose={close}

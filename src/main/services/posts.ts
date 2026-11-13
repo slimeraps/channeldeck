@@ -192,6 +192,7 @@ export function createPostsService(deps: PostsServiceDeps) {
       missedPolicy: post.missedPolicy,
       templateId: post.templateId,
       seriesId: post.seriesId,
+      clipId: post.clipId,
       // A vertical render is edited as its horizontal source plus the layout.
       ...(post.renderJson
         ? {
@@ -317,6 +318,10 @@ export function createPostsService(deps: PostsServiceDeps) {
       )
     }
 
+    if (clean.clipId && !repos.clips.get(clean.clipId)) {
+      throw new UserFacingError('That clip is no longer in the clip bank. Pick another one.')
+    }
+
     if (clean.accountId === null) throw new UserFacingError('Pick a channel.')
     const account = repos.accounts.get(clean.accountId)
     if (!account || account.removedAt)
@@ -343,6 +348,8 @@ export function createPostsService(deps: PostsServiceDeps) {
       missedPolicy: clean.missedPolicy,
       templateId: clean.templateId ?? null,
       seriesId: clean.seriesId ?? null,
+      clipId: clean.clipId ?? null,
+      source: clean.clipId ? 'twitch_clip' : 'manual',
       uploadAfterUtc: mode === 'queue' ? uploadAfter(clean, now) : null
     }
   }
@@ -451,7 +458,6 @@ export function createPostsService(deps: PostsServiceDeps) {
       if (!id) {
         post = repos.posts.create({
           ...fields,
-          source: 'manual',
           status: mode === 'queue' ? 'queued' : 'draft'
         })
       } else {

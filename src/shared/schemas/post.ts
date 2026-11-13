@@ -42,6 +42,8 @@ export const postInputSchema = z
     missedPolicy: z.enum(MISSED_POLICIES),
     /** The template it started from (for reference only). */
     templateId: z.number().int().positive().nullable().optional(),
+    /** The Twitch clip this post is made from (never posted twice to one channel). */
+    clipId: z.string().min(1).nullable().optional(),
     /** Series whose next number fills {{n}} when the post is queued. */
     seriesId: z.number().int().positive().nullable().optional(),
     /**

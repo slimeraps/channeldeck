@@ -52,6 +52,7 @@ export const INVOKE_CHANNELS = [
   'twitch:syncNow',
   'twitch:remove',
   'clips:search',
+  'clips:get',
   'clips:setHidden',
   'clips:redownload',
   'clips:deleteLocal',

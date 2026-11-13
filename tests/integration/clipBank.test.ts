@@ -10,7 +10,7 @@ import {
   createTwitchAccountsService,
   type TwitchAccountsService
 } from '../../src/main/services/twitchAccounts'
-import { createTestDb, type TestDb } from '../helpers/db'
+import { createTestDb, seedAccount, seedClip, type TestDb } from '../helpers/db'
 import { createTwitchState, makeClips, twitchHandlers } from '../mocks/twitch'
 
 const twitch = createTwitchState()
@@ -169,6 +169,48 @@ describe('connecting Twitch', () => {
     expect(view.authFlow).toBe('device_code')
     expect(deviceCodes).toEqual([expect.objectContaining({ userCode: 'ABCD-EFGH' })])
     expect(sleeps.filter((ms) => ms === 5000)).toHaveLength(3) // two pending polls + success
+  })
+})
+
+describe('removing a Twitch channel', () => {
+  it('keeps finished posts, blocks on unposted ones, and cleans up clips and rules', async () => {
+    const { id } = await service.connect({ mode: 'broadcaster', backfillFromUtc: null })
+    const channel = seedAccount(t.repos).id
+    for (const clip of ['c1', 'c2', 'c3', 'c4']) seedClip(t.repos, id, clip)
+    const post = (clipId: string) =>
+      t.repos.posts.create({ accountId: channel, status: 'queued', source: 'twitch_clip', clipId })
+    // c1: canceled. c2: on YouTube (scheduled). c3: still queued. c4: never posted.
+    t.repos.posts.transition(post('c1').id, 'cancel')
+    const onYouTube = post('c2')
+    t.repos.posts.transition(onYouTube.id, 'start_upload')
+    t.repos.posts.transition(onYouTube.id, 'upload_complete', { patch: { youtubeVideoId: 'yt2' } })
+    t.repos.posts.transition(onYouTube.id, 'mark_scheduled')
+    const queued = post('c3')
+    const rule = t.repos.autopostRules.create({
+      name: 'Daily',
+      youtubeAccountId: channel,
+      twitchAccountIdsJson: [id],
+      slotsJson: ['18:00'],
+      titleTpl: '{{clip_title}}',
+      descriptionTpl: ''
+    })
+
+    await expect(service.remove(id)).rejects.toThrow(
+      /1 post made from Helmsy's clips isn't on YouTube yet/
+    )
+    expect(t.repos.twitchAccounts.get(id)).toBeDefined()
+
+    t.repos.posts.transition(queued.id, 'cancel')
+    expect(await service.remove(id)).toEqual({ removedClips: 4 })
+    expect(t.repos.twitchAccounts.get(id)).toBeUndefined()
+    expect(t.repos.clips.get('c2')).toBeUndefined()
+    // The video on YouTube is untouched, just no longer linked to the clip.
+    expect(t.repos.posts.require(onYouTube.id)).toMatchObject({
+      status: 'scheduled',
+      youtubeVideoId: 'yt2',
+      clipId: null
+    })
+    expect(t.repos.autopostRules.require(rule.id).twitchAccountIdsJson).toEqual([])
   })
 })
 

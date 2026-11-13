@@ -24,6 +24,7 @@ export function registerTwitchHandlers(): void {
   handle('twitch:remove', ({ id }) => twitch().remove(id))
 
   handle('clips:search', (input) => clips().search(input))
+  handle('clips:get', ({ id }) => clips().get(id))
   handle('clips:setHidden', ({ ids, hidden }) => clips().setHidden(ids, hidden))
   handle('clips:redownload', ({ ids }) => clips().redownload(ids))
   handle('clips:deleteLocal', ({ ids }) => clips().deleteLocal(ids))
