@@ -320,9 +320,10 @@ export function createAutopostService(deps: AutopostDeps) {
       input,
       channelTitle: account?.channelTitle ?? 'Removed channel',
       channelColor: account?.color ?? '#71717a',
-      twitchNames: rule.twitchAccountIdsJson
-        .map((id) => repos.twitchAccounts.get(id)?.displayName)
-        .filter((n): n is string => Boolean(n)),
+      twitchSources: rule.twitchAccountIdsJson.flatMap((id) => {
+        const t = repos.twitchAccounts.get(id)
+        return t ? [{ id: t.id, name: t.displayName, color: t.color }] : []
+      }),
       layoutName: preset?.name ?? null,
       nextSlotUtc:
         slotsBetween(input, now, new Date(now.getTime() + 8 * 86_400_000), zone)[0] ?? null,

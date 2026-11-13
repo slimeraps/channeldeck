@@ -9,6 +9,7 @@ import {
   Trash2
 } from 'lucide-react'
 import { useState } from 'react'
+import { CHANNEL_COLORS } from '@shared/constants/colors'
 import type { TwitchAccountView } from '@shared/schemas/twitch'
 import { ConnectTwitchDialog } from '@renderer/components/twitch/ConnectTwitchDialog'
 import { TwitchSetup } from '@renderer/components/twitch/TwitchSetup'
@@ -29,6 +30,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@renderer/components/ui/dropdown-menu'
@@ -52,7 +54,7 @@ function TwitchRow({
   onRemove: () => void
 }): React.JSX.Element {
   const reconnect = useReconnectTwitch()
-  const update = useTwitchAction((v: { id: number; syncEnabled: boolean }) =>
+  const update = useTwitchAction((v: { id: number; syncEnabled?: boolean; color?: string }) =>
     invoke('twitch:update', v)
   )
   const syncNow = useTwitchAction(
@@ -68,10 +70,17 @@ function TwitchRow({
       className={cn('rounded-lg border bg-card px-4 py-3', !account.syncEnabled && 'opacity-60')}
     >
       <div className="flex items-center gap-4">
-        <Avatar className="size-10">
-          {account.avatarUrl ? <AvatarImage src={account.avatarUrl} alt="" /> : null}
-          <AvatarFallback>{account.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
-        </Avatar>
+        <div className="relative">
+          <Avatar className="size-10">
+            {account.avatarUrl ? <AvatarImage src={account.avatarUrl} alt="" /> : null}
+            <AvatarFallback>{account.displayName.slice(0, 2).toUpperCase()}</AvatarFallback>
+          </Avatar>
+          <span
+            className="absolute -right-0.5 -bottom-0.5 size-3.5 rounded-full border-2 border-card"
+            style={{ backgroundColor: account.color }}
+            aria-hidden
+          />
+        </div>
         <div className="min-w-0 flex-1">
           <div className="flex items-center gap-2">
             <span className="truncate font-medium">{account.displayName}</span>
@@ -144,6 +153,25 @@ function TwitchRow({
             >
               <KeyRound aria-hidden /> Reconnect…
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuLabel className="text-xs font-normal text-muted-foreground">
+              Color
+            </DropdownMenuLabel>
+            <div className="flex gap-1.5 px-2 pb-2">
+              {CHANNEL_COLORS.map((color) => (
+                <button
+                  key={color}
+                  type="button"
+                  aria-label={`Color ${color}`}
+                  onClick={() => update.mutate({ id: account.id, color })}
+                  className={cn(
+                    'size-5 rounded-full border-2',
+                    color === account.color ? 'border-foreground' : 'border-transparent'
+                  )}
+                  style={{ backgroundColor: color }}
+                />
+              ))}
+            </div>
             <DropdownMenuSeparator />
             <DropdownMenuItem variant="destructive" onSelect={onRemove}>
               <Trash2 aria-hidden /> Remove…

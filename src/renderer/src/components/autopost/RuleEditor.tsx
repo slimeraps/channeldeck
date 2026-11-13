@@ -1,6 +1,6 @@
-import { useQueries, useQuery } from '@tanstack/react-query'
+import { useQuery } from '@tanstack/react-query'
 import { AlertTriangle, Clapperboard, Plus, Smartphone, X } from 'lucide-react'
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useState } from 'react'
 import type { AutopostFormat, AutopostMode, PickOrder } from '@shared/constants/enums'
 import {
   type RuleInput,
@@ -165,25 +165,20 @@ export function RuleEditor({
     staleTime: 5 * 60_000
   })
   // Games seen in the chosen channels' clips, for the game filter.
-  const gameLists = useQueries({
-    queries: input.twitchAccountIds.map((id) => ({
-      queryKey: ['clips', 'games', id],
-      queryFn: () =>
-        invoke('clips:search', {
-          twitchAccountId: id,
-          sort: 'oldest' as const,
-          includeHidden: false,
-          limit: 1,
-          offset: 0
-        }),
-      staleTime: 60_000
-    }))
+  const gameSearch = useQuery({
+    queryKey: ['clips', 'games', input.twitchAccountIds],
+    queryFn: () =>
+      invoke('clips:search', {
+        twitchAccountIds: input.twitchAccountIds,
+        sort: 'oldest',
+        includeHidden: false,
+        limit: 1,
+        offset: 0
+      }),
+    enabled: input.twitchAccountIds.length > 0,
+    staleTime: 60_000
   })
-  const games = useMemo(() => {
-    const map = new Map<string, string>()
-    for (const q of gameLists) for (const g of q.data?.games ?? []) map.set(g.id, g.name)
-    return [...map.entries()].sort((a, b) => a[1].localeCompare(b[1]))
-  }, [gameLists])
+  const games = (gameSearch.data?.games ?? []).map((g): [string, string] => [g.id, g.name])
 
   const parsed = ruleInputSchema.safeParse(input)
   const previewInput = useDebounced<RulePreviewInput | null>(
@@ -286,6 +281,11 @@ export function RuleEditor({
                           )
                         }
                       >
+                        <span
+                          className="size-2 rounded-full"
+                          style={{ background: a.color }}
+                          aria-hidden
+                        />
                         {a.displayName}
                       </Button>
                     )

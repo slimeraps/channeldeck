@@ -38,10 +38,12 @@ export function createLayoutsService(deps: LayoutsDeps) {
   const rendersRoot = (): string => join(repos.settings.getKey('clipsRoot'), '_renders')
 
   function toView(row: LayoutPresetRow): LayoutView {
+    const twitch = repos.twitchAccounts.get(row.twitchAccountId)
     return {
       id: row.id,
       twitchAccountId: row.twitchAccountId,
-      twitchName: repos.twitchAccounts.get(row.twitchAccountId)?.displayName ?? '?',
+      twitchName: twitch?.displayName ?? '?',
+      twitchColor: twitch?.color ?? '#71717a',
       name: row.name,
       kind: row.kind,
       crops: row.cropsJson,

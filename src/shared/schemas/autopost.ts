@@ -54,7 +54,8 @@ export const ruleViewSchema = z.object({
   input: ruleInputSchema,
   channelTitle: z.string(),
   channelColor: z.string(),
-  twitchNames: z.array(z.string()),
+  /** The rule's Twitch channels that are still connected, with their colors. */
+  twitchSources: z.array(z.object({ id, name: z.string(), color: z.string() })),
   layoutName: z.string().nullable(),
   nextSlotUtc: z.string().nullable(),
   /** Autoposts waiting for your approval. */
@@ -161,6 +162,7 @@ export const layoutViewSchema = z.object({
   id,
   twitchAccountId: id,
   twitchName: z.string(),
+  twitchColor: z.string(),
   name: z.string(),
   kind: z.enum(LAYOUT_KINDS),
   crops: layoutCropsSchema,

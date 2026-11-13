@@ -135,4 +135,35 @@ describe('openDatabase', () => {
     expect(upgraded.sqlite.pragma('foreign_keys', { simple: true })).toBe(1)
     upgraded.close()
   })
+  it('gives existing Twitch channels distinct colors when adding the color column', () => {
+    const dir = mkdtempSync(join(tmpdir(), 'channeldeck-mig-'))
+    dirs.push(dir)
+    const partial = join(dir, 'drizzle')
+    cpSync(MIGRATIONS_FOLDER, partial, { recursive: true })
+    const journalPath = join(partial, 'meta', '_journal.json')
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as { entries: { tag: string }[] }
+    const colorIndex = journal.entries.findIndex((e) => e.tag.startsWith('0006_'))
+    expect(colorIndex).toBeGreaterThan(0)
+    journal.entries = journal.entries.slice(0, colorIndex)
+    writeFileSync(journalPath, JSON.stringify(journal))
+
+    const file = tempDbFile()
+    const old = openDatabase({ file, migrationsFolder: partial })
+    old.sqlite.exec(`
+      INSERT INTO twitch_accounts (id, broadcaster_id, login, display_name, editor_id)
+        VALUES (5, 'b5', 'first', 'First', 'b5'), (9, 'b9', 'second', 'Second', 'b9'),
+               (12, 'b12', 'third', 'Third', 'b12');
+    `)
+    old.close()
+
+    const upgraded = openDatabase({ file, migrationsFolder: MIGRATIONS_FOLDER })
+    expect(
+      upgraded.sqlite.prepare('SELECT login, color FROM twitch_accounts ORDER BY id').all()
+    ).toEqual([
+      { login: 'first', color: '#6366f1' },
+      { login: 'second', color: '#f97316' },
+      { login: 'third', color: '#22c55e' }
+    ])
+    upgraded.close()
+  })
 })

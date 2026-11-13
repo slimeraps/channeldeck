@@ -42,6 +42,8 @@ export const twitchAccountViewSchema = z.object({
   login: z.string(),
   displayName: z.string(),
   avatarUrl: z.string().nullable(),
+  /** "#rrggbb", shown on its clips, tabs and autopost rules. */
+  color: z.string(),
   /** Signed in as an editor rather than the broadcaster. */
   viaEditor: z.boolean(),
   authFlow: z.enum(['auth_code', 'device_code']),
@@ -75,7 +77,8 @@ export const deviceCodeEventSchema = z.object({
 
 export const clipSearchSchema = z
   .object({
-    twitchAccountId: z.number().int().positive(),
+    /** Which Twitch channels; leave out for all of them. */
+    twitchAccountIds: z.array(z.number().int().positive()).max(50).optional(),
     sort: z.enum(PICK_ORDERS),
     gameId: z.string().max(40).optional(),
     minDurationSec: z.number().min(0).max(3600).optional(),
@@ -95,6 +98,9 @@ export type ClipSearchInput = z.infer<typeof clipSearchSchema>
 
 export const clipViewSchema = z.object({
   id: z.string(),
+  twitchAccountId: z.number().int(),
+  twitchName: z.string(),
+  twitchColor: z.string(),
   title: z.string(),
   gameName: z.string().nullable(),
   creatorName: z.string().nullable(),

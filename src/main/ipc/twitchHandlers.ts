@@ -14,7 +14,9 @@ export function registerTwitchHandlers(): void {
   handle('twitch:connect', (input) => twitch().connect(input))
   handle('twitch:cancelConnect', () => ({ canceled: twitch().cancelConnect() }))
   handle('twitch:reconnect', ({ id }) => twitch().reconnect(id))
-  handle('twitch:update', ({ id, syncEnabled }) => twitch().update(id, { syncEnabled }))
+  handle('twitch:update', ({ id, syncEnabled, color }) =>
+    twitch().update(id, { syncEnabled, color })
+  )
   handle('twitch:syncNow', ({ id }) => {
     twitch().syncNow(id)
     return { started: true }

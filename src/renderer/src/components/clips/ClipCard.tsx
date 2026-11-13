@@ -18,12 +18,15 @@ export function ClipCard({
   clip,
   selected,
   onToggle,
-  onOpen
+  onOpen,
+  showChannel = false
 }: {
   clip: ClipView
   selected: boolean
   onToggle: () => void
   onOpen: () => void
+  /** Label the Twitch channel (the All channels view). */
+  showChannel?: boolean
 }): React.JSX.Element {
   const date = new Date(clip.createdAtUtc).toLocaleDateString(undefined, {
     year: 'numeric',
@@ -41,6 +44,22 @@ export function ClipCard({
       <div className="relative aspect-video cursor-pointer bg-muted" onClick={onOpen}>
         {clip.thumbnailUrl ? (
           <img src={clip.thumbnailUrl} alt="" loading="lazy" className="size-full object-cover" />
+        ) : null}
+        {/* The Twitch channel's color, so mixed clips stay easy to tell apart. */}
+        <span
+          className="absolute inset-x-0 top-0 h-1"
+          style={{ backgroundColor: clip.twitchColor }}
+          aria-hidden
+        />
+        {showChannel ? (
+          <span className="absolute bottom-1.5 left-1.5 flex max-w-[70%] items-center gap-1 rounded bg-black/80 px-1.5 text-[11px] text-white">
+            <span
+              className="size-2 shrink-0 rounded-full"
+              style={{ backgroundColor: clip.twitchColor }}
+              aria-hidden
+            />
+            <span className="truncate">{clip.twitchName}</span>
+          </span>
         ) : null}
         <span className="absolute right-1.5 bottom-1.5 rounded bg-black/80 px-1 text-[11px] text-white tabular-nums">
           {formatDuration(clip.durationSec)}

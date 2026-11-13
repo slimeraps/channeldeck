@@ -78,6 +78,8 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Full backfill from a start date, resumable after a quit
 - ✅ Downloads landscape and portrait files, thumbnail and metadata, named so Finder sorts oldest to newest
 - ✅ Clips page: sort, filter (game, length, views, featured, posted, dates, title), preview, bulk actions, disk usage
+- ✅ A color per Twitch channel (picked on the Channels page, like YouTube channels), shown on clip cards, Clips tabs, autopost rules and layouts
+- ✅ **All channels** view on the Clips page: sort, filter and bulk-select clips from every channel at once, or pick a few channels to show
 - ✅ Add clips as draft posts to any YouTube channel; a clip can never be added twice to the same channel
 
 ### Autoposting
@@ -182,6 +184,13 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
 ### Unreleased
+
+#### Clips patch: Twitch channel colors and All channels view (2026-11-13)
+
+- Added a color for each Twitch channel, chosen from the same palette as YouTube channels (Channels page → ⋯ → Color). Existing channels got different starting colors.
+- Clip cards show a strip in their channel's color, and the channel name in the All channels view.
+- Added an **All channels** tab to the Clips page (the default with more than one channel). Sorting, filters and bulk actions work across channels, and **Show** chips narrow it to the channels you pick.
+- Autopost rules and layouts show their Twitch channels' colors.
 
 #### Phase 7: Autoposting (2026-11-13)
 

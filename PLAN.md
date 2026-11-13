@@ -155,8 +155,8 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 
 Requested by Cody on 2026-11-13.
 
-- [ ] Channel colors for Twitch clips: each Twitch account gets a color (picker on the Channels page, like YouTube channels), shown on clip cards, account tabs, and autopost rule sources
-- [ ] Easier sorting by account: an **All channels** view on the Clips page next to the per-account tabs, with an account filter and sort that work across all accounts
+- [x] Channel colors for Twitch clips: each Twitch account gets a color (picker on the Channels page, like YouTube channels), shown on clip cards, account tabs, and autopost rule sources
+- [x] Easier sorting by account: an **All channels** view on the Clips page next to the per-account tabs, with an account filter and sort that work across all accounts
 
 ## Phase 8 — Calendar, templates and series
 
