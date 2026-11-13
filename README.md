@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.1.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.2.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -222,7 +222,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
-### Unreleased
+### 1.2.0 (2026-11-13)
 
 - Added **From clip library…** to the post editor: pick a banked Twitch clip as the video. Title and "Clipped by" credit fill in, and the post stays linked to the clip.
 - Added **Post…** to every clip on the Clips page (and **Post this clip…** in the preview), opening the editor with that clip.
