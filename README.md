@@ -178,6 +178,11 @@ No version numbers yet; the first version is tagged when all phases are complete
 
 ### Unreleased
 
+#### Fixes from the release branch (2026-11-13)
+
+- Fixed: saving an edited post to the queue or back to drafts now saves the edits and the status change together, so a failed status change can't leave half-saved edits.
+- Removed an unused npm package (`cn`).
+
 #### Phase 6: Twitch connect and clip bank (2026-11-12)
 
 - Added Twitch sign-in as the broadcaster or as an editor, with your own Twitch app (Client ID + Secret kept in the Keychain) or device-code sign-in without a secret.
