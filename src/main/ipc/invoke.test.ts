@@ -1,5 +1,5 @@
 import { describe, expect, it, type Mock, vi } from 'vitest'
-import { createInvokeHandler } from './invoke'
+import { createGatedHandler, createInvokeHandler } from './invoke'
 
 type LogFn = (...args: unknown[]) => void
 
@@ -67,5 +67,73 @@ describe('createInvokeHandler', () => {
       error: { code: 'internal', message: 'app:openLogsFolder failed. Details are in the log.' }
     })
     expect(logger.error).toHaveBeenCalledOnce()
+  })
+})
+
+describe('createGatedHandler (sender check)', () => {
+  const devOrigin = { devServerUrl: 'http://localhost:5173' }
+  const packagedOrigin = { devServerUrl: undefined }
+  const forbidden = {
+    ok: false,
+    error: { code: 'forbidden', message: 'This sender may not call ChannelDeck IPC.' }
+  }
+
+  it('refuses a sender from another page and never runs the handler', async () => {
+    const logger = fakeLogger()
+    const handler = vi.fn()
+    const gated = createGatedHandler('app:ping', handler, logger, () => devOrigin)
+
+    const result = await gated(
+      { senderFrame: { url: 'https://evil.example/index.html' } },
+      { message: 'hi' }
+    )
+    expect(result).toEqual(forbidden)
+    expect(handler).not.toHaveBeenCalled()
+    expect(logger.warn).toHaveBeenCalledOnce()
+  })
+
+  it('refuses a missing or destroyed sender frame', async () => {
+    const handler = vi.fn()
+    const gated = createGatedHandler('app:ping', handler, fakeLogger(), () => devOrigin)
+    expect(await gated({ senderFrame: null }, { message: 'hi' })).toEqual(forbidden)
+    expect(await gated({}, { message: 'hi' })).toEqual(forbidden)
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('refuses everything until the app origin has been set', async () => {
+    const handler = vi.fn()
+    const gated = createGatedHandler('app:ping', handler, fakeLogger(), () => null)
+    const result = await gated(
+      { senderFrame: { url: 'http://localhost:5173/' } },
+      { message: 'hi' }
+    )
+    expect(result).toEqual(forbidden)
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('refuses a file:// page when packaged only if it is not our renderer', async () => {
+    const handler = vi.fn()
+    const gated = createGatedHandler('app:ping', handler, fakeLogger(), () => packagedOrigin)
+    const other = { senderFrame: { url: 'file:///Users/cody/Downloads/page.html' } }
+    expect(await gated(other, { message: 'hi' })).toEqual(forbidden)
+    expect(handler).not.toHaveBeenCalled()
+  })
+
+  it('lets our own renderer through (dev server and packaged)', async () => {
+    const handler = vi.fn((input: { message: string }) => ({
+      reply: input.message,
+      receivedAt: '2026-11-12T00:00:00.000Z'
+    }))
+    const dev = createGatedHandler('app:ping', handler, fakeLogger(), () => devOrigin)
+    const packaged = createGatedHandler('app:ping', handler, fakeLogger(), () => packagedOrigin)
+
+    const fromDev = await dev({ senderFrame: { url: 'http://localhost:5173/' } }, { message: 'a' })
+    const fromApp = await packaged(
+      { senderFrame: { url: 'file:///Applications/ChannelDeck.app/out/renderer/index.html' } },
+      { message: 'b' }
+    )
+    expect(fromDev.ok).toBe(true)
+    expect(fromApp.ok).toBe(true)
+    expect(handler).toHaveBeenCalledTimes(2)
   })
 })
