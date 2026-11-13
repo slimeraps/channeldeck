@@ -74,6 +74,35 @@ export function clipTemplateValues(
   }
 }
 
+// ---- manual posts: templates and series ------------------------------------------------
+
+export const POST_TEMPLATE_VARS = [
+  { name: 'n', label: 'Series number (set when queued)' },
+  { name: 'date', label: 'Publish date' },
+  { name: 'channel', label: 'Channel name' }
+] as const
+export type PostTemplateVar = (typeof POST_TEMPLATE_VARS)[number]['name']
+
+const POST_VAR = /\{\{\s*(n|date|channel)\s*\}\}/g
+
+/** Whether text still has {{n}}, {{date}} or {{channel}} to fill in. */
+export function hasPostVariables(text: string): boolean {
+  return new RegExp(POST_VAR.source).test(text)
+}
+
+/** Fills in the post variables it has values for; the rest stay as typed. */
+export function renderPostVariables(
+  text: string,
+  values: Partial<Record<PostTemplateVar, string>>
+): string {
+  return text.replace(POST_VAR, (whole, name: PostTemplateVar) => values[name] ?? whole)
+}
+
+/** {{date}}: the local publish date ("Nov 14, 2026"). */
+export function postDateLabel(at: Date, zone: string): string {
+  return DateTime.fromJSDate(at, { zone }).setLocale('en-US').toLocaleString(DateTime.DATE_MED)
+}
+
 /** One line, no < or >, at most 100 characters (cut at a word boundary with …). */
 export function finalizeTitle(raw: string, fallback = 'Untitled clip'): string {
   const clean = raw.replace(/[<>]/g, '').replace(/\s+/g, ' ').trim()

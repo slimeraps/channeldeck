@@ -160,12 +160,12 @@ Requested by Cody on 2026-11-13.
 
 ## Phase 8 — Calendar, templates and series
 
-- [ ] Calendar week + month views, colored by channel, clip icon on autoposts
-- [ ] Drag to reschedule (confirm + `videos.update` when already uploaded); click empty slot → new post at that time
-- [ ] Templates page: manual templates with `{{n}}`, `{{date}}`, `{{channel}}`
-- [ ] Series: template + next number (e.g. "MW4 Day {{n}}", next 9); number consumed only when a post is queued; editing the counter allowed
-- [ ] Duplicate to another channel (editor action + queue row)
-- [ ] Swap clip for autoposts (before upload only)
+- [x] Calendar week + month views, colored by channel, clip icon on autoposts
+- [x] Drag to reschedule (confirm + `videos.update` when already uploaded); click empty slot → new post at that time
+- [x] Templates page: manual templates with `{{n}}`, `{{date}}`, `{{channel}}`
+- [x] Series: template + next number (e.g. "MW4 Day {{n}}", next 9); number consumed only when a post is queued; editing the counter allowed
+- [x] Duplicate to another channel (editor action + queue row)
+- [x] Swap clip for autoposts (before upload only)
 
 **Acceptance:** tests for series counter (no double use on draft/cancel), template rendering, reschedule path. By hand: drag a scheduled video to tomorrow and confirm YouTube Studio shows the new time.
 

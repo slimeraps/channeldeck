@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Loader2, RefreshCw } from 'lucide-react'
+import { ChevronDown, Copy, Loader2, RefreshCw } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { DESCRIPTION_MAX_BYTES, TITLE_MAX_CHARS } from '@shared/constants/limits'
@@ -21,6 +21,7 @@ import {
 import { MediaPanel } from '@renderer/components/post-editor/MediaPanel'
 import { PublishTimeField } from '@renderer/components/post-editor/PublishTimeField'
 import { TagInput } from '@renderer/components/post-editor/TagInput'
+import { TemplatePicker } from '@renderer/components/post-editor/TemplatePicker'
 import { ThumbnailPicker } from '@renderer/components/post-editor/ThumbnailPicker'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
@@ -31,6 +32,12 @@ import {
   DialogHeader,
   DialogTitle
 } from '@renderer/components/ui/dialog'
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger
+} from '@renderer/components/ui/dropdown-menu'
 import { Input } from '@renderer/components/ui/input'
 import { Label } from '@renderer/components/ui/label'
 import { RadioGroup, RadioGroupItem } from '@renderer/components/ui/radio-group'
@@ -44,7 +51,7 @@ import {
 import { Switch } from '@renderer/components/ui/switch'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { accountsKey, useAccounts } from '@renderer/hooks/useAccounts'
-import { postsKey, usePostDetail } from '@renderer/hooks/usePosts'
+import { postsKey, useDuplicatePost, usePostDetail } from '@renderer/hooks/usePosts'
 import { invoke } from '@renderer/lib/ipc'
 import { STATUS_LABELS, VISIBILITY_LABELS } from '@renderer/lib/status'
 import { cn } from '@renderer/lib/utils'
@@ -169,16 +176,22 @@ interface FormProps {
   /** A video dropped on the window before the editor opened, already inspected. */
   initialMedia: MediaInfo | null
   initialMediaError: string | null
+  /** A publish time picked in the calendar. */
+  initialPublishAtUtc: string | null
   onClose: () => void
 }
 
 function initialInput(
   detail: PostDetail | null,
   usable: AccountView[],
-  initialMedia: MediaInfo | null
+  initialMedia: MediaInfo | null,
+  initialPublishAtUtc: string | null
 ): PostInput {
   if (detail) return detail.input
   let input = emptyInput()
+  if (initialPublishAtUtc) {
+    input = { ...input, visibilityMode: 'schedule', publishAtUtc: initialPublishAtUtc }
+  }
   const first = usable.find((a) => a.enabled && a.tokenStatus === 'ok') ?? usable[0]
   if (first) input = applyDefaults(input, first, new Set())
   if (initialMedia) input = withVideo(input, initialMedia)
@@ -190,11 +203,16 @@ function PostEditorForm({
   usable,
   initialMedia,
   initialMediaError,
+  initialPublishAtUtc,
   onClose
 }: FormProps): React.JSX.Element {
   const qc = useQueryClient()
+  const duplicate = useDuplicatePost()
+  const openEditPost = useUiStore((s) => s.openEditPost)
 
-  const [input, setInput] = useState<PostInput>(() => initialInput(detail, usable, initialMedia))
+  const [input, setInput] = useState<PostInput>(() =>
+    initialInput(detail, usable, initialMedia, initialPublishAtUtc)
+  )
   const [media, setMedia] = useState<MediaInfo | null>(detail?.media ?? initialMedia)
   const [thumbnail, setThumbnail] = useState<ThumbnailInfo | null>(detail?.thumbnail ?? null)
   const [touched, setTouched] = useState<Set<keyof PostInput>>(
@@ -393,6 +411,12 @@ function PostEditorForm({
                 </SelectContent>
               </Select>
             </Field>
+
+            <TemplatePicker
+              input={input}
+              channelTitle={account?.channelTitle ?? ''}
+              onChange={(patch) => setInput((prev) => ({ ...prev, ...patch }))}
+            />
 
             <Field
               label="Title"
@@ -654,9 +678,40 @@ function PostEditorForm({
           {queueErrorCount > 0
             ? `${queueErrorCount} thing${queueErrorCount === 1 ? '' : 's'} to fix before this can be queued.`
             : account
-              ? `Posting to ${account.channelTitle}. Nothing uploads until Phase 4.`
+              ? `Posting to ${account.channelTitle}.`
               : ''}
         </p>
+        {detail && usable.length > 1 ? (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" title="Copies the saved version as a draft">
+                <Copy aria-hidden /> Duplicate to…
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              {usable
+                .filter((a) => a.id !== input.accountId)
+                .map((a) => (
+                  <DropdownMenuItem
+                    key={a.id}
+                    onSelect={() =>
+                      duplicate.mutate(
+                        { id: detail.id, accountId: a.id },
+                        { onSuccess: (copy) => openEditPost(copy.id) }
+                      )
+                    }
+                  >
+                    <span
+                      className="size-2 rounded-full"
+                      style={{ background: a.color }}
+                      aria-hidden
+                    />
+                    {a.channelTitle}
+                  </DropdownMenuItem>
+                ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        ) : null}
         <Button variant="ghost" onClick={onClose}>
           {readOnly ? 'Close' : 'Cancel'}
         </Button>
@@ -722,6 +777,7 @@ export function PostEditor(): React.JSX.Element | null {
             usable={accounts.data ?? []}
             initialMedia={dropped.data ?? null}
             initialMediaError={dropped.isError ? dropped.error.message : null}
+            initialPublishAtUtc={editor.initialPublishAtUtc}
             onClose={close}
           />
         )}

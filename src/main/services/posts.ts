@@ -3,6 +3,7 @@ import { existsSync } from 'node:fs'
 import { basename, isAbsolute } from 'node:path'
 import { isThumbnailPath, isVideoPath, THUMBNAIL_MAX_BYTES } from '@shared/constants/limits'
 import type { PostStatus } from '@shared/constants/enums'
+import { accountDefaultsSchema } from '@shared/schemas/account'
 import {
   hasErrors,
   type MediaInfo,
@@ -14,6 +15,13 @@ import {
   type ThumbnailInfo,
   validatePost
 } from '@shared/schemas/post'
+import {
+  finalizeDescription,
+  finalizeTitle,
+  hasPostVariables,
+  postDateLabel,
+  renderPostVariables
+} from '@shared/templates'
 import { type Clock, systemClock } from '../db/repos/common'
 import type { Repos } from '../db/repos'
 import type { PostRow, PostFields } from '../db/repos/posts'
@@ -41,6 +49,8 @@ export interface PostsServiceDeps {
   /** YouTube calls for a channel (real or Dry Run). Needed for actions on uploaded videos. */
   withApi?: <T>(accountId: number, fn: (api: YouTubeApi) => Promise<T>) => Promise<T>
   clock?: Clock
+  /** IANA zone for {{date}} (default: the Mac's). */
+  zone?: string
 }
 
 /** Statuses the editor may change. Later phases widen this (failed, needs_decision...). */
@@ -59,6 +69,7 @@ export type PostsService = ReturnType<typeof createPostsService>
 export function createPostsService(deps: PostsServiceDeps) {
   const { repos, media } = deps
   const clock = deps.clock ?? systemClock
+  const zone = deps.zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
 
   function toMediaInfo(probe: ProbeResult): MediaInfo {
     media.grant(probe.path)
@@ -165,8 +176,34 @@ export function createPostsService(deps: PostsServiceDeps) {
       syntheticMedia: post.syntheticMedia,
       visibilityMode: post.visibilityMode,
       publishAtUtc: post.publishAtUtc,
-      missedPolicy: post.missedPolicy
+      missedPolicy: post.missedPolicy,
+      templateId: post.templateId,
+      seriesId: post.seriesId
     }
+  }
+
+  /**
+   * Going into the queue: take the series number (once; a post keeps it if it goes back to
+   * drafts and is queued again) and fill in {{n}}, {{date}} and {{channel}}.
+   */
+  function fillVariables(post: PostRow): PostRow {
+    const text = `${post.title}\n${post.description}`
+    const needsNumber = post.seriesId !== null && post.seriesNumber === null
+    if (!needsNumber && !hasPostVariables(text)) return post
+    const number = needsNumber
+      ? repos.series.takeNextNumber(post.seriesId as number)
+      : post.seriesNumber
+    const account = repos.accounts.get(post.accountId)
+    const values = {
+      ...(number !== null ? { n: String(number) } : {}),
+      date: postDateLabel(new Date(post.publishAtUtc ?? clock().toISOString()), zone),
+      channel: account?.channelTitle ?? ''
+    }
+    return repos.posts.update(post.id, {
+      seriesNumber: number,
+      title: finalizeTitle(renderPostVariables(post.title, values)),
+      description: finalizeDescription(renderPostVariables(post.description, values))
+    })
   }
 
   /** When the upload may start: lead time before a scheduled publish, otherwise right away. */
@@ -263,6 +300,8 @@ export function createPostsService(deps: PostsServiceDeps) {
       visibilityMode: clean.visibilityMode,
       publishAtUtc: clean.publishAtUtc,
       missedPolicy: clean.missedPolicy,
+      templateId: clean.templateId ?? null,
+      seriesId: clean.seriesId ?? null,
       uploadAfterUtc: mode === 'queue' ? uploadAfter(clean, now) : null
     }
   }
@@ -355,7 +394,9 @@ export function createPostsService(deps: PostsServiceDeps) {
           : undefined
       const fields = {
         ...(await buildFields(input, mode, pendingRender)),
-        ...(before?.renderJson && input.filePath !== before.filePath ? { renderJson: null } : {})
+        ...(before?.renderJson && input.filePath !== before.filePath ? { renderJson: null } : {}),
+        // A different series means a different number.
+        ...(before && before.seriesId !== (input.seriesId ?? null) ? { seriesNumber: null } : {})
       }
       let post: PostRow
       if (!id) {
@@ -384,6 +425,7 @@ export function createPostsService(deps: PostsServiceDeps) {
           post = repos.posts.update(id, fields)
         }
       }
+      if (post.status === 'queued') post = fillVariables(post)
       if (post.filePath) media.grant(post.filePath)
       if (post.thumbnailPath) media.grant(post.thumbnailPath)
       deps.emitChanged()
@@ -391,11 +433,28 @@ export function createPostsService(deps: PostsServiceDeps) {
       return toListItem(post, accountLookup())
     },
 
-    duplicate(id: string): PostListItem {
+    /**
+     * A draft copy, on the same channel or another one. On the same channel it's a plain
+     * manual post (no clip link, which never-twice would refuse). On another channel a
+     * Twitch clip keeps its link, so never-twice still protects that channel.
+     */
+    duplicate(id: string, accountId?: number): PostListItem {
       const source = repos.posts.require(id)
+      const target = accountId ?? source.accountId
+      const otherChannel = target !== source.accountId
+      let channelDefaults: { playlistId?: string | undefined } = {}
+      if (otherChannel) {
+        const account = repos.accounts.get(target)
+        if (!account || account.removedAt) throw new UserFacingError('Pick a connected channel.')
+        const parsed = accountDefaultsSchema.safeParse(account.defaultsJson)
+        if (parsed.success) channelDefaults = parsed.data
+      }
+      const series = source.seriesId ? repos.series.get(source.seriesId) : undefined
+      const keepSeries = series && (series.accountId === null || series.accountId === target)
+      const keepClip = otherChannel && source.clipId !== null
       const copy = repos.posts.create({
         ...toInput(source),
-        accountId: source.accountId,
+        accountId: target,
         tagsJson: source.tagsJson,
         fileSize: source.fileSize,
         fileMtime: source.fileMtime,
@@ -403,8 +462,13 @@ export function createPostsService(deps: PostsServiceDeps) {
         width: source.width,
         height: source.height,
         isShort: source.isShort,
-        // A copy is always a fresh manual draft: no clip link (never-twice) and no YouTube id.
-        source: 'manual',
+        // Not rendered yet? The copy renders the same way when it's uploaded.
+        renderJson: source.renderJson,
+        // Playlists belong to a channel.
+        playlistId: otherChannel ? (channelDefaults.playlistId ?? null) : source.playlistId,
+        seriesId: keepSeries ? source.seriesId : null,
+        source: keepClip ? 'twitch_clip' : 'manual',
+        clipId: keepClip ? source.clipId : null,
         status: 'draft'
       })
       deps.emitChanged()
