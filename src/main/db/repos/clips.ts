@@ -51,7 +51,9 @@ export type ClipLocalPatch = Partial<
 >
 
 export interface ClipSearch {
-  twitchAccountId: number
+  /** One channel, or several (twitchAccountIds); neither = every channel. */
+  twitchAccountId?: number
+  twitchAccountIds?: number[]
   sort: PickOrder
   gameId?: string
   minDurationSec?: number
@@ -90,7 +92,8 @@ export interface ClipsRepo {
   setHidden(ids: string[], hidden: boolean): void
   countForAccount(twitchAccountId: number): number
   search(query: ClipSearch): { items: ClipRow[]; total: number }
-  gamesForAccount(twitchAccountId: number): { id: string; name: string }[]
+  /** Games in these channels' clips (all channels when no ids are given). */
+  gamesFor(twitchAccountIds?: number[]): { id: string; name: string }[]
   stats(twitchAccountId: number): ClipStats
   /** Clips that should download now: pending, or failed and past their retry time. */
   dueDownloads(
@@ -207,7 +210,11 @@ export function createClipsRepo(db: Db, clock: Clock): ClipsRepo {
     },
 
     search(q) {
-      const filters: SQL[] = [eq(clips.twitchAccountId, q.twitchAccountId)]
+      const filters: SQL[] = []
+      if (q.twitchAccountId !== undefined)
+        filters.push(eq(clips.twitchAccountId, q.twitchAccountId))
+      else if (q.twitchAccountIds?.length)
+        filters.push(inArray(clips.twitchAccountId, q.twitchAccountIds))
       if (!q.includeHidden) filters.push(eq(clips.hidden, false))
       if (q.gameId) filters.push(eq(clips.gameId, q.gameId))
       if (q.minDurationSec !== undefined) filters.push(gte(clips.durationSec, q.minDurationSec))
@@ -246,13 +253,13 @@ export function createClipsRepo(db: Db, clock: Clock): ClipsRepo {
       return { items, total }
     },
 
-    gamesForAccount(twitchAccountId) {
+    gamesFor(twitchAccountIds) {
       return db
         .selectDistinct({ id: clips.gameId, name: clips.gameName })
         .from(clips)
         .where(
           and(
-            eq(clips.twitchAccountId, twitchAccountId),
+            twitchAccountIds?.length ? inArray(clips.twitchAccountId, twitchAccountIds) : undefined,
             sql`${clips.gameId} IS NOT NULL AND ${clips.gameId} <> ''`
           )
         )

@@ -141,6 +141,20 @@ describe('connecting Twitch', () => {
     expect(t.repos.twitchAccounts.require(view.id).editorId).toBe('1001')
   })
 
+  it('gives each new channel the next unused color, and lets you change it', async () => {
+    const first = await service.connect({ mode: 'broadcaster', backfillFromUtc: null })
+    twitch.codeGrant = { userId: '1001', scopes: ['editor:manage:clips'] }
+    twitch.editors.set('1001', ['2002'])
+    const second = await service.connect({
+      mode: 'editor',
+      channelLogin: 'otherstreamer',
+      backfillFromUtc: null
+    })
+    expect([first.color, second.color]).toEqual(['#6366f1', '#f97316'])
+    expect(service.update(first.id, { color: '#ef4444' }).color).toBe('#ef4444')
+    expect(service.list().map((a) => a.color)).toEqual(['#ef4444', '#f97316'])
+  })
+
   it('rejects a sign-in that did not grant the clip scope', async () => {
     twitch.codeGrant = { userId: '1001', scopes: ['user:read:email'] }
     await expect(service.connect({ mode: 'broadcaster', backfillFromUtc: null })).rejects.toThrow(

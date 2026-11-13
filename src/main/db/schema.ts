@@ -76,6 +76,8 @@ export const twitchAccounts = sqliteTable('twitch_accounts', {
   login: text('login').notNull(),
   displayName: text('display_name').notNull(),
   avatarUrl: text('avatar_url'),
+  /** Color for this channel's clips and sources, "#rrggbb" (like YouTube channels). */
+  color: text('color').notNull().default('#6366f1'),
   /** The user who authorized: the broadcaster or one of their editors. */
   editorId: text('editor_id').notNull(),
   authFlow: text('auth_flow', { enum: TWITCH_AUTH_FLOWS }).notNull().default('auth_code'),

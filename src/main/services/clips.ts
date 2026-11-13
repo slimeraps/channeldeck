@@ -43,9 +43,17 @@ export function createClipsService(deps: ClipsServiceDeps) {
     return mediaUrl(path)
   }
 
-  function toView(clip: ClipRow, postsByClip: Map<string, ClipView['posts']>): ClipView {
+  function toView(
+    clip: ClipRow,
+    postsByClip: Map<string, ClipView['posts']>,
+    twitch: Map<number, { displayName: string; color: string }>
+  ): ClipView {
+    const source = twitch.get(clip.twitchAccountId)
     return {
       id: clip.id,
+      twitchAccountId: clip.twitchAccountId,
+      twitchName: source?.displayName ?? 'Removed channel',
+      twitchColor: source?.color ?? '#71717a',
       title: clip.title,
       gameName: clip.gameName,
       creatorName: clip.creatorName,
@@ -99,10 +107,11 @@ export function createClipsService(deps: ClipsServiceDeps) {
         ...(input.titleSearch ? { titleSearch: input.titleSearch } : {})
       })
       const posts = postsFor(items.map((c) => c.id))
+      const twitch = new Map(repos.twitchAccounts.list().map((a) => [a.id, a]))
       return {
-        items: items.map((c) => toView(c, posts)),
+        items: items.map((c) => toView(c, posts, twitch)),
         total,
-        games: repos.clips.gamesForAccount(input.twitchAccountId)
+        games: repos.clips.gamesFor(input.twitchAccountIds)
       }
     },
 

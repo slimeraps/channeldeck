@@ -73,6 +73,7 @@ function ClipPreview({
           <DialogTitle className="pr-6">{clip.title}</DialogTitle>
           <DialogDescription>
             {[
+              clip.twitchName,
               clip.gameName,
               `${clip.viewCount.toLocaleString()} views`,
               clip.creatorName ? `clipped by ${clip.creatorName}` : null,
@@ -117,9 +118,26 @@ export function ClipsPage(): React.JSX.Element {
   const setPage = useUiStore((s) => s.setPage)
   const accounts = twitch.data ?? []
 
-  const [accountId, setAccountId] = useState<number | null>(null)
-  const activeId = accountId ?? accounts[0]?.id ?? null
-  const active = accounts.find((a) => a.id === activeId) ?? null
+  // 'all' = every channel at once (the default with more than one), or one channel's id.
+  const [chosenView, setView] = useState<'all' | number | null>(null)
+  const view: 'all' | number | null =
+    chosenView ?? (accounts.length > 1 ? 'all' : (accounts[0]?.id ?? null))
+  /** In the All view: channels to show (empty = all of them). */
+  const [shown, setShown] = useState<number[]>([])
+  const scope =
+    view === 'all'
+      ? accounts.filter((a) => shown.length === 0 || shown.includes(a.id))
+      : accounts.filter((a) => a.id === view)
+  const scopeStats = scope.reduce(
+    (sum, a) => ({
+      total: sum.total + a.stats.total,
+      downloaded: sum.downloaded + a.stats.downloaded,
+      bytes: sum.bytes + a.stats.bytesOnDisk
+    }),
+    { total: 0, downloaded: 0, bytes: 0 }
+  )
+  const backfilling = scope.filter((a) => a.backfill)
+  const busy = scope.some((a) => a.backfill || a.syncing)
 
   const [sort, setSort] = useState<PickOrder>('oldest')
   const [title, setTitle] = useState('')
@@ -132,9 +150,10 @@ export function ClipsPage(): React.JSX.Element {
   const [confirmDelete, setConfirmDelete] = useState(false)
 
   const query: ClipSearchInput | null = useMemo(() => {
-    if (activeId === null) return null
+    if (view === null) return null
+    const ids = view === 'all' ? shown : [view]
     return {
-      twitchAccountId: activeId,
+      ...(ids.length > 0 ? { twitchAccountIds: ids } : {}),
       sort,
       limit,
       offset: 0,
@@ -149,7 +168,7 @@ export function ClipsPage(): React.JSX.Element {
       ...(filters.to ? { toUtc: new Date(`${filters.to}T23:59:59`).toISOString() } : {}),
       ...(filters.includeHidden ? { includeHidden: true } : {})
     }
-  }, [activeId, sort, limit, title, filters])
+  }, [view, shown, sort, limit, title, filters])
 
   const clips = useClipSearch(query)
   const ids = [...selected]
@@ -196,38 +215,118 @@ export function ClipsPage(): React.JSX.Element {
 
   return (
     <div className="space-y-4 px-8 py-6">
-      {/* Account tabs + disk meter */}
+      {/* Channel tabs + disk meter */}
       <div className="flex flex-wrap items-center gap-2">
-        {accounts.map((a) => (
+        {accounts.length > 1 ? (
           <button
-            key={a.id}
             type="button"
             onClick={() => {
-              setAccountId(a.id)
+              setView('all')
               clear()
               setLimit(PAGE)
             }}
             className={cn(
               'rounded-md px-3 py-1.5 text-sm transition-colors',
-              a.id === activeId
+              view === 'all'
                 ? 'bg-secondary font-medium'
                 : 'text-muted-foreground hover:text-foreground'
             )}
           >
+            All channels
+            <span className="ml-1.5 text-xs text-muted-foreground">
+              {accounts.reduce((n, a) => n + a.stats.total, 0)}
+            </span>
+          </button>
+        ) : null}
+        {accounts.map((a) => (
+          <button
+            key={a.id}
+            type="button"
+            onClick={() => {
+              setView(a.id)
+              clear()
+              setLimit(PAGE)
+            }}
+            className={cn(
+              'flex items-center gap-1.5 rounded-md px-3 py-1.5 text-sm transition-colors',
+              a.id === view
+                ? 'bg-secondary font-medium'
+                : 'text-muted-foreground hover:text-foreground'
+            )}
+          >
+            <span
+              className="size-2 rounded-full"
+              style={{ backgroundColor: a.color }}
+              aria-hidden
+            />
             {a.displayName}
-            <span className="ml-1.5 text-xs text-muted-foreground">{a.stats.total}</span>
+            <span className="text-xs text-muted-foreground">{a.stats.total}</span>
           </button>
         ))}
-        {active ? (
+        {scope.length > 0 ? (
           <span className="ml-auto text-xs text-muted-foreground">
-            {formatBytes(active.stats.bytesOnDisk)} on disk · {active.stats.downloaded}/
-            {active.stats.total} downloaded
-            {active.backfill
-              ? ` · backfilling ${active.backfill.windowsDone}/${active.backfill.windowsTotal} weeks`
-              : ''}
+            {formatBytes(scopeStats.bytes)} on disk · {scopeStats.downloaded}/{scopeStats.total}{' '}
+            downloaded
+            {backfilling.length === 1 && backfilling[0]?.backfill
+              ? ` · backfilling ${backfilling[0].backfill.windowsDone}/${backfilling[0].backfill.windowsTotal} weeks`
+              : backfilling.length > 1
+                ? ` · ${backfilling.length} channels backfilling`
+                : ''}
           </span>
         ) : null}
       </div>
+
+      {/* All channels: pick which ones to show */}
+      {view === 'all' ? (
+        <div className="flex flex-wrap items-center gap-1.5 text-xs">
+          <span className="mr-1 text-muted-foreground">Show</span>
+          {accounts.map((a) => {
+            const on = shown.length === 0 || shown.includes(a.id)
+            return (
+              <button
+                key={a.id}
+                type="button"
+                aria-pressed={shown.includes(a.id)}
+                onClick={() => {
+                  setShown((current) => {
+                    const next = current.includes(a.id)
+                      ? current.filter((id) => id !== a.id)
+                      : [...current, a.id]
+                    // Every channel picked is the same as none: show all.
+                    return next.length === accounts.length ? [] : next
+                  })
+                  clear()
+                  setLimit(PAGE)
+                }}
+                className={cn(
+                  'flex items-center gap-1.5 rounded-full border px-2.5 py-1 transition-colors',
+                  on ? 'text-foreground' : 'text-muted-foreground opacity-60'
+                )}
+                style={on ? { borderColor: a.color } : undefined}
+              >
+                <span
+                  className="size-2 rounded-full"
+                  style={{ backgroundColor: a.color }}
+                  aria-hidden
+                />
+                {a.displayName}
+              </button>
+            )
+          })}
+          {shown.length > 0 ? (
+            <button
+              type="button"
+              className="ml-1 text-muted-foreground underline-offset-2 hover:underline"
+              onClick={() => {
+                setShown([])
+                setLimit(PAGE)
+              }}
+            >
+              Show all
+            </button>
+          ) : null}
+        </div>
+      ) : null}
 
       {/* Search, sort, filters */}
       <div className="flex flex-wrap items-center gap-2">
@@ -438,7 +537,7 @@ export function ClipsPage(): React.JSX.Element {
       {/* Grid */}
       {clips.isSuccess && items.length === 0 ? (
         <p className="py-16 text-center text-sm text-muted-foreground">
-          {active?.backfill || active?.syncing
+          {busy
             ? 'Clips are on their way: the first sync is running.'
             : 'No clips match these filters.'}
         </p>
@@ -449,6 +548,7 @@ export function ClipsPage(): React.JSX.Element {
               key={clip.id}
               clip={clip}
               selected={selected.has(clip.id)}
+              showChannel={view === 'all'}
               onOpen={() => setPreview(clip)}
               onToggle={() =>
                 setSelected((s) => {

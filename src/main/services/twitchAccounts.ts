@@ -2,6 +2,7 @@ import type { TwitchAccountView, TwitchConfig } from '@shared/schemas/twitch'
 import type { Repos } from '../db/repos'
 import { type Clock, DuplicateError, systemClock } from '../db/repos/common'
 import type { TwitchAccountRow } from '../db/repos/twitchAccounts'
+import { nextChannelColor } from '@shared/constants/colors'
 import { startBackfill } from '../domain/clips'
 import { UserFacingError } from '../errors'
 import type { LoopbackReceiver } from '../google/loopback'
@@ -260,6 +261,7 @@ export function createTwitchAccountsService(deps: TwitchAccountsDeps) {
       login: a.login,
       displayName: a.displayName,
       avatarUrl: a.avatarUrl,
+      color: a.color,
       viaEditor: a.editorId !== a.broadcasterId,
       authFlow: a.authFlow,
       tokenStatus: a.tokenStatus,
@@ -340,6 +342,7 @@ export function createTwitchAccountsService(deps: TwitchAccountsDeps) {
           login: broadcaster.login,
           displayName: broadcaster.display_name,
           avatarUrl: broadcaster.profile_image_url || null,
+          color: nextChannelColor(repos.twitchAccounts.list().map((a) => a.color)),
           editorId: who.userId,
           authFlow: flow,
           encRefreshToken: enc,
@@ -396,9 +399,13 @@ export function createTwitchAccountsService(deps: TwitchAccountsDeps) {
       return true
     },
 
-    update(id: number, patch: { syncEnabled?: boolean | undefined }): TwitchAccountView {
+    update(
+      id: number,
+      patch: { syncEnabled?: boolean | undefined; color?: string | undefined }
+    ): TwitchAccountView {
       const row = repos.twitchAccounts.update(id, {
-        ...(patch.syncEnabled !== undefined ? { syncEnabled: patch.syncEnabled } : {})
+        ...(patch.syncEnabled !== undefined ? { syncEnabled: patch.syncEnabled } : {}),
+        ...(patch.color !== undefined ? { color: patch.color } : {})
       })
       deps.emitChanged()
       if (patch.syncEnabled) deps.kickJobs?.()

@@ -39,6 +39,7 @@ import {
   sampleFrameSchema,
   testRenderInputSchema
 } from '../schemas/autopost'
+import { HEX_COLOR } from '../constants/colors'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -262,7 +263,11 @@ export const invokeContract = {
   },
   'twitch:update': {
     input: z
-      .object({ id: z.number().int().positive(), syncEnabled: z.boolean().optional() })
+      .object({
+        id: z.number().int().positive(),
+        syncEnabled: z.boolean().optional(),
+        color: z.string().regex(HEX_COLOR).optional()
+      })
       .strict(),
     output: twitchAccountViewSchema
   },
