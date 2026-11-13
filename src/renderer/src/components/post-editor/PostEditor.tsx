@@ -129,7 +129,7 @@ function Field({
   children: React.ReactNode
 }): React.JSX.Element {
   return (
-    <div className="grid gap-1.5">
+    <div className="grid min-w-0 grid-cols-1 gap-1.5">
       <div className="flex items-baseline justify-between">
         <Label htmlFor={htmlFor}>{label}</Label>
         {aside}
@@ -318,7 +318,7 @@ function PostEditorForm({
           className="grid min-w-0 gap-6 md:grid-cols-[minmax(0,5fr)_minmax(0,6fr)]"
         >
           {/* ---- left: media ---- */}
-          <div className="space-y-5">
+          <div className="min-w-0 space-y-5">
             <Field
               label="Video"
               error={errorFor('filePath') ?? (media ? undefined : (initialMediaError ?? undefined))}
@@ -353,7 +353,7 @@ function PostEditorForm({
           </div>
 
           {/* ---- right: details ---- */}
-          <div className="space-y-4">
+          <div className="min-w-0 space-y-4">
             <Field label="Channel" htmlFor="pe-channel" error={errorFor('accountId')}>
               <Select
                 value={input.accountId?.toString() ?? ''}

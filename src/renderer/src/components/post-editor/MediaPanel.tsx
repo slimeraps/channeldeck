@@ -41,18 +41,27 @@ export function MediaPanel({
 
   if (media) {
     return (
-      <div className="space-y-3">
-        <div className="relative overflow-hidden rounded-lg border bg-black">
+      <div className="min-w-0 space-y-3">
+        {/* Vertical clips get a frame sized to the video; landscape fills the column. */}
+        <div
+          className={cn(
+            'overflow-hidden rounded-lg border bg-black',
+            media.height > media.width ? 'mx-auto w-fit' : 'w-full'
+          )}
+        >
           <video
             key={media.previewUrl}
             src={media.previewUrl}
             controls
             preload="metadata"
-            className={cn('mx-auto block max-h-80', media.height > media.width ? 'h-80' : 'w-full')}
+            className={cn(
+              'block',
+              media.height > media.width ? 'h-80 w-auto' : 'aspect-video w-full'
+            )}
           />
         </div>
-        <div className="flex items-start justify-between gap-2">
-          <div className="min-w-0 space-y-1">
+        <div className="flex min-w-0 items-start justify-between gap-2">
+          <div className="min-w-0 flex-1 space-y-1">
             <p className="truncate text-sm font-medium" title={media.path}>
               {media.fileName}
             </p>
