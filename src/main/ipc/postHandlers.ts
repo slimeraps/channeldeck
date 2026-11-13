@@ -2,7 +2,7 @@ import { dialog, shell } from 'electron'
 import { THUMBNAIL_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/constants/limits'
 import { getMainWindow } from '../appWindow'
 import { getRepos } from '../db'
-import { uploadsPausedUntil } from '../jobs'
+import { syncStatusNow, uploadsPausedUntil } from '../jobs'
 import { getPosts } from '../services'
 import { handle } from './handle'
 
@@ -48,6 +48,18 @@ export function registerPostHandlers(): void {
   })
   handle('posts:uploadNow', ({ id }) => posts().uploadNow(id))
   handle('posts:retry', ({ id }) => posts().retry(id))
+  handle('posts:decide', (input) =>
+    posts().decide(
+      input.id,
+      input.action === 'publish_now'
+        ? { action: 'publish_now' }
+        : { action: 'reschedule', publishAtUtc: input.publishAtUtc }
+    )
+  )
+  handle('posts:reschedule', ({ id, publishAtUtc }) => posts().reschedule(id, publishAtUtc))
+  handle('posts:keepPrivate', ({ id }) => posts().keepPrivate(id))
+  handle('posts:deleteFromYouTube', ({ id }) => posts().deleteFromYouTube(id))
+  handle('posts:syncStatus', () => syncStatusNow())
 
   handle('settings:get', () => ({
     settings: getRepos().settings.get(),

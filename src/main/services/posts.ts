@@ -17,7 +17,10 @@ import {
 import { type Clock, systemClock } from '../db/repos/common'
 import type { Repos } from '../db/repos'
 import type { PostRow, PostFields } from '../db/repos/posts'
+import { buildStatusUpdate, type StatusChange } from '../domain/statusSync'
 import { UserFacingError } from '../errors'
+import { classifyGoogleError } from '../google/errors'
+import type { YouTubeApi } from '../google/youtube'
 import type { MediaAccess } from '../media/access'
 import type { ProbeResult } from '../media/ffprobe'
 import { mediaUrl } from '../media/mediaUrl'
@@ -35,6 +38,8 @@ export interface PostsServiceDeps {
   emitChanged: () => void
   /** Ask the job runner to look for work now (after queueing or Upload now). */
   kickJobs?: () => void
+  /** YouTube calls for a channel (real or Dry Run). Needed for actions on uploaded videos. */
+  withApi?: <T>(accountId: number, fn: (api: YouTubeApi) => Promise<T>) => Promise<T>
   clock?: Clock
 }
 
@@ -229,6 +234,39 @@ export function createPostsService(deps: PostsServiceDeps) {
     }
   }
 
+  function requireFuture(publishAtUtc: string, now: Date): void {
+    const at = Date.parse(publishAtUtc)
+    if (Number.isNaN(at)) throw new UserFacingError('That publish time is not valid.')
+    if (at <= now.getTime() + 60_000)
+      throw new UserFacingError('Pick a publish time at least a minute in the future.')
+  }
+
+  function requireApi(): NonNullable<PostsServiceDeps['withApi']> {
+    if (!deps.withApi) throw new Error('YouTube access is not wired into the posts service')
+    return deps.withApi
+  }
+
+  /** Reads the current status part, changes only what's needed, and sends the whole part back. */
+  async function changeStatusOnYouTube(post: PostRow, change: StatusChange): Promise<void> {
+    const videoId = post.youtubeVideoId as string
+    if (videoId.startsWith('DRYRUN-')) return
+    try {
+      await requireApi()(post.accountId, async (api) => {
+        const current = await api.videoStatusPart(videoId)
+        if (!current) throw new UserFacingError('This video no longer exists on YouTube.')
+        if (current['privacyStatus'] !== 'private') {
+          throw new UserFacingError(
+            'This video is already public on YouTube, so it can no longer be rescheduled or kept private.'
+          )
+        }
+        await api.updateVideoStatus(videoId, buildStatusUpdate(current, change))
+      })
+    } catch (error) {
+      if ((error as { userFacing?: boolean }).userFacing) throw error
+      throw new UserFacingError(classifyGoogleError(error).message, { cause: error })
+    }
+  }
+
   const service = {
     inspectVideo,
     inspectThumbnail,
@@ -382,6 +420,133 @@ export function createPostsService(deps: PostsServiceDeps) {
       })
       deps.emitChanged()
       deps.kickJobs?.()
+      return toListItem(updated, accountLookup())
+    },
+
+    /** "Needs decision": the publish time passed before the upload. Publish now or pick a new time. */
+    decide(
+      id: string,
+      choice: { action: 'publish_now' } | { action: 'reschedule'; publishAtUtc: string }
+    ): PostListItem {
+      const post = repos.posts.require(id)
+      if (post.status !== 'needs_decision') {
+        throw new UserFacingError('This post is not waiting for a decision.')
+      }
+      const now = clock()
+      if (choice.action === 'publish_now') {
+        repos.posts.update(id, {
+          visibilityMode: 'public',
+          publishAtUtc: null,
+          uploadAfterUtc: now.toISOString()
+        })
+      } else {
+        requireFuture(choice.publishAtUtc, now)
+        repos.posts.update(id, {
+          visibilityMode: 'schedule',
+          publishAtUtc: choice.publishAtUtc,
+          uploadAfterUtc: uploadAfter(
+            { ...toInput(post), visibilityMode: 'schedule', publishAtUtc: choice.publishAtUtc },
+            now
+          )
+        })
+      }
+      const updated = repos.posts.transition(id, 'resolve_decision', {
+        reason: choice.action === 'publish_now' ? 'you chose publish now' : 'you picked a new time'
+      })
+      deps.emitChanged()
+      deps.kickJobs?.()
+      return toListItem(updated, accountLookup())
+    },
+
+    /** New publish time. Before upload: just saved. After upload: updated on YouTube too. */
+    async reschedule(id: string, publishAtUtc: string): Promise<PostListItem> {
+      const post = repos.posts.require(id)
+      const now = clock()
+      requireFuture(publishAtUtc, now)
+
+      if (!post.youtubeVideoId) {
+        if (
+          !['draft', 'needs_approval', 'queued', 'failed', 'waiting_quota'].includes(post.status)
+        ) {
+          throw new UserFacingError(
+            `This post is ${post.status.replace('_', ' ')} and can't be rescheduled right now.`
+          )
+        }
+        const next = { ...toInput(post), visibilityMode: 'schedule' as const, publishAtUtc }
+        const updated = repos.posts.update(id, {
+          visibilityMode: 'schedule',
+          publishAtUtc,
+          ...(post.status === 'draft' ? {} : { uploadAfterUtc: uploadAfter(next, now) })
+        })
+        deps.emitChanged()
+        return toListItem(updated, accountLookup())
+      }
+
+      if (post.status === 'published') {
+        throw new UserFacingError(
+          'This video is already live, so its publish time can no longer change.'
+        )
+      }
+      if (post.status !== 'processing' && post.status !== 'scheduled') {
+        throw new UserFacingError(
+          `This post is ${post.status.replace('_', ' ')} and can't be rescheduled right now.`
+        )
+      }
+      await changeStatusOnYouTube(post, { kind: 'reschedule', publishAtUtc })
+      const updated = repos.posts.update(id, { visibilityMode: 'schedule', publishAtUtc })
+      repos.eventLog.write({
+        kind: 'post.rescheduled',
+        message: `Publish time changed to ${publishAtUtc}`,
+        postId: id
+      })
+      deps.emitChanged()
+      return toListItem(updated, accountLookup())
+    },
+
+    /** Uploaded but not yet public: clear the schedule and leave it private on YouTube. */
+    async keepPrivate(id: string): Promise<PostListItem> {
+      const post = repos.posts.require(id)
+      if (!post.youtubeVideoId || (post.status !== 'processing' && post.status !== 'scheduled')) {
+        throw new UserFacingError(
+          'Only uploaded videos that are not public yet can be kept private.'
+        )
+      }
+      await changeStatusOnYouTube(post, { kind: 'keepPrivate' })
+      const updated = repos.posts.transition(id, 'keep_private', {
+        patch: { visibilityMode: 'private', publishAtUtc: null },
+        reason: 'you chose keep as private'
+      })
+      deps.emitChanged()
+      return toListItem(updated, accountLookup())
+    },
+
+    /** videos.delete, then the post is canceled (a Twitch clip goes back to the bank). */
+    async deleteFromYouTube(id: string): Promise<PostListItem> {
+      const post = repos.posts.require(id)
+      if (!post.youtubeVideoId) throw new UserFacingError('This post has no video on YouTube.')
+      if (
+        post.status === 'canceled' ||
+        post.status === 'uploading' ||
+        post.status === 'rendering'
+      ) {
+        throw new UserFacingError(
+          `This post is ${post.status} and can't be deleted from YouTube right now.`
+        )
+      }
+      const videoId = post.youtubeVideoId
+      if (!videoId.startsWith('DRYRUN-')) {
+        try {
+          await requireApi()(post.accountId, (api) => api.deleteVideo(videoId))
+        } catch (error) {
+          const c = classifyGoogleError((error as { cause?: unknown }).cause ?? error)
+          const notFound = (error as { response?: { status?: number } }).response?.status === 404
+          if (!notFound) throw new UserFacingError(c.message, { cause: error })
+        }
+      }
+      const updated = repos.posts.transition(id, 'delete_from_youtube', {
+        reason: 'you deleted it from YouTube'
+      })
+      deps.emitChanged()
       return toListItem(updated, accountLookup())
     },
 

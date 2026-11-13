@@ -182,6 +182,35 @@ export const invokeContract = {
     input: postIdInput,
     output: postListItemSchema
   },
+  'posts:decide': {
+    input: z.discriminatedUnion('action', [
+      z.object({ id: z.uuid(), action: z.literal('publish_now') }).strict(),
+      z
+        .object({ id: z.uuid(), action: z.literal('reschedule'), publishAtUtc: z.iso.datetime() })
+        .strict()
+    ]),
+    output: postListItemSchema
+  },
+  'posts:reschedule': {
+    input: z.object({ id: z.uuid(), publishAtUtc: z.iso.datetime() }).strict(),
+    output: postListItemSchema
+  },
+  'posts:keepPrivate': {
+    input: postIdInput,
+    output: postListItemSchema
+  },
+  'posts:deleteFromYouTube': {
+    input: postIdInput,
+    output: postListItemSchema
+  },
+  'posts:syncStatus': {
+    input: noInput,
+    output: z.object({
+      checked: z.number().int(),
+      changed: z.number().int(),
+      skippedChannels: z.number().int()
+    })
+  },
 
   // Settings
   'settings:get': {

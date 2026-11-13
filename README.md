@@ -47,6 +47,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Filter by channel, status and source; sort by publish time
 - ✅ Edit, Duplicate, Reveal file in Finder, Unschedule, Delete draft
 - ✅ Live upload progress, **Upload now**, **Retry**, **Open in YouTube Studio**, and the reason a post failed
+- ✅ **Check status** button to ask YouTube for the latest state right away
 - 🔜 Approve (autoposts in Review mode) and Swap clip (Phases 7–8)
 
 ### Uploading
@@ -60,8 +61,9 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ "File missing" check before uploading; quitting mid-upload restarts cleanly next launch
 - ✅ **Dry Run**: logs exactly which YouTube calls would run, with their data, without uploading anything
 - ✅ Up to 3 uploads at once (default 1)
-- 🔜 Status sync: Processing → Scheduled → Published, and rejected uploads reported (Phase 5)
-- 🔜 Reschedule an uploaded video, "Keep as private", "Delete from YouTube" (Phase 5)
+- ✅ Status sync: Processing → Scheduled → Published, checked every 2 minutes while YouTube is processing and every 15 minutes otherwise; rejected, failed and deleted videos reported with the reason
+- ✅ Change an uploaded video's publish time (updated on YouTube too), "Keep as private", "Delete from YouTube"
+- ✅ "Needs decision" when a publish time passed before the upload: publish now, pick a new time, or unschedule
 
 ### Calendar
 
@@ -162,6 +164,16 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
 ### Unreleased
+
+#### Phase 5: Scheduling and status sync (2026-11-12)
+
+- Added status sync: uploaded posts move Processing → Scheduled → Published on their own, with a "Published" notification.
+- YouTube rejections and processing failures are reported with the reason in plain words; videos deleted in YouTube Studio are detected.
+- Publish times changed in YouTube Studio are picked up; a schedule removed there counts as "kept private".
+- Added Change publish time (updates YouTube), Keep as private, and Delete from YouTube, each with confirmation.
+- Added "Needs decision" actions when a publish time passed before upload: publish now, pick a new time, or unschedule.
+- Added a Check status button to the queue.
+- Dry Run videos move through Scheduled and Published locally, without calling YouTube.
 
 #### Phase 4: Upload engine (2026-11-12)
 

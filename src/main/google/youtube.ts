@@ -3,6 +3,7 @@ import { createReadStream } from 'node:fs'
 import { youtube, type youtube_v3 } from '@googleapis/youtube'
 import type { OAuth2Client } from 'google-auth-library'
 import type { YouTubeMethod } from '@shared/constants/quota'
+import type { YouTubeVideoState } from '../domain/statusSync'
 import { type UploadedVideo, uploadResumable } from './resumableUpload'
 
 /**
@@ -55,6 +56,14 @@ export interface YouTubeApi {
   uploadVideo(args: UploadVideoArgs): Promise<UploadedVideo>
   setThumbnail(videoId: string, imagePath: string, mimeType: string): Promise<void>
   addToPlaylist(playlistId: string, videoId: string): Promise<void>
+  /** videos.list part=status,processingDetails for up to 50 ids (1 unit). Missing ids = not found. */
+  videosStatus(ids: string[]): Promise<YouTubeVideoState[]>
+  /** The current `status` part of one video, or null if it doesn't exist (1 unit). */
+  videoStatusPart(videoId: string): Promise<Record<string, unknown> | null>
+  /** videos.update part=status with the complete status part (50 units). */
+  updateVideoStatus(videoId: string, status: Record<string, unknown>): Promise<void>
+  /** videos.delete (50 units). */
+  deleteVideo(videoId: string): Promise<void>
 }
 
 export interface YouTubeApiDeps {
@@ -154,6 +163,50 @@ export function createYouTubeApi({ auth, recordCall }: YouTubeApiDeps): YouTubeA
         part: ['snippet'],
         requestBody: { snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId } } }
       })
+    },
+
+    async videosStatus(ids) {
+      if (ids.length === 0) return []
+      if (ids.length > 50) throw new Error('videos.list takes at most 50 ids')
+      recordCall('videos.list')
+      const res = await yt.videos.list({
+        part: ['status', 'processingDetails'],
+        id: ids,
+        maxResults: 50
+      })
+      return (res.data.items ?? [])
+        .filter((v) => v.id)
+        .map((v) => ({
+          id: v.id as string,
+          status: {
+            uploadStatus: v.status?.uploadStatus ?? null,
+            failureReason: v.status?.failureReason ?? null,
+            rejectionReason: v.status?.rejectionReason ?? null,
+            privacyStatus: v.status?.privacyStatus ?? null,
+            publishAt: v.status?.publishAt ?? null
+          },
+          processingDetails: {
+            processingStatus: v.processingDetails?.processingStatus ?? null,
+            processingFailureReason: v.processingDetails?.processingFailureReason ?? null
+          }
+        }))
+    },
+
+    async videoStatusPart(videoId) {
+      recordCall('videos.list')
+      const res = await yt.videos.list({ part: ['status'], id: [videoId] })
+      const status = res.data.items?.[0]?.status
+      return status ? ({ ...status } as Record<string, unknown>) : null
+    },
+
+    async updateVideoStatus(videoId, status) {
+      recordCall('videos.update')
+      await yt.videos.update({ part: ['status'], requestBody: { id: videoId, status } })
+    },
+
+    async deleteVideo(videoId) {
+      recordCall('videos.delete')
+      await yt.videos.delete({ id: videoId })
     }
   }
 }
@@ -165,7 +218,10 @@ export function createYouTubeApi({ auth, recordCall }: YouTubeApiDeps): YouTubeA
  * editor needs them and they change nothing.
  */
 export function createDryRunYouTubeApi(deps: {
-  reads: Pick<YouTubeApi, 'channelsMine' | 'videoCategories' | 'playlistsMine'>
+  reads: Pick<
+    YouTubeApi,
+    'channelsMine' | 'videoCategories' | 'playlistsMine' | 'videosStatus' | 'videoStatusPart'
+  >
   recordCall: (method: YouTubeMethod) => void
   log: (message: string, payload: Record<string, unknown>) => void
   /** Simulated upload duration, so the progress bar has something to show. */
@@ -211,6 +267,25 @@ export function createDryRunYouTubeApi(deps: {
         part: 'snippet',
         body: { snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId } } }
       })
+    },
+
+    videosStatus: (ids) => deps.reads.videosStatus(ids),
+
+    // Dry Run videos don't exist on YouTube; pretend their status is what we asked for.
+    async videoStatusPart(videoId) {
+      if (videoId.startsWith('DRYRUN-'))
+        return { privacyStatus: 'private', uploadStatus: 'processed' }
+      return deps.reads.videoStatusPart(videoId)
+    },
+
+    async updateVideoStatus(videoId, status) {
+      deps.recordCall('videos.update')
+      deps.log('videos.update', { part: 'status', body: { id: videoId, status } })
+    },
+
+    async deleteVideo(videoId) {
+      deps.recordCall('videos.delete')
+      deps.log('videos.delete', { id: videoId })
     }
   }
 }

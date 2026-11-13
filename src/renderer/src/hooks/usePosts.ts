@@ -111,3 +111,77 @@ export function useRetryPost(): UseMutationResult<PostListItem, Error, string> {
     onError: (e) => toast.error(e.message)
   })
 }
+
+function useAction<TVars>(
+  fn: (vars: TVars) => Promise<PostListItem>,
+  success: (post: PostListItem) => string
+): UseMutationResult<PostListItem, Error, TVars> {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: fn,
+    onSuccess: (post) => {
+      invalidate()
+      toast.success(success(post))
+    },
+    onError: (e) => toast.error(e.message)
+  })
+}
+
+export function useDecide(): UseMutationResult<
+  PostListItem,
+  Error,
+  { id: string; action: 'publish_now' } | { id: string; action: 'reschedule'; publishAtUtc: string }
+> {
+  return useAction(
+    (vars) => invoke('posts:decide', vars),
+    (post) =>
+      post.visibilityMode === 'public'
+        ? `"${post.title}" will upload and go public now`
+        : `"${post.title}" has a new publish time`
+  )
+}
+
+export function useReschedule(): UseMutationResult<
+  PostListItem,
+  Error,
+  { id: string; publishAtUtc: string }
+> {
+  return useAction(
+    (vars) => invoke('posts:reschedule', vars),
+    (post) => `"${post.title}" rescheduled${post.youtubeVideoId ? ' on YouTube' : ''}`
+  )
+}
+
+export function useKeepPrivate(): UseMutationResult<PostListItem, Error, string> {
+  return useAction(
+    (id) => invoke('posts:keepPrivate', { id }),
+    (post) => `"${post.title}" will stay private on YouTube`
+  )
+}
+
+export function useDeleteFromYouTube(): UseMutationResult<PostListItem, Error, string> {
+  return useAction(
+    (id) => invoke('posts:deleteFromYouTube', { id }),
+    (post) => `"${post.title}" was deleted from YouTube`
+  )
+}
+
+export function useSyncStatus(): UseMutationResult<
+  { checked: number; changed: number; skippedChannels: number },
+  Error,
+  void
+> {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: () => invoke('posts:syncStatus'),
+    onSuccess: (r) => {
+      invalidate()
+      toast.success(
+        r.checked === 0
+          ? 'Nothing on YouTube to check right now'
+          : `Checked ${r.checked} video${r.checked === 1 ? '' : 's'}; ${r.changed} changed`
+      )
+    },
+    onError: (e) => toast.error(e.message)
+  })
+}
