@@ -17,6 +17,7 @@ import {
   RefreshCw,
   RotateCcw,
   Send,
+  Shuffle,
   Trash2,
   TriangleAlert,
   Upload
@@ -42,6 +43,9 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSub,
+  DropdownMenuSubContent,
+  DropdownMenuSubTrigger,
   DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@renderer/components/ui/dropdown-menu'
@@ -71,6 +75,7 @@ import {
   useApprovePost
 } from '@renderer/hooks/usePosts'
 import { PublishTimeDialog } from '@renderer/components/queue/PublishTimeDialog'
+import { SwapClipDialog } from '@renderer/components/queue/SwapClipDialog'
 import { useProgressStore } from '@renderer/stores/progress'
 import {
   STATUS_LABELS,
@@ -98,6 +103,14 @@ const ACTIVE: PostStatus[] = [
   'waiting_quota'
 ]
 const EDITABLE: PostStatus[] = ['draft', 'needs_approval', 'queued']
+/** Autoposts can swap their clip until they upload. */
+const SWAPPABLE: PostStatus[] = [
+  'needs_approval',
+  'queued',
+  'failed',
+  'waiting_quota',
+  'needs_decision'
+]
 const UNSCHEDULABLE: PostStatus[] = [
   'needs_approval',
   'queued',
@@ -207,6 +220,7 @@ export function QueuePage(): React.JSX.Element {
   const [confirmDelete, setConfirmDelete] = useState<PostListItem | null>(null)
   const [confirmCancel, setConfirmCancel] = useState<PostListItem | null>(null)
   const [newTimeFor, setNewTimeFor] = useState<PostListItem | null>(null)
+  const [swapFor, setSwapFor] = useState<PostListItem | null>(null)
   const [confirmKeepPrivate, setConfirmKeepPrivate] = useState<PostListItem | null>(null)
   const [confirmYouTubeDelete, setConfirmYouTubeDelete] = useState<PostListItem | null>(null)
 
@@ -481,6 +495,11 @@ export function QueuePage(): React.JSX.Element {
                             <Check aria-hidden /> Approve
                           </DropdownMenuItem>
                         ) : null}
+                        {post.ruleId && !post.youtubeVideoId && SWAPPABLE.includes(post.status) ? (
+                          <DropdownMenuItem onSelect={() => setSwapFor(post)}>
+                            <Shuffle aria-hidden /> Swap clip…
+                          </DropdownMenuItem>
+                        ) : null}
                         {post.status === 'queued' ? (
                           <DropdownMenuItem onSelect={() => uploadNow.mutate(post.id)}>
                             <CloudUpload aria-hidden /> Upload now
@@ -530,6 +549,32 @@ export function QueuePage(): React.JSX.Element {
                         <DropdownMenuItem onSelect={() => duplicate.mutate(post.id)}>
                           <Copy aria-hidden /> Duplicate
                         </DropdownMenuItem>
+                        {(accounts.data ?? []).length > 1 ? (
+                          <DropdownMenuSub>
+                            <DropdownMenuSubTrigger>
+                              <Copy aria-hidden /> Duplicate to…
+                            </DropdownMenuSubTrigger>
+                            <DropdownMenuSubContent>
+                              {(accounts.data ?? [])
+                                .filter((a) => a.id !== post.accountId)
+                                .map((a) => (
+                                  <DropdownMenuItem
+                                    key={a.id}
+                                    onSelect={() =>
+                                      duplicate.mutate({ id: post.id, accountId: a.id })
+                                    }
+                                  >
+                                    <span
+                                      className="size-2 rounded-full"
+                                      style={{ background: a.color }}
+                                      aria-hidden
+                                    />
+                                    {a.channelTitle}
+                                  </DropdownMenuItem>
+                                ))}
+                            </DropdownMenuSubContent>
+                          </DropdownMenuSub>
+                        ) : null}
                         <DropdownMenuItem
                           disabled={!post.videoPreviewUrl}
                           onSelect={() => reveal.mutate(post.id)}
@@ -629,6 +674,8 @@ export function QueuePage(): React.JSX.Element {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      {swapFor ? <SwapClipDialog post={swapFor} onClose={() => setSwapFor(null)} /> : null}
 
       {newTimeFor ? (
         <PublishTimeDialog

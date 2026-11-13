@@ -40,6 +40,12 @@ import {
   testRenderInputSchema
 } from '../schemas/autopost'
 import { HEX_COLOR } from '../constants/colors'
+import {
+  seriesInputSchema,
+  seriesViewSchema,
+  templateInputSchema,
+  templateViewSchema
+} from '../schemas/templates'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -183,7 +189,7 @@ export const invokeContract = {
     output: postListItemSchema
   },
   'posts:duplicate': {
-    input: postIdInput,
+    input: z.object({ id: z.uuid(), accountId: z.number().int().positive().optional() }).strict(),
     output: postListItemSchema
   },
   'posts:cancel': {
@@ -316,6 +322,25 @@ export const invokeContract = {
     output: z.object({ approved: z.number().int() })
   },
   'autopost:forecast': { input: noInput, output: quotaForecastSchema },
+  'autopost:swapCandidates': {
+    input: postIdInput,
+    output: z.array(
+      z.object({
+        id: z.string(),
+        title: z.string(),
+        thumbUrl: z.string().nullable(),
+        viewCount: z.number().int(),
+        durationSec: z.number(),
+        createdAtUtc: z.string(),
+        gameName: z.string().nullable(),
+        needsRender: z.boolean()
+      })
+    )
+  },
+  'autopost:swapClip': {
+    input: z.object({ id: z.uuid(), clipId: z.string().min(1).optional() }).strict(),
+    output: z.object({ postId: z.string(), title: z.string() })
+  },
   'layouts:list': { input: noInput, output: z.array(layoutViewSchema) },
   'layouts:save': {
     input: z.object({ id: ruleId.optional(), input: layoutInputSchema }).strict(),
@@ -326,6 +351,24 @@ export const invokeContract = {
     output: z.object({ ok: z.literal(true) })
   },
   'layouts:sampleFrame': { input: sampleFrameInputSchema, output: sampleFrameSchema },
+  'templates:list': { input: noInput, output: z.array(templateViewSchema) },
+  'templates:save': {
+    input: z.object({ id: ruleId.optional(), input: templateInputSchema }).strict(),
+    output: templateViewSchema
+  },
+  'templates:delete': {
+    input: z.object({ id: ruleId }).strict(),
+    output: z.object({ ok: z.literal(true) })
+  },
+  'series:list': { input: noInput, output: z.array(seriesViewSchema) },
+  'series:save': {
+    input: z.object({ id: ruleId.optional(), input: seriesInputSchema }).strict(),
+    output: seriesViewSchema
+  },
+  'series:delete': {
+    input: z.object({ id: ruleId }).strict(),
+    output: z.object({ ok: z.literal(true) })
+  },
   'layouts:testRender': {
     input: testRenderInputSchema,
     output: z.object({ url: z.string(), path: z.string() })
@@ -340,6 +383,7 @@ export const eventContract = {
   'posts:changed': z.undefined(),
   /** Twitch accounts or the clip bank changed (sync progress, downloads, connect). */
   'twitch:changed': z.undefined(),
+  'templates:changed': z.undefined(),
   /** Device Code sign-in: show this code to type at twitch.tv/activate. */
   'twitch:deviceCode': deviceCodeEventSchema,
   /** Live upload progress (not every byte; throttled in main). */

@@ -13,6 +13,7 @@ import { grabFrame, renderVertical } from '../media/ffmpeg'
 import { createAutopostService, type AutopostService } from './autopost'
 import { createClipsService, type ClipsService } from './clips'
 import { createLayoutsService, type LayoutsService } from './layouts'
+import { createTemplatesService, type TemplatesService } from './templates'
 import { createPostsService, type PostsService } from './posts'
 import { createTwitchAccountsService, type TwitchAccountsService } from './twitchAccounts'
 import { createYouTubeAccountsService, type YouTubeAccountsService } from './youtubeAccounts'
@@ -26,6 +27,7 @@ let clips: ClipsService | null = null
 let syncingProbe: ((accountId: number) => boolean) | null = null
 let autopost: AutopostService | null = null
 let layouts: LayoutsService | null = null
+let templates: TemplatesService | null = null
 
 /** Lets the Twitch view show "syncing…" without importing the job runner. */
 export function setSyncingProbe(fn: (accountId: number) => boolean): void {
@@ -106,6 +108,11 @@ export function initServices(): void {
     logger
   })
 
+  templates = createTemplatesService({
+    repos,
+    emitChanged: () => emitToRenderer('templates:changed', undefined)
+  })
+
   layouts = createLayoutsService({
     repos,
     media: mediaAccess,
@@ -119,6 +126,11 @@ export function initServices(): void {
         maxSeconds
       })
   })
+}
+
+export function getTemplates(): TemplatesService {
+  if (!templates) throw new Error('Services not initialized')
+  return templates
 }
 
 export function getAutopost(): AutopostService {

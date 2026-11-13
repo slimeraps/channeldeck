@@ -68,7 +68,15 @@ export const INVOKE_CHANNELS = [
   'layouts:save',
   'layouts:delete',
   'layouts:sampleFrame',
-  'layouts:testRender'
+  'layouts:testRender',
+  'templates:list',
+  'templates:save',
+  'templates:delete',
+  'series:list',
+  'series:save',
+  'series:delete',
+  'autopost:swapCandidates',
+  'autopost:swapClip'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 
@@ -79,7 +87,8 @@ export const EVENT_CHANNELS = [
   'posts:changed',
   'posts:progress',
   'twitch:changed',
-  'twitch:deviceCode'
+  'twitch:deviceCode',
+  'templates:changed'
 ] as const
 export type EventChannel = (typeof EVENT_CHANNELS)[number]
 

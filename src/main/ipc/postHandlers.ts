@@ -40,7 +40,7 @@ export function registerPostHandlers(): void {
   handle('posts:list', (filter) => posts().list(filter))
   handle('posts:get', ({ id }) => posts().get(id))
   handle('posts:save', (input) => posts().save(input))
-  handle('posts:duplicate', ({ id }) => posts().duplicate(id))
+  handle('posts:duplicate', ({ id, accountId }) => posts().duplicate(id, accountId))
   handle('posts:cancel', ({ id }) => posts().cancel(id))
   handle('posts:deleteDraft', ({ id }) => {
     posts().deleteDraft(id)

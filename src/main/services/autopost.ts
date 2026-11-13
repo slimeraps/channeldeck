@@ -66,6 +66,25 @@ const ACTIVE_STATUSES: PostStatus[] = [
   'failed'
 ]
 const UPCOMING_STATUSES: PostStatus[] = ACTIVE_STATUSES.filter((s) => s !== 'draft')
+/** Before upload: the clip can still be swapped. */
+const SWAPPABLE: PostStatus[] = [
+  'needs_approval',
+  'queued',
+  'failed',
+  'waiting_quota',
+  'needs_decision'
+]
+
+export interface SwapCandidate {
+  id: string
+  title: string
+  thumbUrl: string | null
+  viewCount: number
+  durationSec: number
+  createdAtUtc: string
+  gameName: string | null
+  needsRender: boolean
+}
 
 export type AutopostService = ReturnType<typeof createAutopostService>
 
@@ -300,6 +319,31 @@ export function createAutopostService(deps: AutopostDeps) {
     return post
   }
 
+  /** An autopost whose clip can still change: made by a rule, not on YouTube yet. */
+  function swappable(postId: string): { post: PostRow; rule: AutopostRuleRow } {
+    const post = repos.posts.require(postId)
+    if (!post.ruleId || !post.clipId) {
+      throw new UserFacingError('Only autoposts made by a rule can swap their clip.')
+    }
+    const rule = repos.autopostRules.get(post.ruleId)
+    if (!rule) throw new UserFacingError('The rule that made this autopost was deleted.')
+    if (post.youtubeVideoId || !SWAPPABLE.includes(post.status)) {
+      throw new UserFacingError(
+        `This autopost is ${post.status.replace('_', ' ')}; its clip can only change before upload.`
+      )
+    }
+    if (!post.publishAtUtc || post.publishAtUtc <= clock().toISOString()) {
+      throw new UserFacingError('Its publish time has passed. Change the time first.')
+    }
+    return { post, rule }
+  }
+
+  function candidatesFor(rule: AutopostRuleRow, count: number): ClipRow[] {
+    const bank = usableBank(rule.twitchAccountIdsJson)
+    const excluded = excludedFor(rule.youtubeAccountId, rule.skippedClipIdsJson)
+    return pickClips(bank, pickRuleOf(toRuleInput(rule)), excluded, count) as ClipRow[]
+  }
+
   // ---- views --------------------------------------------------------------------------
 
   function toView(rule: AutopostRuleRow): RuleView {
@@ -510,6 +554,63 @@ export function createAutopostService(deps: AutopostDeps) {
         })),
         slotsBetween
       })
+    },
+
+    // ---- swap clip ----------------------------------------------------------------------
+
+    /** Clips that could replace this autopost's clip, best first. */
+    swapCandidates(postId: string): SwapCandidate[] {
+      const { rule } = swappable(postId)
+      return candidatesFor(rule, 12).map((clip) => {
+        const thumb = clip.thumbPath && existsSync(clip.thumbPath) ? clip.thumbPath : null
+        if (thumb) deps.media.grant(thumb)
+        return {
+          id: clip.id,
+          title: clip.title,
+          thumbUrl: thumb ? mediaUrl(thumb) : clip.thumbnailUrl,
+          viewCount: clip.viewCount,
+          durationSec: clip.durationSec,
+          createdAtUtc: clip.createdAtUtc,
+          gameName: clip.gameName,
+          needsRender: needsRender(rule.format, clip)
+        }
+      })
+    },
+
+    /**
+     * Replaces an autopost's clip before upload: the old post is canceled (its clip goes on
+     * the rule's skip list) and a new autopost takes the same slot.
+     */
+    async swapClip(postId: string, clipId?: string): Promise<{ postId: string; title: string }> {
+      const { post, rule } = swappable(postId)
+      const options = candidatesFor(rule, Number.MAX_SAFE_INTEGER)
+      const clip = clipId ? options.find((c) => c.id === clipId) : options[0]
+      if (!clip) {
+        throw new UserFacingError(
+          clipId
+            ? 'That clip can’t be used for this rule any more. Pick another one.'
+            : `"${rule.name}" has no other clips to swap in.`
+        )
+      }
+      repos.posts.transition(post.id, 'cancel', { reason: `swapped for clip ${clip.id}` })
+      repos.autopostRules.addSkipped(rule.id, post.clipId as string)
+      const fresh = await createAutopost(
+        repos.autopostRules.require(rule.id),
+        clip,
+        post.publishAtUtc as string,
+        clock()
+      )
+      if (!fresh)
+        throw new UserFacingError('The new clip’s file couldn’t be read. Try another one.')
+      repos.eventLog.write({
+        kind: 'autopost.swapped',
+        message: `Swapped clip ${post.clipId} for ${clip.id} ("${rule.name}")`,
+        postId: fresh.id,
+        accountId: fresh.accountId
+      })
+      deps.emitPostsChanged()
+      deps.kickJobs?.()
+      return { postId: fresh.id, title: fresh.title }
     },
 
     // ---- planner (called by the job) ----------------------------------------------------

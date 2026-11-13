@@ -12,7 +12,10 @@ import { postsKey } from '@renderer/hooks/usePosts'
 import { clipsKey, twitchKey } from '@renderer/hooks/useTwitch'
 import { onEvent } from '@renderer/lib/ipc'
 import { autopostKey, layoutsKey } from '@renderer/hooks/useAutopost'
+import { templatesKey } from '@renderer/hooks/useTemplates'
 import { AutopostPage } from '@renderer/pages/AutopostPage'
+import { CalendarPage } from '@renderer/pages/CalendarPage'
+import { TemplatesPage } from '@renderer/pages/TemplatesPage'
 import { ChannelsPage } from '@renderer/pages/ChannelsPage'
 import { ClipsPage } from '@renderer/pages/ClipsPage'
 import { PlaceholderPage } from '@renderer/pages/PlaceholderPage'
@@ -31,6 +34,10 @@ function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JS
       return <ClipsPage />
     case 'autopost':
       return <AutopostPage />
+    case 'templates':
+      return <TemplatesPage />
+    case 'calendar':
+      return <CalendarPage />
     case 'settings':
       return <SettingsPage />
     default:
@@ -76,12 +83,17 @@ export function App(): React.JSX.Element {
     const offDeviceCode = onEvent('twitch:deviceCode', (info) =>
       useUiStore.getState().setDeviceCode(info)
     )
+    const offTemplates = onEvent(
+      'templates:changed',
+      () => void queryClient.invalidateQueries({ queryKey: templatesKey })
+    )
     return () => {
       offAccounts()
       offPosts()
       offProgress()
       offTwitch()
       offDeviceCode()
+      offTemplates()
     }
   }, [queryClient])
 

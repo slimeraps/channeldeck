@@ -38,8 +38,8 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Publish time in your local time zone, with the UTC value and "in 3h 20m" underneath
 - ✅ If the publish time passes before the upload finishes: **Ask me** (default) or **Publish now**
 - ✅ Save as draft, or add to the queue with every YouTube requirement checked and shown inline
-- 🔜 Templates with `{{n}}`, `{{date}}`, `{{channel}}`, and numbered series like "MW4 Day {{n}}" (Phase 8)
-- 🔜 Duplicate a post to another channel (Phase 8)
+- ✅ Templates with `{{n}}`, `{{date}}`, `{{channel}}`, and numbered series like "MW4 Day {{n}}" (the number is only used up when a post is queued, never by a draft, and never twice)
+- ✅ Duplicate a post to another channel (queue row or editor), with that channel's playlist
 
 ### Queue
 
@@ -49,7 +49,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Live upload progress, **Upload now**, **Retry**, **Open in YouTube Studio**, and the reason a post failed
 - ✅ **Check status** button to ask YouTube for the latest state right away
 - ✅ **Approve** autoposts made in Review mode, one at a time or all at once per rule
-- 🔜 Swap clip (Phase 8)
+- ✅ **Swap clip** for autoposts before upload: pick from the rule's next clips; the old clip is skipped from then on
 
 ### Uploading
 
@@ -68,8 +68,8 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 
 ### Calendar
 
-- 🔜 Week and month views colored by channel, clip icon on autoposts (Phase 8)
-- 🔜 Drag to reschedule (updates YouTube if already uploaded); click an empty slot to create a post (Phase 8)
+- ✅ Week and month views colored by channel, clip icon on Twitch posts, channel filter
+- ✅ Drag to reschedule with a confirmation (updates YouTube if already uploaded); click an empty slot to create a post at that time
 
 ### Twitch clip bank
 
@@ -184,6 +184,14 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
 ### Unreleased
+
+#### Phase 8: Calendar, templates and series (2026-11-13)
+
+- Added the Calendar: week and month views of every channel's posts, colored by channel. Drag a post to move it (YouTube is updated if it's already uploaded), or click an empty slot to start a post there.
+- Added the Templates page: templates for title, description and tags with `{{n}}`, `{{date}}` and `{{channel}}`, and series that number posts automatically ("MW4 Day 9", 10, 11…). You can edit a series' next number at any time.
+- The post editor has Template and Series pickers and shows what the title becomes when queued.
+- Added Duplicate to another channel, in the queue and the editor.
+- Added Swap clip for autoposts that aren't uploaded yet.
 
 #### Clips patch: Twitch channel colors and All channels view (2026-11-13)
 

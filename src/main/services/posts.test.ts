@@ -3,7 +3,13 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { PostInput } from '@shared/schemas/post'
-import { createTestDb, seedAccount, type TestDb } from '../../../tests/helpers/db'
+import {
+  createTestDb,
+  seedAccount,
+  seedClip,
+  seedTwitchAccount,
+  type TestDb
+} from '../../../tests/helpers/db'
 import { UserFacingError } from '../errors'
 import { createMediaAccess } from '../media/access'
 import type { ProbeResult } from '../media/ffprobe'
@@ -267,5 +273,155 @@ describe('media access', () => {
     expect(access.policy().isAllowedFile(video)).toBe(false)
     await service.save({ input: input(), mode: 'draft' })
     expect(access.policy().isAllowedFile(video)).toBe(true)
+  })
+})
+
+describe('templates and series', () => {
+  function makeSeries(next = 9) {
+    const template = t.repos.templates.create({
+      name: 'MW4 days',
+      titleTpl: 'MW4 Day {{n}}',
+      descriptionTpl: 'Day {{n}} on {{channel}}, {{date}}'
+    })
+    return t.repos.series.create({ name: 'MW4', templateId: template.id, nextNumber: next })
+  }
+  const seriesInput = (seriesId: number, o: Partial<PostInput> = {}) =>
+    input({
+      title: 'MW4 Day {{n}}',
+      description: 'Day {{n}} on {{channel}}, {{date}}',
+      seriesId,
+      ...o
+    })
+
+  it('takes the number only when the post is queued, and fills in the variables', async () => {
+    const series = makeSeries(9)
+    const draft = await service.save({ input: seriesInput(series.id), mode: 'draft' })
+    expect(draft.title).toBe('MW4 Day {{n}}')
+    expect(t.repos.series.require(series.id).nextNumber).toBe(9) // drafts don't use numbers
+
+    const queued = await service.save({
+      id: draft.id,
+      input: seriesInput(series.id),
+      mode: 'queue'
+    })
+    expect(queued.title).toBe('MW4 Day 9')
+    const row = t.repos.posts.require(draft.id)
+    expect(row).toMatchObject({ seriesId: series.id, seriesNumber: 9 })
+    // The test channel's title; the publish date in the Mac's zone.
+    expect(row.description).toMatch(/^Day 9 on Test Channel \d+, Nov 1[34], 2026$/)
+    expect(t.repos.series.require(series.id).nextNumber).toBe(10)
+  })
+
+  it('never uses a number twice: back to draft and queued again keeps it; cancel does not reuse it', async () => {
+    const series = makeSeries(9)
+    const first = await service.save({ input: seriesInput(series.id), mode: 'queue' })
+    expect(first.title).toBe('MW4 Day 9')
+
+    // Back to drafts and into the queue again: still 9, counter untouched.
+    const asDraft = await service.save({
+      id: first.id,
+      input: { ...(await service.get(first.id)).input },
+      mode: 'draft'
+    })
+    await service.save({
+      id: asDraft.id,
+      input: (await service.get(first.id)).input,
+      mode: 'queue'
+    })
+    expect(t.repos.posts.require(first.id).seriesNumber).toBe(9)
+    expect(t.repos.series.require(series.id).nextNumber).toBe(10)
+
+    // Canceling doesn't hand 9 to the next post.
+    service.cancel(first.id)
+    const second = await service.save({ input: seriesInput(series.id), mode: 'queue' })
+    expect(second.title).toBe('MW4 Day 10')
+    expect(t.repos.series.require(series.id).nextNumber).toBe(11)
+  })
+
+  it('uses your edited counter', async () => {
+    const series = makeSeries(9)
+    t.repos.series.update(series.id, { nextNumber: 42 })
+    expect((await service.save({ input: seriesInput(series.id), mode: 'queue' })).title).toBe(
+      'MW4 Day 42'
+    )
+  })
+
+  it('needs a series for {{n}} before queueing', async () => {
+    await expect(
+      service.save({ input: input({ title: 'Day {{n}}' }), mode: 'queue' })
+    ).rejects.toThrow(/Pick a series/)
+    // Drafts are fine.
+    expect(
+      (await service.save({ input: input({ title: 'Day {{n}}' }), mode: 'draft' })).title
+    ).toBe('Day {{n}}')
+  })
+
+  it('fills {{date}} and {{channel}} without a series', async () => {
+    const post = await service.save({
+      input: input({ title: '{{channel}} highlights {{date}}' }),
+      mode: 'queue'
+    })
+    expect(post.title).toMatch(/^Test Channel \d+ highlights Nov 1[34], 2026$/)
+  })
+
+  it('gives a post that moves to another series a new number', async () => {
+    const a = makeSeries(9)
+    const b = makeSeries(100)
+    const post = await service.save({ input: seriesInput(a.id), mode: 'queue' })
+    await service.save({
+      id: post.id,
+      input: seriesInput(b.id),
+      mode: 'queue'
+    })
+    expect(t.repos.posts.require(post.id)).toMatchObject({ seriesId: b.id, seriesNumber: 100 })
+  })
+})
+
+describe('calendar moves and copies', () => {
+  it('moves a queued post and its upload time; a draft keeps no upload time', async () => {
+    const queued = await service.save({ input: input(), mode: 'queue' })
+    const moved = await service.reschedule(queued.id, '2026-11-20T18:00:00.000Z')
+    expect(moved).toMatchObject({
+      publishAtUtc: '2026-11-20T18:00:00.000Z',
+      uploadAfterUtc: '2026-11-19T18:00:00.000Z' // 24 h lead
+    })
+    const draft = await service.save({ input: input(), mode: 'draft' })
+    const movedDraft = await service.reschedule(draft.id, '2026-11-21T09:00:00.000Z')
+    expect(movedDraft).toMatchObject({
+      status: 'draft',
+      publishAtUtc: '2026-11-21T09:00:00.000Z',
+      uploadAfterUtc: null
+    })
+    await expect(service.reschedule(draft.id, '2026-11-01T09:00:00.000Z')).rejects.toThrow(/future/)
+  })
+
+  it('duplicates to another channel with that channel’s playlist, keeping a clip link', async () => {
+    const other = seedAccount(t.repos, { defaultsJson: { playlistId: 'PL-other' } }).id
+    const original = await service.save({
+      input: input({ playlistId: 'PL-mine' }),
+      mode: 'queue'
+    })
+    const copy = service.duplicate(original.id, other)
+    expect(copy).toMatchObject({ accountId: other, status: 'draft', source: 'manual' })
+    expect(t.repos.posts.require(copy.id).playlistId).toBe('PL-other')
+
+    // A Twitch clip stays linked on the new channel, so never-twice still applies there.
+    const twitchId = seedTwitchAccount(t.repos).id
+    seedClip(t.repos, twitchId, 'clipX')
+    const clipPost = t.repos.posts.create({
+      accountId,
+      status: 'draft',
+      source: 'twitch_clip',
+      clipId: 'clipX',
+      title: 'Clip X'
+    })
+    const clipCopy = service.duplicate(clipPost.id, other)
+    expect(t.repos.posts.require(clipCopy.id)).toMatchObject({
+      source: 'twitch_clip',
+      clipId: 'clipX'
+    })
+    expect(() => service.duplicate(clipPost.id, other)).toThrow(/already queued or posted/)
+    // Same channel: a plain manual copy.
+    expect(t.repos.posts.require(service.duplicate(clipPost.id).id).clipId).toBeNull()
   })
 })

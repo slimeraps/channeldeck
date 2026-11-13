@@ -38,7 +38,11 @@ export const postInputSchema = z
     syntheticMedia: z.boolean(),
     visibilityMode: z.enum(VISIBILITY_MODES),
     publishAtUtc: z.string().nullable(),
-    missedPolicy: z.enum(MISSED_POLICIES)
+    missedPolicy: z.enum(MISSED_POLICIES),
+    /** The template it started from (for reference only). */
+    templateId: z.number().int().positive().nullable().optional(),
+    /** Series whose next number fills {{n}} when the post is queued. */
+    seriesId: z.number().int().positive().nullable().optional()
   })
   .strict()
 export type PostInput = z.infer<typeof postInputSchema>
@@ -182,6 +186,10 @@ export function validatePost(
   }
 
   // Extra rules before something can go in the queue.
+  const usesN = /\{\{\s*n\s*\}\}/.test(`${input.title}\n${input.description}`)
+  if (usesN && !input.seriesId) {
+    err('title', 'Pick a series to fill in {{n}}, or take {{n}} out.')
+  }
   if (input.accountId === null) err('accountId', 'Pick a channel.')
   if (!input.filePath) err('filePath', 'Add a video file.')
   if (titleLen === 0 || input.title.trim() === '') err('title', 'Add a title.')

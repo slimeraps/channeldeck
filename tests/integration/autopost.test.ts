@@ -386,6 +386,46 @@ describe('planner', () => {
   })
 })
 
+describe('swap clip', () => {
+  it('swaps an autopost’s clip in the same slot and skips the old clip', async () => {
+    for (let i = 0; i < 4; i++) bankClip(i, { portrait: true })
+    const { id } = autopost.save(rule({ slots: ['18:00'], lookaheadDays: 1 }))
+    await autopost.planRule(id)
+    const original = rulePosts(id)[0]!
+    expect(original.clipId).toBe('clip00')
+
+    const options = autopost.swapCandidates(original.id)
+    expect(options.map((c) => c.id)).toEqual(['clip01', 'clip02', 'clip03'])
+
+    const swapped = await autopost.swapClip(original.id, 'clip02')
+    expect(t.repos.posts.require(original.id).status).toBe('canceled')
+    const fresh = t.repos.posts.require(swapped.postId)
+    expect(fresh).toMatchObject({
+      clipId: 'clip02',
+      ruleId: id,
+      publishAtUtc: original.publishAtUtc,
+      status: 'needs_approval'
+    })
+    expect(t.repos.autopostRules.require(id).skippedClipIdsJson).toEqual(['clip00'])
+    // The planner sees the slot as filled.
+    expect(await autopost.planRule(id)).toEqual({ created: 0, unfilled: 0 })
+    // Without a choice, the next clip in pick order is used.
+    expect((await autopost.swapClip(fresh.id)).title).toBe('Big play 1 #3')
+  })
+
+  it('refuses after upload, for manual posts, and when nothing else fits', async () => {
+    bankClip(0, { portrait: true })
+    const { id } = autopost.save(rule({ slots: ['18:00'], lookaheadDays: 1 }))
+    await autopost.planRule(id)
+    const post = rulePosts(id)[0]!
+    await expect(autopost.swapClip(post.id)).rejects.toThrow(/no other clips/)
+    t.repos.posts.update(post.id, { youtubeVideoId: 'vid1' })
+    expect(() => autopost.swapCandidates(post.id)).toThrow(/only change before upload/)
+    const manual = t.repos.posts.create({ accountId: channelId, status: 'draft', source: 'manual' })
+    expect(() => autopost.swapCandidates(manual.id)).toThrow(/Only autoposts/)
+  })
+})
+
 describe('preview and forecast', () => {
   it('previews the next slots with rendered titles', async () => {
     bankClip(0)

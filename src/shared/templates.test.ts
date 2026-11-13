@@ -5,6 +5,9 @@ import {
   DEFAULT_DESCRIPTION_TEMPLATE,
   finalizeDescription,
   finalizeTitle,
+  hasPostVariables,
+  postDateLabel,
+  renderPostVariables,
   renderTemplate,
   unknownVariables
 } from './templates'
@@ -94,5 +97,28 @@ describe('finalizeDescription', () => {
 
   it('removes angle brackets', () => {
     expect(finalizeDescription('a <tag> b')).toBe('a tag b')
+  })
+})
+
+describe('post templates', () => {
+  it('fills in only the variables it has values for', () => {
+    expect(
+      renderPostVariables('MW4 Day {{n}} · {{ date }} · {{channel}}', {
+        date: 'Nov 14, 2026',
+        channel: 'Helmsy'
+      })
+    ).toBe('MW4 Day {{n}} · Nov 14, 2026 · Helmsy')
+    expect(renderPostVariables('MW4 Day {{n}}', { n: '9' })).toBe('MW4 Day 9')
+    expect(renderPostVariables('{{clip_title}} {{n}}', { n: '2' })).toBe('{{clip_title}} 2')
+  })
+
+  it('detects remaining variables', () => {
+    expect(hasPostVariables('Day {{n}}')).toBe(true)
+    expect(hasPostVariables('Day {{ date }}')).toBe(true)
+    expect(hasPostVariables('Day 9 {{clip_title}}')).toBe(false)
+  })
+
+  it('labels the publish date in the local zone', () => {
+    expect(postDateLabel(new Date('2026-11-15T03:00:00Z'), 'America/Chicago')).toBe('Nov 14, 2026')
   })
 })

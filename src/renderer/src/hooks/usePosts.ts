@@ -45,13 +45,21 @@ function useInvalidate(): () => void {
   }
 }
 
-export function useDuplicatePost(): UseMutationResult<PostListItem, Error, string> {
+export function useDuplicatePost(): UseMutationResult<
+  PostListItem,
+  Error,
+  string | { id: string; accountId: number }
+> {
   const invalidate = useInvalidate()
   return useMutation({
-    mutationFn: (id: string) => invoke('posts:duplicate', { id }),
-    onSuccess: () => {
+    mutationFn: (vars) => invoke('posts:duplicate', typeof vars === 'string' ? { id: vars } : vars),
+    onSuccess: (copy, vars) => {
       invalidate()
-      toast.success('Duplicated as a draft')
+      toast.success(
+        typeof vars === 'string'
+          ? 'Duplicated as a draft'
+          : `Copied to ${copy.channelTitle} as a draft`
+      )
     },
     onError: (e) => toast.error(e.message)
   })
