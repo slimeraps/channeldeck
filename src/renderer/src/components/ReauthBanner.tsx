@@ -1,30 +1,78 @@
 import { TriangleAlert } from 'lucide-react'
 import { Button } from '@renderer/components/ui/button'
 import { useAccounts, useReconnect } from '@renderer/hooks/useAccounts'
+import { useReconnectTwitch, useTwitchAccounts } from '@renderer/hooks/useTwitch'
 import { useUiStore } from '@renderer/stores/ui'
 
-/** App-wide warning while any channel's Google sign-in has expired. */
+interface Expired {
+  key: string
+  name: string
+  color: string
+  kind: 'YouTube' | 'Twitch'
+  reconnect: () => void
+}
+
+/** App-wide warning while any YouTube or Twitch sign-in has expired. */
 export function ReauthBanner(): React.JSX.Element | null {
   const accounts = useAccounts()
+  const twitch = useTwitchAccounts()
   const reconnect = useReconnect()
+  const reconnectTwitch = useReconnectTwitch()
   const setPage = useUiStore((s) => s.setPage)
-  const expired = (accounts.data ?? []).filter((a) => a.tokenStatus === 'needs_reauth')
+
+  const expired: Expired[] = [
+    ...(accounts.data ?? [])
+      .filter((a) => a.tokenStatus === 'needs_reauth')
+      .map((a) => ({
+        key: `yt-${a.id}`,
+        name: a.channelTitle,
+        color: a.color,
+        kind: 'YouTube' as const,
+        reconnect: () => reconnect.mutate(a.id)
+      })),
+    ...(twitch.data ?? [])
+      .filter((a) => a.tokenStatus === 'needs_reauth')
+      .map((a) => ({
+        key: `tw-${a.id}`,
+        name: a.displayName,
+        color: a.color,
+        kind: 'Twitch' as const,
+        reconnect: () => reconnectTwitch.mutate(a.id)
+      }))
+  ]
   if (expired.length === 0) return null
 
-  const first = expired[0]
+  const only = expired.length === 1 ? expired[0] : undefined
+  const effect = (e: Expired): string =>
+    e.kind === 'YouTube' ? 'its uploads are paused' : 'its clip sync is paused'
+
   return (
     <div
       role="alert"
       className="flex items-center gap-3 border-b border-destructive/40 bg-destructive/10 px-8 py-2 text-sm"
     >
       <TriangleAlert className="size-4 shrink-0 text-destructive" aria-hidden />
-      <span className="flex-1">
-        {expired.length === 1
-          ? `${first?.channelTitle} needs you to sign in again. Its uploads are paused until then.`
-          : `${expired.length} channels need you to sign in again. Their uploads are paused until then.`}
+      <span className="flex flex-1 flex-wrap items-center gap-x-1.5">
+        {expired.map((e, i) => (
+          <span key={e.key} className="inline-flex items-center gap-1">
+            <span className="size-2 rounded-full" style={{ background: e.color }} aria-hidden />
+            <span className="font-medium">{e.name}</span>
+            <span className="text-muted-foreground">({e.kind})</span>
+            {i < expired.length - 1 ? ',' : ''}
+          </span>
+        ))}
+        <span>
+          {only
+            ? `needs you to sign in again; ${effect(only)} until then.`
+            : 'need you to sign in again; they’re paused until then.'}
+        </span>
       </span>
-      {expired.length === 1 && first ? (
-        <Button size="sm" onClick={() => reconnect.mutate(first.id)} disabled={reconnect.isPending}>
+      {only ? (
+        <Button
+          size="sm"
+          onClick={only.reconnect}
+          disabled={reconnect.isPending || reconnectTwitch.isPending}
+        >
           Reconnect
         </Button>
       ) : (

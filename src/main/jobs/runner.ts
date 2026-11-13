@@ -33,6 +33,9 @@ export interface JobRunner {
   running(): Record<string, string[]>
   /** Wait for everything currently running (tests). */
   idle(): Promise<void>
+  /** Paused: nothing new starts (work already running finishes). Not saved across restarts. */
+  setPaused(paused: boolean): void
+  isPaused(): boolean
 }
 
 export const TICK_MS = 30_000
@@ -46,6 +49,7 @@ export function createJobRunner(deps: RunnerDeps): JobRunner {
   let timer: ReturnType<typeof setInterval> | null = null
   let ticking = false
   let tickAgain = false
+  let paused = false
   const clock = deps.clock ?? (() => new Date())
   /**
    * Items that finished since the last timer tick or kick. A "slot freed" tick won't restart
@@ -55,7 +59,7 @@ export function createJobRunner(deps: RunnerDeps): JobRunner {
   const justFinished = new Set<string>()
 
   function tick(reason: 'timer' | 'kick' | 'slot' = 'kick'): void {
-    if (controller.signal.aborted) return
+    if (controller.signal.aborted || paused) return
     if (reason !== 'slot') justFinished.clear()
     if (ticking) {
       tickAgain = true
@@ -120,6 +124,11 @@ export function createJobRunner(deps: RunnerDeps): JobRunner {
       await Promise.allSettled([...active.values()].flatMap((m) => [...m.values()]))
     },
     kick: () => tick('kick'),
+    setPaused(value) {
+      paused = value
+      if (!paused) tick('kick')
+    },
+    isPaused: () => paused,
     running() {
       return Object.fromEntries([...active.entries()].map(([name, m]) => [name, [...m.keys()]]))
     },

@@ -9,6 +9,7 @@ import { probeVideo } from '../media/ffprobe'
 import { getAutopost, getTwitchAccounts, getYouTubeAccounts, setSyncingProbe } from '../services'
 import { createClipDownloadJob } from './clipDownload'
 import { createClipSyncJob } from './clipSync'
+import { createCleanupJob } from './cleanup'
 import { createPlannerJob } from './planner'
 import { createJobRunner, type JobRunner } from './runner'
 import { createStatusSyncJob, type StatusSyncJob, type SyncSummary } from './statusSync'
@@ -70,6 +71,14 @@ export function startJobs(): void {
   setSyncingProbe((id) => clipSync.syncingNow().has(id))
   // Autoposting: fills each rule's empty slots with clips from the bank.
   runner.register(createPlannerJob({ autopost: getAutopost() }))
+  // "Delete local files N days after posting" (off unless set in Settings).
+  runner.register(
+    createCleanupJob({
+      repos,
+      emitChanged: () => emitToRenderer('twitch:changed', undefined),
+      logger
+    })
+  )
   runner.register(clipSync)
   runner.register(
     createClipDownloadJob({
@@ -101,6 +110,15 @@ export function startJobs(): void {
 
   runner.start()
   logger.info('[jobs] runner started')
+}
+
+/** Pause/resume new work (tray menu). Running work finishes; not saved across restarts. */
+export function setJobsPaused(paused: boolean): void {
+  runner?.setPaused(paused)
+}
+
+export function jobsPaused(): boolean {
+  return runner?.isPaused() ?? false
 }
 
 export function kickJobs(): void {

@@ -12,6 +12,7 @@ import { postsKey } from '@renderer/hooks/usePosts'
 import { clipsKey, twitchKey } from '@renderer/hooks/useTwitch'
 import { onEvent } from '@renderer/lib/ipc'
 import { autopostKey, layoutsKey } from '@renderer/hooks/useAutopost'
+import { statusKey } from '@renderer/hooks/useStatus'
 import { templatesKey } from '@renderer/hooks/useTemplates'
 import { AutopostPage } from '@renderer/pages/AutopostPage'
 import { CalendarPage } from '@renderer/pages/CalendarPage'
@@ -70,6 +71,7 @@ export function App(): React.JSX.Element {
       void queryClient.invalidateQueries({ queryKey: postsKey })
       void queryClient.invalidateQueries({ queryKey: accountsKey })
       void queryClient.invalidateQueries({ queryKey: autopostKey })
+      void queryClient.invalidateQueries({ queryKey: statusKey })
     })
     const offProgress = onEvent('posts:progress', ({ postId, sentBytes, totalBytes }) =>
       useProgressStore.getState().set(postId, sentBytes, totalBytes)

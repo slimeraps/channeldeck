@@ -46,6 +46,7 @@ import {
   templateInputSchema,
   templateViewSchema
 } from '../schemas/templates'
+import { importReportSchema } from '../schemas/backup'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -78,6 +79,49 @@ export const invokeContract = {
   'app:getInfo': {
     input: noInput,
     output: appInfoSchema
+  },
+  'app:quota': {
+    input: noInput,
+    output: z.object({
+      day: z.string(),
+      uploadCalls: z.number().int(),
+      uploadLimit: z.number().int(),
+      units: z.number().int(),
+      unitLimit: z.number().int(),
+      resetsAtUtc: z.string()
+    })
+  },
+  'app:storage': {
+    input: noInput,
+    output: z.object({
+      clipsRoot: z.string(),
+      accounts: z.array(
+        z.object({
+          id: z.number().int(),
+          name: z.string(),
+          color: z.string(),
+          bytes: z.number(),
+          downloaded: z.number().int(),
+          total: z.number().int()
+        })
+      ),
+      rendersBytes: z.number(),
+      freeBytes: z.number().nullable()
+    })
+  },
+  'backup:export': {
+    input: noInput,
+    output: z.union([
+      z.object({ saved: z.literal(true), path: z.string() }),
+      z.object({ saved: z.literal(false) })
+    ])
+  },
+  'backup:import': {
+    input: noInput,
+    output: z.union([
+      z.object({ imported: z.literal(true), report: importReportSchema }),
+      z.object({ imported: z.literal(false) })
+    ])
   },
   'app:ping': {
     input: z.object({ message: z.string().min(1).max(200) }).strict(),

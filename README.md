@@ -98,9 +98,12 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 
 - ✅ Native dark UI; macOS notifications for uploads, failures, quota pauses and sign-in problems
 - ✅ Logs in `~/Library/Logs/ChannelDeck` with secrets scrubbed
-- 🔜 Menu bar icon with pending count and next publish time; close to tray; launch at login (Phase 9)
-- 🔜 Quota meter and disk usage meter (Phase 9)
-- 🔜 Backup export/import (no tokens) (Phase 9)
+- ✅ Menu bar icon with the pending count; its menu shows the next publish time and has Open, Sync clips now, Pause jobs and Quit
+- ✅ Keep in menu bar: closing the window leaves uploads and syncs running; launch at login (installed app)
+- ✅ Quota meter (today's uploads / 100 and units / 10,000, resets at midnight Pacific) in the sidebar and Settings
+- ✅ Disk usage per Twitch channel, and "delete local files N days after posting"
+- ✅ Backup export/import as JSON, never with tokens or secrets (channels come back signed out, rules switched off)
+- ✅ App icon
 - 🔜 Downloadable `.dmg` for Apple Silicon and a first-run checklist (Phase 10)
 
 ---
@@ -175,6 +178,8 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 
 **Layout:** `src/main` (database, Google and Twitch clients, job runner, media, IPC), `src/preload` (the only bridge to the window), `src/renderer` (React UI), `src/shared` (types, validation, constants). The plan lives in [PLAN.md](PLAN.md) and the working notes in [CLAUDE.md](CLAUDE.md).
 
+**Icons:** `swift scripts/draw-icons.swift <dir>` draws the app icon and the menu bar template images with CoreGraphics; `build/icon.icns` is made from the PNG with `sips` + `iconutil`.
+
 **Security:** the window is sandboxed with no Node access; it can only call a typed, validated set of functions. Local videos are previewed through a restricted `cdmedia://` protocol. Secrets are never committed or logged.
 
 ---
@@ -184,6 +189,17 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
 ### Unreleased
+
+#### Phase 9: Mac polish (2026-11-13)
+
+- Added the menu bar icon: pending count beside it; menu with the next publish time, Open, Sync clips now, Pause jobs and Quit.
+- Closing the window keeps ChannelDeck running in the menu bar (Settings → Keep in menu bar). Added launch at login.
+- Added the quota meter to the sidebar and Settings, and disk usage per Twitch channel.
+- Added "Delete local files after posting": video files of clips whose posts are all published (and vertical renders) are removed after the days you choose.
+- Added backup export/import. The file never holds sign-in tokens or secrets; imported channels need Reconnect, and imported rules start switched off.
+- Settings now has everything in one place, including the Google client file, the Twitch app, Mac options and backups.
+- The re-auth banner now covers Twitch channels too.
+- New app icon.
 
 #### Phase 8: Calendar, templates and series (2026-11-13)
 

@@ -4,6 +4,7 @@ import { getMainWindow } from '../appWindow'
 import { getRepos } from '../db'
 import { syncStatusNow, uploadsPausedUntil } from '../jobs'
 import { getPosts } from '../services'
+import { applyLoginItem } from '../loginItem'
 import { handle } from './handle'
 
 async function pickFile(
@@ -65,7 +66,11 @@ export function registerPostHandlers(): void {
     settings: getRepos().settings.get(),
     uploadsPausedUntil: uploadsPausedUntil()?.toISOString() ?? null
   }))
-  handle('settings:update', (patch) => getRepos().settings.update(patch))
+  handle('settings:update', (patch) => {
+    const settings = getRepos().settings.update(patch)
+    if (patch.launchAtLogin !== undefined) applyLoginItem(patch.launchAtLogin)
+    return settings
+  })
 
   handle('posts:reveal', ({ id }) => {
     shell.showItemInFolder(posts().filePathFor(id))

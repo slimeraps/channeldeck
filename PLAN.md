@@ -171,12 +171,12 @@ Requested by Cody on 2026-11-13.
 
 ## Phase 9 — Mac polish
 
-- [ ] Tray icon with pending count and next publish time; menu: Open, Sync now, Pause jobs, Quit
-- [ ] Close window → stays in tray (setting); launch at login (`app.setLoginItemSettings`)
-- [ ] Quota meter: today's upload calls / 100 and units / 10,000, reset at midnight Pacific
-- [ ] Disk usage meter per Twitch account; "delete local file N days after posting" job
-- [ ] Settings page complete: Google client file, Twitch id/secret, clip folder, sync time, lead time, concurrency, launch at login, keep in tray, Dry Run, backup export/import (JSON, no tokens or secrets), open logs folder
-- [ ] App icon; re-auth banner polished; empty states reviewed
+- [x] Tray icon with pending count and next publish time; menu: Open, Sync now, Pause jobs, Quit
+- [x] Close window → stays in tray (setting); launch at login (`app.setLoginItemSettings`)
+- [x] Quota meter: today's upload calls / 100 and units / 10,000, reset at midnight Pacific
+- [x] Disk usage meter per Twitch account; "delete local file N days after posting" job
+- [x] Settings page complete: Google client file, Twitch id/secret, clip folder, sync time, lead time, concurrency, launch at login, keep in tray, Dry Run, backup export/import (JSON, no tokens or secrets), open logs folder
+- [x] App icon; re-auth banner polished; empty states reviewed
 
 **Acceptance:** quota accounting tests incl. Pacific reset across DST; backup round-trip test proves no secrets in the export. By hand: close the window, see tray, reopen; toggle launch at login.
 
