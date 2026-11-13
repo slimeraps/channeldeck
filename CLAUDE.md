@@ -6,7 +6,7 @@ Personal macOS (Apple Silicon) Electron app: Twitch clip bank + YouTube upload s
 
 - One phase at a time. End each phase with typecheck + lint + tests passing, `npm run dev` launching cleanly, a "test by hand" list, and one git commit. Then wait for "go".
 - Git: repo is public at github.com/slimeraps/channeldeck. `main` holds approved work only. Each phase is built on its own branch off `main` (`phase-0-scaffold`, `phase-1-data-layer`, …), pushed, and merged into `main` through a pull request after Cody approves the phase. Extra branches for side experiments are fine. Never force-push `main`.
-- **README:** every phase updates `README.md` before its PR: tick the features it finished (🔜 → ✅) and add a changelog entry under **Unreleased** at the bottom (newest phase first, with the date). No version numbers anywhere until all phases are done.
+- **README:** every change updates `README.md` before its PR: tick finished features and add a changelog entry at the bottom (newest first, with the date). All phases are done and the app is 1.0.0: new work goes under an **Unreleased** heading above the latest version, and gets a semver bump in `package.json` when Cody asks for a release.
 - **Other dev's release branch:** another developer pushes feature branches to a release branch **in this repo** (github.com/slimeraps/channeldeck). Right after each merge to `main`:
   1. `git fetch --all --prune`, then list every remote branch except `main` and our own `phase-*` branches (e.g. `release`, `release/*`, feature branches). For each: commits not in `main` (`git log main..origin/<branch>`) and files changed (`git diff --stat main...origin/<branch>`).
   2. Summarize each for Cody: what it does, files touched, overlap or conflicts with our phases, risks, and whether it has tests. Say plainly if nothing is new.
@@ -136,4 +136,6 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 
 - `asarUnpack` ffmpeg-static, `@ffprobe-installer/*` and better-sqlite3. Resolve binary paths with `.replace('app.asar', 'app.asar.unpacked')`.
 - Ship `drizzle/` as an extra resource and run migrations at startup.
-- Unsigned dmg: first launch via right-click → Open.
+- `mac.identity: '-'` ad-hoc signs the app (Apple Silicon needs a valid signature; Electron's own is invalidated by packaging) with `hardenedRuntime: false`. Not notarized: a downloaded copy needs System Settings → Privacy & Security → Open Anyway the first time.
+- `electronDist: node_modules/electron/dist` packages the installed Electron (no download). Bundled files under `resources/` are read through `paths.ts` `resourcePath()` (unpacked in the installed app).
+- Self-test: `CHANNELDECK_SELF_TEST=<empty dir> <app>/Contents/MacOS/ChannelDeck` (`src/main/selfTest.ts`) checks migrations, ffmpeg, ffprobe, a render and a Dry Run upload in a throwaway data folder, then exits 0/1. Run it on every `npm run dist`.

@@ -157,4 +157,19 @@ describe('backup', () => {
     expect(report.skipped).toBe(7)
     expect(() => service.importBackup({ app: 'Other' })).toThrow(/isn't a ChannelDeck backup/)
   })
+
+  it('imports a backup from an older version that lacks newer settings', () => {
+    const exported = createBackupService({ repos: source.repos }).exportBackup()
+    const { setupDismissed, setupConsentConfirmed, setupClipFolderConfirmed, ...older } =
+      exported.settings
+    void setupDismissed
+    void setupConsentConfirmed
+    void setupClipFolderConfirmed
+    const report = createBackupService({ repos: target.repos }).importBackup({
+      ...exported,
+      settings: older
+    })
+    expect(report.added.youtubeChannels).toBe(1)
+    expect(target.repos.settings.get().setupDismissed).toBe(false)
+  })
 })

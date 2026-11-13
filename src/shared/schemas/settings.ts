@@ -30,7 +30,13 @@ export const settingsShape = {
   /** Delete a clip's local files this many days after it's posted; null = keep forever. */
   deleteLocalAfterPostingDays: z.number().int().min(1).max(3650).nullable(),
   /** Twitch app Client ID (public). The client secret is stored separately, encrypted. */
-  twitchClientId: z.string().trim().min(1).max(100).nullable()
+  twitchClientId: z.string().trim().min(1).max(100).nullable(),
+  /** First-run checklist: hidden by you. */
+  setupDismissed: z.boolean(),
+  /** You confirmed the Google consent screen is "In production" (can't be checked via API). */
+  setupConsentConfirmed: z.boolean(),
+  /** You confirmed (or chose) the clip folder. */
+  setupClipFolderConfirmed: z.boolean()
 } as const
 
 export const settingsSchema = z.object(settingsShape).strict()
@@ -52,6 +58,9 @@ export function defaultSettings({ homeDir }: { homeDir: string }): Settings {
     keepInTray: true,
     dryRun: false,
     deleteLocalAfterPostingDays: null,
-    twitchClientId: null
+    twitchClientId: null,
+    setupDismissed: false,
+    setupConsentConfirmed: false,
+    setupClipFolderConfirmed: false
   }
 }

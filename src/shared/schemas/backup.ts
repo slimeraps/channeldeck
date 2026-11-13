@@ -10,7 +10,7 @@ import {
 } from '../constants/enums'
 import { accountDefaultsSchema } from './account'
 import { autopostFiltersSchema, layoutCropsSchema } from './autopost'
-import { settingsSchema } from './settings'
+import { settingsPatchSchema } from './settings'
 
 /**
  * Backup file (Settings → Export backup). Plain JSON with your setup: settings, channels,
@@ -115,7 +115,8 @@ export const backupSchema = z.object({
   app: z.literal('ChannelDeck'),
   format: z.literal(BACKUP_FORMAT),
   exportedAt: z.string(),
-  settings: settingsSchema,
+  /** Partial so a backup from an older version (fewer settings) still imports. */
+  settings: settingsPatchSchema,
   youtubeChannels: z.array(backupChannel),
   twitchChannels: z.array(backupTwitch),
   templates: z.array(backupTemplate),

@@ -182,8 +182,8 @@ Requested by Cody on 2026-11-13.
 
 ## Phase 10 — Packaging
 
-- [ ] electron-builder arm64 `.dmg`, unsigned; `asarUnpack` for ffmpeg/ffprobe binaries and better-sqlite3; migrations bundled
-- [ ] First-run checklist screen (Google client file → consent screen in production → add channel → Twitch app → connect Twitch → clip folder)
-- [ ] README: Google Cloud setup (APIs, OAuth Desktop client, consent screen In production), Twitch app setup (Confidential, redirect URL), where `client_secret.json` goes, `npm run dev`, building the dmg, opening an unsigned app (right-click → Open)
+- [x] electron-builder arm64 `.dmg`, unsigned; `asarUnpack` for ffmpeg/ffprobe binaries and better-sqlite3; migrations bundled
+- [x] First-run checklist screen (Google client file → consent screen in production → add channel → Twitch app → connect Twitch → clip folder)
+- [x] README: Google Cloud setup (APIs, OAuth Desktop client, consent screen In production), Twitch app setup (Confidential, redirect URL), where `client_secret.json` goes, `npm run dev`, building the dmg, opening an unsigned app (right-click → Open)
 
 **Acceptance:** `npm run dist` produces a dmg; the installed app launches, runs migrations, finds ffmpeg/ffprobe, and completes a Dry Run upload.
