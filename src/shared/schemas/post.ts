@@ -247,6 +247,7 @@ export const postListItemSchema = z.object({
   durationSec: z.number().nullable(),
   uploadProgress: z.number(),
   lastError: z.string().nullable(),
+  retryAfterUtc: z.string().nullable(),
   fileMissing: z.boolean(),
   videoPreviewUrl: z.string().nullable(),
   thumbnailPreviewUrl: z.string().nullable(),

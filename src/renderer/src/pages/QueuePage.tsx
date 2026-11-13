@@ -3,11 +3,14 @@ import {
   ArrowUp,
   CalendarX,
   Clapperboard,
+  CloudUpload,
   Copy,
+  ExternalLink,
   FolderSearch,
   ListVideo,
   MoreHorizontal,
   Pencil,
+  RotateCcw,
   Trash2,
   TriangleAlert,
   Upload
@@ -49,8 +52,11 @@ import {
   useDeleteDraft,
   useDuplicatePost,
   usePosts,
-  useRevealPost
+  useRetryPost,
+  useRevealPost,
+  useUploadNow
 } from '@renderer/hooks/usePosts'
+import { useProgressStore } from '@renderer/stores/progress'
 import {
   STATUS_LABELS,
   STATUS_TONES,
@@ -131,6 +137,51 @@ function PublishCell({ post }: { post: PostListItem }): React.JSX.Element {
   )
 }
 
+function ProgressCell({ post }: { post: PostListItem }): React.JSX.Element {
+  const live = useProgressStore((s) => s.byPost[post.id])
+  if (post.status === 'uploading' || post.status === 'rendering') {
+    const fraction = live && live.total > 0 ? live.sent / live.total : post.uploadProgress
+    const pct = Math.round(fraction * 100)
+    return (
+      <div className="space-y-1">
+        <div className="h-1.5 overflow-hidden rounded bg-muted">
+          <div className="h-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
+        </div>
+        <div className="text-[11px] text-muted-foreground tabular-nums">{pct}%</div>
+      </div>
+    )
+  }
+  if (post.status === 'processing') {
+    return <span className="text-xs text-muted-foreground">On YouTube, processing</span>
+  }
+  return <span className="text-xs text-muted-foreground">—</span>
+}
+
+function StatusCell({ post }: { post: PostListItem }): React.JSX.Element {
+  const detail =
+    post.status === 'waiting_quota' && post.retryAfterUtc
+      ? `Retries ${formatRelative(post.retryAfterUtc)}`
+      : post.lastError
+  return (
+    <div className="max-w-56 space-y-1">
+      <Badge variant="outline" className={STATUS_TONES[post.status]}>
+        {STATUS_LABELS[post.status]}
+      </Badge>
+      {detail ? (
+        <p
+          className={cn(
+            'line-clamp-2 text-[11px]',
+            post.status === 'failed' ? 'text-red-300' : 'text-muted-foreground'
+          )}
+          title={post.lastError ?? undefined}
+        >
+          {detail}
+        </p>
+      ) : null}
+    </div>
+  )
+}
+
 export function QueuePage(): React.JSX.Element {
   const [accountFilter, setAccountFilter] = useState<string>(ALL)
   const [statusFilter, setStatusFilter] = useState<StatusFilter>('active')
@@ -154,6 +205,8 @@ export function QueuePage(): React.JSX.Element {
   const cancel = useCancelPost()
   const deleteDraft = useDeleteDraft()
   const reveal = useRevealPost()
+  const uploadNow = useUploadNow()
+  const retry = useRetryPost()
 
   // Sorted by publish time; posts without one (drafts, upload-now) go after timed ones.
   const rows = useMemo(() => {
@@ -284,6 +337,14 @@ export function QueuePage(): React.JSX.Element {
                       {post.fileMissing ? (
                         <span className="text-destructive">File missing</span>
                       ) : null}
+                      {post.youtubeVideoId?.startsWith('DRYRUN-') ? (
+                        <Badge
+                          variant="outline"
+                          className="h-4 border-amber-500/50 px-1 text-[10px] text-amber-300"
+                        >
+                          Dry Run
+                        </Badge>
+                      ) : null}
                     </div>
                   </td>
                   <td className="px-3 py-2">
@@ -307,25 +368,10 @@ export function QueuePage(): React.JSX.Element {
                     <PublishCell post={post} />
                   </td>
                   <td className="px-3 py-2">
-                    <Badge
-                      variant="outline"
-                      className={STATUS_TONES[post.status]}
-                      title={post.lastError ?? undefined}
-                    >
-                      {STATUS_LABELS[post.status]}
-                    </Badge>
+                    <StatusCell post={post} />
                   </td>
                   <td className="px-3 py-2">
-                    {post.status === 'uploading' ? (
-                      <div className="h-1.5 overflow-hidden rounded bg-muted">
-                        <div
-                          className="h-full bg-primary"
-                          style={{ width: `${Math.round(post.uploadProgress * 100)}%` }}
-                        />
-                      </div>
-                    ) : (
-                      <span className="text-xs text-muted-foreground">—</span>
-                    )}
+                    <ProgressCell post={post} />
                   </td>
                   <td className="px-3 py-2">
                     <DropdownMenu>
@@ -345,6 +391,27 @@ export function QueuePage(): React.JSX.Element {
                         >
                           <Pencil aria-hidden /> Edit…
                         </DropdownMenuItem>
+                        {post.status === 'queued' ? (
+                          <DropdownMenuItem onSelect={() => uploadNow.mutate(post.id)}>
+                            <CloudUpload aria-hidden /> Upload now
+                          </DropdownMenuItem>
+                        ) : null}
+                        {post.status === 'failed' || post.status === 'waiting_quota' ? (
+                          <DropdownMenuItem onSelect={() => retry.mutate(post.id)}>
+                            <RotateCcw aria-hidden /> Retry
+                          </DropdownMenuItem>
+                        ) : null}
+                        {post.youtubeVideoId && !post.youtubeVideoId.startsWith('DRYRUN-') ? (
+                          <DropdownMenuItem asChild>
+                            <a
+                              href={`https://studio.youtube.com/video/${post.youtubeVideoId}/edit`}
+                              target="_blank"
+                              rel="noreferrer"
+                            >
+                              <ExternalLink aria-hidden /> Open in YouTube Studio
+                            </a>
+                          </DropdownMenuItem>
+                        ) : null}
                         <DropdownMenuItem onSelect={() => duplicate.mutate(post.id)}>
                           <Copy aria-hidden /> Duplicate
                         </DropdownMenuItem>

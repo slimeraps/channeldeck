@@ -6,11 +6,12 @@ import { registerAccountHandlers } from './ipc/accountHandlers'
 import { registerAppHandlers } from './ipc/appHandlers'
 import { setIpcOrigin } from './ipc/handle'
 import { registerPostHandlers } from './ipc/postHandlers'
+import { kickJobs, startJobs, stopJobs } from './jobs'
 import { initLogger, logger } from './logger'
 import { handleMediaProtocol, registerMediaScheme } from './media/protocol'
 import { buildAppMenu } from './menu'
 import type { AppOrigin } from './security'
-import { getMediaAccess, getYouTubeAccounts, initServices } from './services'
+import { getMediaAccess, getYouTubeAccounts, initServices, setKickJobs } from './services'
 import { createMainWindow } from './window'
 
 // Name first: it decides ~/Library/Application Support/ChannelDeck and ~/Library/Logs/ChannelDeck.
@@ -101,6 +102,10 @@ async function start(): Promise<void> {
   // Confirm every channel's Google sign-in still works (1 quota unit each). Expired ones
   // get flagged "Needs re-auth" with a notification.
   void getYouTubeAccounts().checkAll()
+
+  // Uploads (and later: clip sync, downloads, planner, status sync).
+  setKickJobs(kickJobs)
+  startJobs()
 }
 
 // One running copy only: two would race on the database and the job runner.
@@ -115,6 +120,16 @@ if (!app.requestSingleInstanceLock()) {
     if (process.platform !== 'darwin') app.quit()
   })
 
+  // Stop jobs first so in-flight uploads mark themselves "interrupted", then close the DB.
+  let quitting = false
+  app.on('before-quit', (event) => {
+    if (quitting) return
+    quitting = true
+    event.preventDefault()
+    void stopJobs()
+      .catch((error: unknown) => logger.error('[jobs] stop failed', error))
+      .finally(() => app.quit())
+  })
   app.on('will-quit', () => closeDatabase())
 
   start().catch((error: unknown) => {

@@ -1,6 +1,7 @@
 import { PAGES } from '@renderer/app/nav'
 import { NewPostButton } from '@renderer/components/NewPostButton'
 import { useAppInfo } from '@renderer/hooks/useAppInfo'
+import { useSettings } from '@renderer/hooks/useSettings'
 import { cn } from '@renderer/lib/utils'
 import { useUiStore } from '@renderer/stores/ui'
 
@@ -8,6 +9,7 @@ export function AppSidebar(): React.JSX.Element {
   const page = useUiStore((s) => s.page)
   const setPage = useUiStore((s) => s.setPage)
   const appInfo = useAppInfo()
+  const settings = useSettings()
 
   return (
     <aside className="flex w-56 shrink-0 flex-col border-r border-sidebar-border bg-sidebar text-sidebar-foreground">
@@ -42,6 +44,15 @@ export function AppSidebar(): React.JSX.Element {
         })}
       </nav>
 
+      {settings.data?.settings.dryRun ? (
+        <button
+          type="button"
+          onClick={() => setPage('settings')}
+          className="mx-3 mb-2 rounded-md border border-amber-500/40 bg-amber-500/10 px-3 py-2 text-left text-xs text-amber-200"
+        >
+          <span className="font-medium">Dry Run is on.</span> Nothing is really uploaded.
+        </button>
+      ) : null}
       <div className="px-5 py-3 text-xs text-muted-foreground" data-testid="app-version">
         {appInfo.data ? `v${appInfo.data.version}` : appInfo.isError ? 'IPC unavailable' : '…'}
       </div>

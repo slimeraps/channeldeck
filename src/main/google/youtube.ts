@@ -1,6 +1,9 @@
+import { randomBytes } from 'node:crypto'
+import { createReadStream } from 'node:fs'
 import { youtube, type youtube_v3 } from '@googleapis/youtube'
 import type { OAuth2Client } from 'google-auth-library'
 import type { YouTubeMethod } from '@shared/constants/quota'
+import { type UploadedVideo, uploadResumable } from './resumableUpload'
 
 /**
  * Thin wrapper over the official YouTube Data API client. Every call is recorded for the
@@ -29,10 +32,29 @@ export interface PlaylistInfo {
   privacy: string | null
 }
 
+export interface UploadVideoArgs {
+  /** The `video` resource: snippet + status. */
+  resource: { snippet: Record<string, unknown>; status: Record<string, unknown> }
+  notifySubscribers: boolean
+  filePath: string
+  sizeBytes: number
+  contentType: string
+  onProgress?: (sentBytes: number, totalBytes: number) => void
+  onRetry?: (message: string, attempt: number, delayMs: number) => void
+  signal?: AbortSignal
+}
+
+export type { UploadedVideo }
+
 export interface YouTubeApi {
+  /** True for the Dry Run stand-in (nothing reaches YouTube). */
+  readonly dryRun: boolean
   channelsMine(): Promise<ChannelInfo[]>
   videoCategories(regionCode?: string, hl?: string): Promise<VideoCategory[]>
   playlistsMine(): Promise<PlaylistInfo[]>
+  uploadVideo(args: UploadVideoArgs): Promise<UploadedVideo>
+  setThumbnail(videoId: string, imagePath: string, mimeType: string): Promise<void>
+  addToPlaylist(playlistId: string, videoId: string): Promise<void>
 }
 
 export interface YouTubeApiDeps {
@@ -56,6 +78,8 @@ export function createYouTubeApi({ auth, recordCall }: YouTubeApiDeps): YouTubeA
   const yt = youtube({ version: 'v3', auth })
 
   return {
+    dryRun: false,
+
     async channelsMine() {
       recordCall('channels.list')
       const res = await yt.channels.list({ part: ['snippet', 'contentDetails'], mine: true })
@@ -97,6 +121,96 @@ export function createYouTubeApi({ auth, recordCall }: YouTubeApiDeps): YouTubeA
         pageToken = res.data.nextPageToken ?? undefined
       } while (pageToken)
       return playlists.sort((a, b) => a.title.localeCompare(b.title))
+    },
+
+    async uploadVideo(args) {
+      recordCall('videos.insert')
+      return uploadResumable({
+        accessToken: async () => {
+          const { token } = await auth.getAccessToken()
+          if (!token) throw new Error('No access token for this channel')
+          return token
+        },
+        resource: args.resource,
+        parts: ['snippet', 'status'],
+        notifySubscribers: args.notifySubscribers,
+        filePath: args.filePath,
+        sizeBytes: args.sizeBytes,
+        contentType: args.contentType,
+        ...(args.onProgress ? { onProgress: args.onProgress } : {}),
+        ...(args.onRetry ? { onRetry: args.onRetry } : {}),
+        ...(args.signal ? { signal: args.signal } : {})
+      })
+    },
+
+    async setThumbnail(videoId, imagePath, mimeType) {
+      recordCall('thumbnails.set')
+      await yt.thumbnails.set({ videoId, media: { mimeType, body: createReadStream(imagePath) } })
+    },
+
+    async addToPlaylist(playlistId, videoId) {
+      recordCall('playlistItems.insert')
+      await yt.playlistItems.insert({
+        part: ['snippet'],
+        requestBody: { snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId } } }
+      })
+    }
+  }
+}
+
+/**
+ * Dry Run: logs exactly which write calls would run, with their payloads, and pretends they
+ * worked. It never touches the network (not even to refresh a token). Read-only lookups
+ * (channels, categories, playlists) still go to the real API through `reads`, because the
+ * editor needs them and they change nothing.
+ */
+export function createDryRunYouTubeApi(deps: {
+  reads: Pick<YouTubeApi, 'channelsMine' | 'videoCategories' | 'playlistsMine'>
+  recordCall: (method: YouTubeMethod) => void
+  log: (message: string, payload: Record<string, unknown>) => void
+  /** Simulated upload duration, so the progress bar has something to show. */
+  uploadMs?: number
+}): YouTubeApi {
+  const uploadMs = deps.uploadMs ?? 1500
+  return {
+    dryRun: true,
+    channelsMine: () => deps.reads.channelsMine(),
+    videoCategories: (region, hl) => deps.reads.videoCategories(region, hl),
+    playlistsMine: () => deps.reads.playlistsMine(),
+
+    async uploadVideo(args) {
+      deps.recordCall('videos.insert')
+      deps.log('videos.insert (resumable)', {
+        part: 'snippet,status',
+        notifySubscribers: args.notifySubscribers,
+        body: args.resource,
+        file: args.filePath,
+        bytes: args.sizeBytes,
+        contentType: args.contentType
+      })
+      const steps = 10
+      for (let i = 0; i <= steps; i++) {
+        if (args.signal?.aborted) throw args.signal.reason ?? new Error('aborted')
+        args.onProgress?.(Math.round((args.sizeBytes * i) / steps), args.sizeBytes)
+        if (i < steps) await new Promise((r) => setTimeout(r, uploadMs / steps))
+      }
+      return {
+        id: `DRYRUN-${randomBytes(4).toString('hex')}`,
+        status: { ...args.resource.status, uploadStatus: 'uploaded' }
+      }
+    },
+
+    async setThumbnail(videoId, imagePath, mimeType) {
+      deps.recordCall('thumbnails.set')
+      deps.log('thumbnails.set', { videoId, file: imagePath, mimeType })
+    },
+
+    async addToPlaylist(playlistId, videoId) {
+      deps.recordCall('playlistItems.insert')
+      deps.log('playlistItems.insert', {
+        part: 'snippet',
+        body: { snippet: { playlistId, resourceId: { kind: 'youtube#video', videoId } } }
+      })
     }
   }
 }

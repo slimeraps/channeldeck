@@ -33,6 +33,8 @@ export interface PostsServiceDeps {
   probe: (path: string) => Promise<ProbeResult>
   media: MediaAccess
   emitChanged: () => void
+  /** Ask the job runner to look for work now (after queueing or Upload now). */
+  kickJobs?: () => void
   clock?: Clock
 }
 
@@ -109,6 +111,7 @@ export function createPostsService(deps: PostsServiceDeps) {
       durationSec: post.durationSec,
       uploadProgress: post.uploadProgress,
       lastError: post.lastError,
+      retryAfterUtc: post.retryAfterUtc,
       fileMissing: Boolean(post.filePath) && !fileExists && !post.youtubeVideoId,
       videoPreviewUrl: post.filePath && fileExists ? mediaUrl(post.filePath) : null,
       thumbnailPreviewUrl:
@@ -296,6 +299,7 @@ export function createPostsService(deps: PostsServiceDeps) {
       if (post.filePath) media.grant(post.filePath)
       if (post.thumbnailPath) media.grant(post.thumbnailPath)
       deps.emitChanged()
+      if (post.status === 'queued') deps.kickJobs?.()
       return toListItem(post, accountLookup())
     },
 
@@ -333,6 +337,51 @@ export function createPostsService(deps: PostsServiceDeps) {
       }
       const updated = repos.posts.transition(id, 'cancel', { reason: 'unscheduled' })
       deps.emitChanged()
+      return toListItem(updated, accountLookup())
+    },
+
+    /** Upload a queued post right away instead of waiting for its lead time. */
+    uploadNow(id: string): PostListItem {
+      const post = repos.posts.require(id)
+      if (post.status !== 'queued') {
+        throw new UserFacingError(
+          post.status === 'waiting_quota'
+            ? "Today's YouTube quota is used up. This post will upload after midnight Pacific."
+            : `Only queued posts can be uploaded now; this one is ${post.status.replace('_', ' ')}.`
+        )
+      }
+      const account = repos.accounts.get(post.accountId)
+      if (!account || account.removedAt || !account.enabled || account.tokenStatus !== 'ok') {
+        throw new UserFacingError(
+          account?.tokenStatus === 'needs_reauth'
+            ? `${account.channelTitle} needs you to sign in again before it can upload.`
+            : 'Uploads for this channel are switched off on the Channels page.'
+        )
+      }
+      const updated = repos.posts.update(id, {
+        uploadAfterUtc: clock().toISOString(),
+        retryAfterUtc: null
+      })
+      deps.emitChanged()
+      deps.kickJobs?.()
+      return toListItem(updated, accountLookup())
+    },
+
+    /** Try a failed post again; a post already on YouTube only redoes its unfinished steps. */
+    retry(id: string): PostListItem {
+      const post = repos.posts.require(id)
+      if (post.status !== 'failed' && post.status !== 'waiting_quota') {
+        throw new UserFacingError(
+          `Only failed posts can be retried; this one is ${post.status.replace('_', ' ')}.`
+        )
+      }
+      repos.postSteps.resetUnfinished(id)
+      const updated = repos.posts.transition(id, 'retry', {
+        patch: { lastError: null, retryAfterUtc: null, uploadAfterUtc: clock().toISOString() },
+        reason: 'retried by you'
+      })
+      deps.emitChanged()
+      deps.kickJobs?.()
       return toListItem(updated, accountLookup())
     },
 

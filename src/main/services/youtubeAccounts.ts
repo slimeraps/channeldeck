@@ -22,6 +22,7 @@ import { isApiNotEnabled, isInvalidGrant, projectNumberFrom } from '../google/er
 import type { LoopbackReceiver } from '../google/loopback'
 import { signInWithGoogle } from '../google/oauth'
 import {
+  createDryRunYouTubeApi,
   createYouTubeApi,
   type PlaylistInfo,
   type VideoCategory,
@@ -48,6 +49,8 @@ export interface YouTubeAccountsDeps {
   /** Test hook for the loopback receiver. */
   createReceiver?: () => Promise<LoopbackReceiver>
   signInTimeoutMs?: number
+  /** Test hook: how long a Dry Run upload pretends to take. */
+  dryRunUploadMs?: number
 }
 
 /** Posts that haven't reached YouTube and wait on this channel. */
@@ -93,9 +96,9 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
     return config
   }
 
-  function recordCall(method: YouTubeMethod, accountId: number | null): void {
+  function recordCall(method: YouTubeMethod, accountId: number | null, dryRun = false): void {
     const { bucket, cost } = QUOTA_COSTS[method]
-    repos.quota.record({ quotaDay: quotaDayFor(clock()), bucket, cost, method, accountId })
+    repos.quota.record({ quotaDay: quotaDayFor(clock()), bucket, cost, method, accountId, dryRun })
   }
 
   function requireActiveAccount(accountId: number): AccountRow {
@@ -209,10 +212,32 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
         `${account.channelTitle} needs you to sign in again. Click Reconnect.`
       )
     }
-    const api = createYouTubeApi({
-      auth: authClientFor(account),
-      recordCall: (method) => recordCall(method, account.id)
-    })
+    const realApi = (): YouTubeApi =>
+      createYouTubeApi({
+        auth: authClientFor(account),
+        recordCall: (method) => recordCall(method, account.id)
+      })
+    const api = repos.settings.getKey('dryRun')
+      ? createDryRunYouTubeApi({
+          // Read-only lookups still use the real API; writes are only logged.
+          reads: {
+            channelsMine: () => realApi().channelsMine(),
+            videoCategories: (r, hl) => realApi().videoCategories(r, hl),
+            playlistsMine: () => realApi().playlistsMine()
+          },
+          recordCall: (method) => recordCall(method, account.id, true),
+          log: (message, payload) => {
+            logger.info(`[dry-run] ${account.channelTitle}: would call ${message}`, payload)
+            repos.eventLog.write({
+              kind: 'dryrun.call',
+              message: `Dry Run: would call ${message}`,
+              accountId: account.id,
+              data: payload
+            })
+          },
+          ...(deps.dryRunUploadMs !== undefined ? { uploadMs: deps.dryRunUploadMs } : {})
+        })
+      : realApi()
     try {
       return await fn(api)
     } catch (error) {

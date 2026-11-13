@@ -277,6 +277,8 @@ export const posts = sqliteTable(
     uploadProgress: real('upload_progress').notNull().default(0),
     attempts: integer('attempts').notNull().default(0),
     lastError: text('last_error'),
+    /** Don't pick the post up before this (e.g. waiting_quota until midnight Pacific). */
+    retryAfterUtc: text('retry_after_utc'),
     createdAt: createdAt(),
     updatedAt: updatedAt()
   },

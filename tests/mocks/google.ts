@@ -8,6 +8,9 @@ import { http, HttpResponse } from 'msw'
 export const TOKEN_URL = 'https://oauth2.googleapis.com/token'
 export const REVOKE_URL = 'https://oauth2.googleapis.com/revoke'
 export const YT = 'https://youtube.googleapis.com/youtube/v3'
+export const UPLOAD = 'https://www.googleapis.com/upload/youtube/v3/videos'
+export const SESSION = 'https://www.googleapis.com/upload/youtube/v3/videos/session'
+export const THUMBNAILS = 'https://youtube.googleapis.com/upload/youtube/v3/thumbnails/set'
 
 export const BOTH_SCOPES =
   'https://www.googleapis.com/auth/youtube.upload https://www.googleapis.com/auth/youtube'
@@ -34,6 +37,26 @@ export interface GoogleState {
   tokenRequests: URLSearchParams[]
   revoked: string[]
   youtubeCalls: string[]
+  /** Every request to a Google host (Dry Run asserts this stays empty). */
+  allGoogleRequests: string[]
+  // --- uploads ---
+  /** Metadata sent when each resumable session started. */
+  uploadStarts: { resource: Record<string, unknown>; query: Record<string, string>; size: number }[]
+  /** Bytes received per session id. */
+  received: Map<string, number>
+  /** Reason for an error on the next session start (e.g. quotaExceeded). */
+  failStartWith: { status: number; reason: string } | null
+  /** Make the next N body PUTs die after receiving this many bytes (simulated drop). */
+  dropPutsAfterBytes: { count: number; bytes: number } | null
+  /** When a PUT is dropped, also expire the session (status queries then get 404). */
+  expireSessionOnDrop: boolean
+  /** privacyStatus YouTube reports back (default: what was requested). */
+  forcePrivacy: string | null
+  nextVideoId: number
+  thumbnails: { videoId: string; bytes: number }[]
+  /** Errors to return for the next thumbnail calls, in order. */
+  thumbnailErrors: { status: number; reason: string }[]
+  playlistInserts: { playlistId: string; videoId: string }[]
 }
 
 export function createGoogleState(): GoogleState {
@@ -46,7 +69,18 @@ export function createGoogleState(): GoogleState {
     nextAccessToken: 'at-1',
     tokenRequests: [],
     revoked: [],
-    youtubeCalls: []
+    youtubeCalls: [],
+    allGoogleRequests: [],
+    uploadStarts: [],
+    received: new Map(),
+    failStartWith: null,
+    dropPutsAfterBytes: null,
+    expireSessionOnDrop: false,
+    forcePrivacy: null,
+    nextVideoId: 1,
+    thumbnails: [],
+    thumbnailErrors: [],
+    playlistInserts: []
   }
 }
 
@@ -54,8 +88,105 @@ function bearer(request: Request): string {
   return (request.headers.get('authorization') ?? '').replace(/^Bearer\s+/i, '')
 }
 
+const apiError = (status: number, reason: string) =>
+  HttpResponse.json(
+    { error: { code: status, message: reason, errors: [{ reason, message: reason }] } },
+    { status }
+  )
+
 export function googleHandlers(state: GoogleState) {
   return [
+    // --- resumable video upload ---
+    http.post(UPLOAD, async ({ request }) => {
+      const url = new URL(request.url)
+      if (url.searchParams.get('uploadType') !== 'resumable') return apiError(400, 'badRequest')
+      if (state.failStartWith) {
+        const { status, reason } = state.failStartWith
+        state.failStartWith = null
+        return apiError(status, reason)
+      }
+      const size = Number(request.headers.get('x-upload-content-length'))
+      state.uploadStarts.push({
+        resource: (await request.json()) as Record<string, unknown>,
+        query: Object.fromEntries(url.searchParams),
+        size
+      })
+      const id = `s${state.uploadStarts.length}`
+      state.received.set(id, 0)
+      return new HttpResponse(null, {
+        status: 200,
+        headers: { Location: `${SESSION}/${id}?size=${size}` }
+      })
+    }),
+
+    http.put(`${SESSION}/:id`, async ({ request, params }) => {
+      const id = String(params['id'])
+      const size = Number(new URL(request.url).searchParams.get('size'))
+      if (!state.received.has(id)) return new HttpResponse(null, { status: 404 })
+      const have = state.received.get(id) ?? 0
+      const range = request.headers.get('content-range')
+
+      // Status query: "bytes */SIZE"
+      if (range?.startsWith('bytes */')) {
+        if (have >= size) return finish()
+        return new HttpResponse(null, {
+          status: 308,
+          headers: have > 0 ? { Range: `bytes=0-${have - 1}` } : {}
+        })
+      }
+
+      const start = range ? Number(/bytes (\d+)-/.exec(range)?.[1]) : 0
+      if (start !== have) return apiError(400, 'badContentRange')
+      const body = new Uint8Array(await request.arrayBuffer())
+      if (state.dropPutsAfterBytes && state.dropPutsAfterBytes.count > 0) {
+        state.dropPutsAfterBytes.count -= 1
+        state.received.set(id, have + Math.min(body.byteLength, state.dropPutsAfterBytes.bytes))
+        if (state.expireSessionOnDrop) state.received.delete(id)
+        return new HttpResponse(null, { status: 503 })
+      }
+      state.received.set(id, have + body.byteLength)
+      if (have + body.byteLength < size) return new HttpResponse(null, { status: 308 })
+      return finish()
+
+      function finish(): Response {
+        const started = state.uploadStarts[Number(id.slice(1)) - 1]
+        const status = (started?.resource['status'] ?? {}) as Record<string, unknown>
+        const videoId = `vid${state.nextVideoId++}`
+        return HttpResponse.json(
+          {
+            id: videoId,
+            status: {
+              ...status,
+              privacyStatus: state.forcePrivacy ?? status['privacyStatus'],
+              uploadStatus: 'uploaded'
+            }
+          },
+          { status: 201 }
+        )
+      }
+    }),
+
+    // --- thumbnails.set (media upload through googleapis) ---
+    http.post(THUMBNAILS, async ({ request }) => {
+      const failure = state.thumbnailErrors.shift()
+      if (failure) return apiError(failure.status, failure.reason)
+      const videoId = new URL(request.url).searchParams.get('videoId') ?? ''
+      state.thumbnails.push({ videoId, bytes: (await request.arrayBuffer()).byteLength })
+      return HttpResponse.json({ items: [{ default: { url: 'https://i.ytimg.com/x.jpg' } }] })
+    }),
+
+    // --- playlistItems.insert ---
+    http.post(`${YT}/playlistItems`, async ({ request }) => {
+      const body = (await request.json()) as {
+        snippet: { playlistId: string; resourceId: { videoId: string } }
+      }
+      state.playlistInserts.push({
+        playlistId: body.snippet.playlistId,
+        videoId: body.snippet.resourceId.videoId
+      })
+      return HttpResponse.json({ id: 'pli1' })
+    }),
+
     http.post(TOKEN_URL, async ({ request }) => {
       const form = new URLSearchParams(await request.text())
       state.tokenRequests.push(form)

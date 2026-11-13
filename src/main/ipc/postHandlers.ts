@@ -1,6 +1,8 @@
 import { dialog, shell } from 'electron'
 import { THUMBNAIL_EXTENSIONS, VIDEO_EXTENSIONS } from '@shared/constants/limits'
 import { getMainWindow } from '../appWindow'
+import { getRepos } from '../db'
+import { uploadsPausedUntil } from '../jobs'
 import { getPosts } from '../services'
 import { handle } from './handle'
 
@@ -44,6 +46,15 @@ export function registerPostHandlers(): void {
     posts().deleteDraft(id)
     return { deleted: true }
   })
+  handle('posts:uploadNow', ({ id }) => posts().uploadNow(id))
+  handle('posts:retry', ({ id }) => posts().retry(id))
+
+  handle('settings:get', () => ({
+    settings: getRepos().settings.get(),
+    uploadsPausedUntil: uploadsPausedUntil()?.toISOString() ?? null
+  }))
+  handle('settings:update', (patch) => getRepos().settings.update(patch))
+
   handle('posts:reveal', ({ id }) => {
     shell.showItemInFolder(posts().filePathFor(id))
     return { revealed: true }
