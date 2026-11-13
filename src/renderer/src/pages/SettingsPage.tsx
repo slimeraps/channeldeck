@@ -102,7 +102,7 @@ export function SettingsPage(): React.JSX.Element {
             value={String(s?.uploadLeadHours ?? 24)}
             onValueChange={(v) => update.mutate({ uploadLeadHours: Number(v) })}
           >
-            <SelectTrigger size="sm" className="w-36">
+            <SelectTrigger size="sm" className="w-44">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
@@ -144,8 +144,8 @@ export function SettingsPage(): React.JSX.Element {
       <section>
         <h2 className="text-sm font-semibold">About</h2>
         <p className="mt-1 text-sm text-muted-foreground">
-          Google and Twitch credentials, clip folder, sync time, Dry Run and backups are added here
-          as their phases land.
+          Twitch, the clip folder and sync time, launch at login, and backups are added here as
+          their phases land.
         </p>
         <Separator className="my-3" />
         {info.isError ? (

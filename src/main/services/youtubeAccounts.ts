@@ -223,7 +223,9 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
           reads: {
             channelsMine: () => realApi().channelsMine(),
             videoCategories: (r, hl) => realApi().videoCategories(r, hl),
-            playlistsMine: () => realApi().playlistsMine()
+            playlistsMine: () => realApi().playlistsMine(),
+            videosStatus: (ids) => realApi().videosStatus(ids),
+            videoStatusPart: (id) => realApi().videoStatusPart(id)
           },
           recordCall: (method) => recordCall(method, account.id, true),
           log: (message, payload) => {

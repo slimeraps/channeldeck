@@ -109,14 +109,14 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 
 ## Phase 5 — Scheduling and sync
 
-- [ ] Schedule mode: `privacyStatus: private` + `publishAt` (RFC 3339 UTC, must be in the future at insert time)
-- [ ] `upload_after_utc` from lead time; runner only picks posts whose `upload_after_utc` has passed (or Upload now)
-- [ ] Missed policy at upload time: publish time passed → Publish now (upload public) or `needs_decision` + notification
-- [ ] Status sync every 15 min + on launch: `videos.list` (status,processingDetails), ≤ 50 ids per call; `processing → scheduled → published`; `uploadStatus` rejected/failed → `failed` + notification with reason
-- [ ] Reschedule an uploaded post: `videos.list` current status part → change `publishAt` → `videos.update` whole part
-- [ ] Unschedule: before upload → `canceled`; after upload → "Keep as private" (clear `publishAt`) or "Delete from YouTube" (`videos.delete`), each confirmed
-- [ ] Notifications: published
-- [ ] Row action: Open in YouTube Studio
+- [x] Schedule mode: `privacyStatus: private` + `publishAt` (RFC 3339 UTC, must be in the future at insert time)
+- [x] `upload_after_utc` from lead time; runner only picks posts whose `upload_after_utc` has passed (or Upload now)
+- [x] Missed policy at upload time: publish time passed → Publish now (upload public) or `needs_decision` + notification
+- [x] Status sync every 15 min + on launch: `videos.list` (status,processingDetails), ≤ 50 ids per call; `processing → scheduled → published`; `uploadStatus` rejected/failed → `failed` + notification with reason
+- [x] Reschedule an uploaded post: `videos.list` current status part → change `publishAt` → `videos.update` whole part
+- [x] Unschedule: before upload → `canceled`; after upload → "Keep as private" (clear `publishAt`) or "Delete from YouTube" (`videos.delete`), each confirmed
+- [x] Notifications: published
+- [x] Row action: Open in YouTube Studio
 
 **Acceptance:** tests for missed-policy branching, status sync batching (120 posts → 3 calls) and state moves, reschedule sends the full status part. By hand: schedule a real video 30 min out, watch it go Scheduled → Published while the app is closed for part of that window.
 

@@ -9,8 +9,12 @@ import {
   FolderSearch,
   ListVideo,
   MoreHorizontal,
+  CalendarClock,
+  EyeOff,
   Pencil,
+  RefreshCw,
   RotateCcw,
+  Send,
   Trash2,
   TriangleAlert,
   Upload
@@ -52,10 +56,16 @@ import {
   useDeleteDraft,
   useDuplicatePost,
   usePosts,
+  useDecide,
+  useDeleteFromYouTube,
+  useKeepPrivate,
+  useReschedule,
   useRetryPost,
   useRevealPost,
+  useSyncStatus,
   useUploadNow
 } from '@renderer/hooks/usePosts'
+import { PublishTimeDialog } from '@renderer/components/queue/PublishTimeDialog'
 import { useProgressStore } from '@renderer/stores/progress'
 import {
   STATUS_LABELS,
@@ -161,7 +171,9 @@ function StatusCell({ post }: { post: PostListItem }): React.JSX.Element {
   const detail =
     post.status === 'waiting_quota' && post.retryAfterUtc
       ? `Retries ${formatRelative(post.retryAfterUtc)}`
-      : post.lastError
+      : post.status === 'needs_decision'
+        ? 'The publish time passed before it uploaded. Open ⋯ to publish now, pick a new time, or unschedule.'
+        : post.lastError
   return (
     <div className="max-w-56 space-y-1">
       <Badge variant="outline" className={STATUS_TONES[post.status]}>
@@ -189,6 +201,9 @@ export function QueuePage(): React.JSX.Element {
   const [newestFirst, setNewestFirst] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<PostListItem | null>(null)
   const [confirmCancel, setConfirmCancel] = useState<PostListItem | null>(null)
+  const [newTimeFor, setNewTimeFor] = useState<PostListItem | null>(null)
+  const [confirmKeepPrivate, setConfirmKeepPrivate] = useState<PostListItem | null>(null)
+  const [confirmYouTubeDelete, setConfirmYouTubeDelete] = useState<PostListItem | null>(null)
 
   const accounts = useAccounts()
   const posts = usePosts({
@@ -207,6 +222,11 @@ export function QueuePage(): React.JSX.Element {
   const reveal = useRevealPost()
   const uploadNow = useUploadNow()
   const retry = useRetryPost()
+  const decide = useDecide()
+  const reschedule = useReschedule()
+  const keepPrivate = useKeepPrivate()
+  const deleteFromYouTube = useDeleteFromYouTube()
+  const syncStatus = useSyncStatus()
 
   // Sorted by publish time; posts without one (drafts, upload-now) go after timed ones.
   const rows = useMemo(() => {
@@ -284,6 +304,16 @@ export function QueuePage(): React.JSX.Element {
         <span className="ml-auto text-xs text-muted-foreground">
           {rows.length} post{rows.length === 1 ? '' : 's'}
         </span>
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={() => syncStatus.mutate()}
+          disabled={syncStatus.isPending}
+          title="Ask YouTube for the latest status of uploaded videos"
+        >
+          <RefreshCw className={cn(syncStatus.isPending && 'animate-spin')} aria-hidden />
+          Check status
+        </Button>
       </div>
 
       <div className="overflow-hidden rounded-lg border">
@@ -401,6 +431,31 @@ export function QueuePage(): React.JSX.Element {
                             <RotateCcw aria-hidden /> Retry
                           </DropdownMenuItem>
                         ) : null}
+                        {post.status === 'needs_decision' ? (
+                          <>
+                            <DropdownMenuItem
+                              onSelect={() => decide.mutate({ id: post.id, action: 'publish_now' })}
+                            >
+                              <Send aria-hidden /> Upload and publish now
+                            </DropdownMenuItem>
+                            <DropdownMenuItem onSelect={() => setNewTimeFor(post)}>
+                              <CalendarClock aria-hidden /> Pick a new time…
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
+                        {post.youtubeVideoId &&
+                        (post.status === 'processing' || post.status === 'scheduled') ? (
+                          <>
+                            {post.visibilityMode === 'schedule' ? (
+                              <DropdownMenuItem onSelect={() => setNewTimeFor(post)}>
+                                <CalendarClock aria-hidden /> Change publish time…
+                              </DropdownMenuItem>
+                            ) : null}
+                            <DropdownMenuItem onSelect={() => setConfirmKeepPrivate(post)}>
+                              <EyeOff aria-hidden /> Keep as private…
+                            </DropdownMenuItem>
+                          </>
+                        ) : null}
                         {post.youtubeVideoId && !post.youtubeVideoId.startsWith('DRYRUN-') ? (
                           <DropdownMenuItem asChild>
                             <a
@@ -440,6 +495,15 @@ export function QueuePage(): React.JSX.Element {
                             <CalendarX aria-hidden /> Unschedule…
                           </DropdownMenuItem>
                         )}
+                        {post.youtubeVideoId &&
+                        !['canceled', 'uploading', 'rendering'].includes(post.status) ? (
+                          <DropdownMenuItem
+                            variant="destructive"
+                            onSelect={() => setConfirmYouTubeDelete(post)}
+                          >
+                            <Trash2 aria-hidden /> Delete from YouTube…
+                          </DropdownMenuItem>
+                        ) : null}
                       </DropdownMenuContent>
                     </DropdownMenu>
                   </td>
@@ -501,6 +565,84 @@ export function QueuePage(): React.JSX.Element {
               onClick={() => confirmCancel && cancel.mutate(confirmCancel.id)}
             >
               Unschedule
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      {newTimeFor ? (
+        <PublishTimeDialog
+          title={
+            newTimeFor.status === 'needs_decision'
+              ? 'Pick a new publish time'
+              : 'Change publish time'
+          }
+          description={
+            newTimeFor.youtubeVideoId
+              ? `“${newTimeFor.title}” is already on YouTube. The new time is saved there too.`
+              : `“${newTimeFor.title}” will upload ahead of the new time and go public then.`
+          }
+          initial={newTimeFor.publishAtUtc}
+          confirmLabel={newTimeFor.youtubeVideoId ? 'Update on YouTube' : 'Save new time'}
+          busy={reschedule.isPending || decide.isPending}
+          onClose={() => setNewTimeFor(null)}
+          onConfirm={(publishAtUtc) => {
+            const target = newTimeFor
+            const done = { onSuccess: () => setNewTimeFor(null) }
+            if (target.status === 'needs_decision') {
+              decide.mutate({ id: target.id, action: 'reschedule', publishAtUtc }, done)
+            } else {
+              reschedule.mutate({ id: target.id, publishAtUtc }, done)
+            }
+          }}
+        />
+      ) : null}
+
+      <AlertDialog
+        open={confirmKeepPrivate !== null}
+        onOpenChange={(open) => !open && setConfirmKeepPrivate(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Keep this video private?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{confirmKeepPrivate?.title || 'Untitled'}” stays on YouTube as private and won’t go
+              public. Its schedule is removed. You can change it later in YouTube Studio.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Never mind</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => confirmKeepPrivate && keepPrivate.mutate(confirmKeepPrivate.id)}
+            >
+              Keep private
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmYouTubeDelete !== null}
+        onOpenChange={(open) => !open && setConfirmYouTubeDelete(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Delete this video from YouTube?</AlertDialogTitle>
+            <AlertDialogDescription>
+              “{confirmYouTubeDelete?.title || 'Untitled'}” will be permanently deleted from
+              YouTube, including its views and comments. This can’t be undone. Your local video file
+              is not touched, and a Twitch clip goes back to the bank.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep it</AlertDialogCancel>
+            <AlertDialogAction
+              className="bg-destructive text-white hover:bg-destructive/90"
+              onClick={() =>
+                confirmYouTubeDelete && deleteFromYouTube.mutate(confirmYouTubeDelete.id)
+              }
+            >
+              Delete from YouTube
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

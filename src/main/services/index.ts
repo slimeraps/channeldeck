@@ -53,7 +53,8 @@ export function initServices(): void {
     probe: probeVideo,
     media: mediaAccess,
     emitChanged: () => emitToRenderer('posts:changed', undefined),
-    kickJobs: () => kickHook?.()
+    kickJobs: () => kickHook?.(),
+    withApi: (accountId, fn) => getYouTubeAccounts().withApi(accountId, fn)
   })
 }
 

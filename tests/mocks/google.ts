@@ -57,6 +57,15 @@ export interface GoogleState {
   /** Errors to return for the next thumbnail calls, in order. */
   thumbnailErrors: { status: number; reason: string }[]
   playlistInserts: { playlistId: string; videoId: string }[]
+  // --- videos on "YouTube" (for list / update / delete) ---
+  videos: Map<
+    string,
+    { status: Record<string, unknown>; processingDetails: Record<string, unknown> }
+  >
+  /** Ids asked for in each videos.list call. */
+  videosListCalls: string[][]
+  videoUpdates: { id: string; status: Record<string, unknown> }[]
+  videoDeletes: string[]
 }
 
 export function createGoogleState(): GoogleState {
@@ -80,7 +89,11 @@ export function createGoogleState(): GoogleState {
     nextVideoId: 1,
     thumbnails: [],
     thumbnailErrors: [],
-    playlistInserts: []
+    playlistInserts: [],
+    videos: new Map(),
+    videosListCalls: [],
+    videoUpdates: [],
+    videoDeletes: []
   }
 }
 
@@ -152,6 +165,18 @@ export function googleHandlers(state: GoogleState) {
         const started = state.uploadStarts[Number(id.slice(1)) - 1]
         const status = (started?.resource['status'] ?? {}) as Record<string, unknown>
         const videoId = `vid${state.nextVideoId++}`
+        state.videos.set(videoId, {
+          status: {
+            ...status,
+            privacyStatus: state.forcePrivacy ?? status['privacyStatus'],
+            uploadStatus: 'uploaded',
+            license: status['license'] ?? 'youtube',
+            embeddable: status['embeddable'] ?? true,
+            publicStatsViewable: true,
+            madeForKids: status['selfDeclaredMadeForKids'] ?? false
+          },
+          processingDetails: { processingStatus: 'processing' }
+        })
         return HttpResponse.json(
           {
             id: videoId,
@@ -173,6 +198,56 @@ export function googleHandlers(state: GoogleState) {
       const videoId = new URL(request.url).searchParams.get('videoId') ?? ''
       state.thumbnails.push({ videoId, bytes: (await request.arrayBuffer()).byteLength })
       return HttpResponse.json({ items: [{ default: { url: 'https://i.ytimg.com/x.jpg' } }] })
+    }),
+
+    // --- videos.list / videos.update / videos.delete ---
+    http.get(`${YT}/videos`, ({ request }) => {
+      const url = new URL(request.url)
+      const ids = url.searchParams
+        .getAll('id')
+        .flatMap((v) => v.split(','))
+        .filter(Boolean)
+      const parts = url.searchParams.getAll('part').flatMap((v) => v.split(','))
+      state.videosListCalls.push(ids)
+      if (ids.length > 50) return apiError(400, 'tooManyIds')
+      return HttpResponse.json({
+        items: ids
+          .filter((id) => state.videos.has(id))
+          .map((id) => {
+            const v = state.videos.get(id)!
+            return {
+              id,
+              ...(parts.includes('status') ? { status: v.status } : {}),
+              ...(parts.includes('processingDetails')
+                ? { processingDetails: v.processingDetails }
+                : {})
+            }
+          })
+      })
+    }),
+
+    http.put(`${YT}/videos`, async ({ request }) => {
+      const part = new URL(request.url).searchParams.getAll('part').join(',')
+      const body = (await request.json()) as { id: string; status: Record<string, unknown> }
+      if (!state.videos.has(body.id)) return apiError(404, 'videoNotFound')
+      if (part !== 'status') return apiError(400, 'unexpectedPart')
+      state.videoUpdates.push({ id: body.id, status: body.status })
+      const v = state.videos.get(body.id)!
+      // Like YouTube: the part you send replaces the mutable fields (omitted = cleared).
+      const readOnly = {
+        uploadStatus: v.status['uploadStatus'],
+        madeForKids: v.status['madeForKids']
+      }
+      v.status = { ...readOnly, ...body.status }
+      return HttpResponse.json({ id: body.id, status: v.status })
+    }),
+
+    http.delete(`${YT}/videos`, ({ request }) => {
+      const id = new URL(request.url).searchParams.get('id') ?? ''
+      if (!state.videos.has(id)) return apiError(404, 'videoNotFound')
+      state.videos.delete(id)
+      state.videoDeletes.push(id)
+      return new HttpResponse(null, { status: 204 })
     }),
 
     // --- playlistItems.insert ---

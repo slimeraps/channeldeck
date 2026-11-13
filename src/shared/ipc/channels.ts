@@ -34,6 +34,11 @@ export const INVOKE_CHANNELS = [
   'posts:reveal',
   'posts:uploadNow',
   'posts:retry',
+  'posts:decide',
+  'posts:reschedule',
+  'posts:keepPrivate',
+  'posts:deleteFromYouTube',
+  'posts:syncStatus',
   'settings:get',
   'settings:update'
 ] as const
