@@ -1,5 +1,7 @@
 /** Shared helpers for repositories. */
 
+import { UserFacingError } from '../../errors'
+
 export type Clock = () => Date
 
 export const systemClock: Clock = () => new Date()
@@ -9,14 +11,14 @@ export function isoNow(clock: Clock): string {
 }
 
 /** A row with this unique key already exists (e.g. the same YouTube channel twice). */
-export class DuplicateError extends Error {
+export class DuplicateError extends UserFacingError {
   constructor(message: string) {
     super(message)
     this.name = 'DuplicateError'
   }
 }
 
-export class NotFoundError extends Error {
+export class NotFoundError extends UserFacingError {
   constructor(what: string, id: string | number) {
     super(`${what} ${id} not found`)
     this.name = 'NotFoundError'

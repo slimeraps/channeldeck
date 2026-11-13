@@ -1,11 +1,14 @@
 import { app, type BrowserWindow, dialog, Menu, session } from 'electron'
 import { APP_NAME } from '@shared/constants/app'
+import { emitToRenderer, setMainWindow } from './appWindow'
 import { closeDatabase, databasePath, initDatabase } from './db'
+import { registerAccountHandlers } from './ipc/accountHandlers'
 import { registerAppHandlers } from './ipc/appHandlers'
-import { sendEvent, setIpcOrigin } from './ipc/handle'
+import { setIpcOrigin } from './ipc/handle'
 import { initLogger, logger } from './logger'
 import { buildAppMenu } from './menu'
 import type { AppOrigin } from './security'
+import { getYouTubeAccounts, initServices } from './services'
 import { createMainWindow } from './window'
 
 // Name first: it decides ~/Library/Application Support/ChannelDeck and ~/Library/Logs/ChannelDeck.
@@ -23,8 +26,10 @@ let mainWindow: BrowserWindow | null = null
 function showMainWindow(): void {
   if (!mainWindow || mainWindow.isDestroyed()) {
     mainWindow = createMainWindow(origin)
+    setMainWindow(mainWindow)
     mainWindow.on('closed', () => {
       mainWindow = null
+      setMainWindow(null)
     })
     return
   }
@@ -68,21 +73,27 @@ async function start(): Promise<void> {
     return
   }
 
+  initServices()
   setIpcOrigin(origin)
   registerAppHandlers()
+  registerAccountHandlers()
 
   Menu.setApplicationMenu(
     buildAppMenu({
       isDev: !app.isPackaged,
       onNewPost: () => {
         showMainWindow()
-        sendEvent(mainWindow, 'ui:newPost', undefined)
+        emitToRenderer('ui:newPost', undefined)
       }
     })
   )
 
   showMainWindow()
   app.on('activate', () => showMainWindow())
+
+  // Confirm every channel's Google sign-in still works (1 quota unit each). Expired ones
+  // get flagged "Needs re-auth" with a notification.
+  void getYouTubeAccounts().checkAll()
 }
 
 // One running copy only: two would race on the database and the job runner.

@@ -1,8 +1,9 @@
 import { useMutation } from '@tanstack/react-query'
-import { FolderOpen } from 'lucide-react'
+import { FileKey2, FolderOpen } from 'lucide-react'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import { Separator } from '@renderer/components/ui/separator'
+import { useGoogleClientStatus, useImportClientFile } from '@renderer/hooks/useAccounts'
 import { useAppInfo } from '@renderer/hooks/useAppInfo'
 import { invoke } from '@renderer/lib/ipc'
 
@@ -18,9 +19,36 @@ function Row({ label, value }: { label: string; value: string | undefined }): Re
 export function SettingsPage(): React.JSX.Element {
   const info = useAppInfo()
   const openLogs = useMutation({ mutationFn: () => invoke('app:openLogsFolder') })
+  const googleClient = useGoogleClientStatus()
+  const importClient = useImportClientFile()
 
   return (
     <div className="mx-auto max-w-2xl space-y-8 px-8 py-6">
+      <section>
+        <h2 className="text-sm font-semibold">Google</h2>
+        <p className="mt-1 text-sm text-muted-foreground">
+          The Desktop-app OAuth client from your Google Cloud project. Stored only on this Mac.
+        </p>
+        <Separator className="my-3" />
+        <div className="flex items-center justify-between gap-4 text-sm">
+          <span className="text-muted-foreground">
+            {googleClient.data?.configured
+              ? `Imported${googleClient.data.projectId ? ` for project ${googleClient.data.projectId}` : ''} (${googleClient.data.clientIdHint})`
+              : (googleClient.data?.problem ?? 'Not imported yet')}
+          </span>
+          <Button
+            variant="secondary"
+            onClick={() => importClient.mutate()}
+            disabled={importClient.isPending}
+          >
+            <FileKey2 aria-hidden />
+            {googleClient.data?.configured
+              ? 'Replace Google client file'
+              : 'Import Google client file'}
+          </Button>
+        </div>
+      </section>
+
       <section>
         <h2 className="text-sm font-semibold">About</h2>
         <p className="mt-1 text-sm text-muted-foreground">

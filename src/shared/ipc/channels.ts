@@ -5,11 +5,27 @@
  */
 
 /** Renderer → main request/response channels (ipcRenderer.invoke). */
-export const INVOKE_CHANNELS = ['app:getInfo', 'app:ping', 'app:openLogsFolder'] as const
+export const INVOKE_CHANNELS = [
+  'app:getInfo',
+  'app:ping',
+  'app:openLogsFolder',
+  'google:getClientStatus',
+  'google:importClientFile',
+  'accounts:list',
+  'accounts:add',
+  'accounts:reconnect',
+  'accounts:cancelSignIn',
+  'accounts:update',
+  'accounts:refreshInfo',
+  'accounts:removalPreview',
+  'accounts:remove',
+  'youtube:categories',
+  'youtube:playlists'
+] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 
 /** Main → renderer push events (webContents.send). */
-export const EVENT_CHANNELS = ['ui:newPost'] as const
+export const EVENT_CHANNELS = ['ui:newPost', 'accounts:changed'] as const
 export type EventChannel = (typeof EVENT_CHANNELS)[number]
 
 export function isInvokeChannel(value: unknown): value is InvokeChannel {
