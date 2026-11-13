@@ -8,7 +8,9 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 - `npm run dev` launches the app with no console errors
 - A short "test by hand" list is posted for Cody
 - One git commit for the phase on its own branch (`phase-N-<slug>`), pushed, with a pull request into `main` (no secrets, no tokens, no `client_secret.json`)
+- README updated: finished features ticked, changelog entry added under Unreleased (no version numbers until all phases are done)
 - Stop and wait for "go"; the PR is merged into `main` once Cody approves the phase
+- After the merge: check the other dev's release branch for new feature branches, summarize them, and ask Cody what to implement before the next phase
 
 ---
 
