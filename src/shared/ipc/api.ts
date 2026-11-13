@@ -12,4 +12,6 @@ export interface ChannelDeckApi {
     ...input: InvokeInput<C> extends undefined ? [] : [InvokeInput<C>]
   ): Promise<IpcResult<InvokeOutput<C>>>
   on<C extends EventChannel>(channel: C, listener: (payload: EventPayload<C>) => void): () => void
+  /** Absolute path of a file dropped onto the window (Electron's webUtils.getPathForFile). */
+  getPathForFile(file: File): string
 }

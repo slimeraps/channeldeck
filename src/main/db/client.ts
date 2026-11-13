@@ -29,12 +29,25 @@ export function openDatabase({ file, migrationsFolder }: OpenDatabaseOptions): O
     // WAL: readers don't block the writer (job runner + UI queries at the same time).
     sqlite.pragma('journal_mode = WAL')
     sqlite.pragma('synchronous = NORMAL')
-    sqlite.pragma('foreign_keys = ON')
     sqlite.pragma('busy_timeout = 5000')
 
     const db = drizzle(sqlite, { schema })
+
+    // Migrations run with foreign keys OFF. Drizzle wraps them in a transaction, where
+    // SQLite ignores `PRAGMA foreign_keys`, so a migration that rebuilds a table (create
+    // new, copy, drop old, rename) would otherwise fire ON DELETE CASCADE / SET NULL on
+    // child rows when the old table is dropped. This is SQLite's documented procedure for
+    // schema changes: https://www.sqlite.org/lang_altertable.html#otheralter
+    sqlite.pragma('foreign_keys = OFF')
     // Applies any migrations not yet recorded in __drizzle_migrations. Safe to run on every start.
     migrate(db, { migrationsFolder })
+    const violations = sqlite.pragma('foreign_key_check') as unknown[]
+    if (violations.length > 0) {
+      throw new Error(
+        `Database foreign key check failed after migrating (${violations.length} problems)`
+      )
+    }
+    sqlite.pragma('foreign_keys = ON')
 
     return { db, sqlite, close: () => sqlite.close() }
   } catch (error) {

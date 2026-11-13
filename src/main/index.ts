@@ -5,10 +5,12 @@ import { closeDatabase, databasePath, initDatabase } from './db'
 import { registerAccountHandlers } from './ipc/accountHandlers'
 import { registerAppHandlers } from './ipc/appHandlers'
 import { setIpcOrigin } from './ipc/handle'
+import { registerPostHandlers } from './ipc/postHandlers'
 import { initLogger, logger } from './logger'
+import { handleMediaProtocol, registerMediaScheme } from './media/protocol'
 import { buildAppMenu } from './menu'
 import type { AppOrigin } from './security'
-import { getYouTubeAccounts, initServices } from './services'
+import { getMediaAccess, getYouTubeAccounts, initServices } from './services'
 import { createMainWindow } from './window'
 
 // Name first: it decides ~/Library/Application Support/ChannelDeck and ~/Library/Logs/ChannelDeck.
@@ -17,6 +19,9 @@ initLogger()
 
 // Every renderer is sandboxed, even ones we don't create directly.
 app.enableSandbox()
+
+// cdmedia:// (local video/thumbnail previews) must be registered before 'ready'.
+registerMediaScheme()
 
 const origin: AppOrigin = {
   devServerUrl: !app.isPackaged ? process.env['ELECTRON_RENDERER_URL'] : undefined
@@ -74,9 +79,11 @@ async function start(): Promise<void> {
   }
 
   initServices()
+  handleMediaProtocol(() => getMediaAccess().policy())
   setIpcOrigin(origin)
   registerAppHandlers()
   registerAccountHandlers()
+  registerPostHandlers()
 
   Menu.setApplicationMenu(
     buildAppMenu({

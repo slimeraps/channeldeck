@@ -1,10 +1,10 @@
-import { contextBridge, ipcRenderer, type IpcRendererEvent } from 'electron'
+import { contextBridge, ipcRenderer, type IpcRendererEvent, webUtils } from 'electron'
 import type { ChannelDeckApi } from '@shared/ipc/api'
 import { isEventChannel, isInvokeChannel } from '@shared/ipc/channels'
 import { ipcErr } from '@shared/ipc/result'
 
 /**
- * Sandboxed preload. Exposes exactly one object, `window.api`, with two functions. The
+ * Sandboxed preload. Exposes exactly one object, `window.api`, with three functions. The
  * renderer never sees ipcRenderer, Node, or Electron. Only channels listed in
  * shared/ipc/channels.ts get through; main validates every payload again.
  */
@@ -28,6 +28,11 @@ export const api: ChannelDeckApi = {
     return () => {
       ipcRenderer.removeListener(channel, wrapped)
     }
+  },
+
+  getPathForFile(file) {
+    // Sandboxed renderers can't see file paths; Electron exposes them only here.
+    return webUtils.getPathForFile(file)
   }
 }
 

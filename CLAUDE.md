@@ -18,7 +18,7 @@ Personal macOS (Apple Silicon) Electron app: Twitch clip bank + YouTube upload s
 - TanStack Query (server/IPC data), Zustand (UI state only)
 - SQLite: better-sqlite3 + Drizzle ORM + drizzle-kit migrations; DB at `app.getPath('userData')/channeldeck.db` (WAL, foreign keys on)
 - Google: `@googleapis/youtube` (Google's official per-API package, same client as `googleapis` at 1.8 MB instead of 246 MB) + `google-auth-library`. Twitch: own typed `fetch` client for Helix
-- Media: `ffprobe-static`, `ffmpeg-static`
+- Media: `@ffprobe-installer/ffprobe` (installs only the arm64 binary, 18 MB; `ffprobe-static` bundles every platform at 351 MB) and `ffmpeg-static` (Phase 7)
 - Time: Luxon (IANA zones, DST-safe). Store every timestamp as UTC ISO-8601 with `Z`
 - Validation: zod (IPC payloads, forms, settings, imported files)
 - Logging: electron-log → `~/Library/Logs/ChannelDeck`
@@ -81,12 +81,14 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 - **IPC:** every channel is declared once in `src/shared/ipc`. Main registers it with `handle(channel, fn)`, which zod-parses the payload and rejects bad input. Push events (upload progress, job state, sync progress) also go through typed channels. Don't add ad-hoc `ipcMain.on`.
 - **Window security:** `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, strict CSP, navigation and `window.open` blocked. Local media reaches the renderer only through `cdmedia://`, which only serves paths under the clip folder, the render folder, or files referenced by a post.
 - **Post status:** only `postsRepo.transition(id, event)` writes `posts.status`, and it uses the pure `nextPostStatus()` in `domain/postState.ts`. States: `draft, needs_approval, queued, rendering, uploading, processing, scheduled, published, needs_decision, failed, waiting_quota, canceled`.
+- **Migrations:** `openDatabase()` runs migrations with foreign keys OFF and runs `foreign_key_check` afterwards. drizzle-kit rebuilds a table (create, copy, drop, rename) to change a column; with foreign keys on, dropping the old table would cascade into child rows. Keep it that way, and add a test like `client.test.ts` for any new rebuild.
 - **Never-twice:** partial unique index `posts(clip_id, account_id) WHERE clip_id IS NOT NULL AND status <> 'canceled'`. Don't work around it in code.
 - **Pure domain layer:** time, slots, picking, templates, quota and error classification are pure functions with injected `now` and zone. Unit-test them there.
 - **Time:** store UTC; display local time plus relative time ("in 3h 20m"). The quota day and `waiting_quota` retry use `America/Los_Angeles` midnight.
 - **Secrets:** refresh tokens and the Twitch client secret are stored as `safeStorage` ciphertext in SQLite. Decrypt only where the value is used. Never put them in IPC responses, logs, event_log, backups or errors.
 - **Logging:** use `logger` (redacts `access_token`, `refresh_token`, `client_secret`, `code`, `Authorization`). Log API calls as method + ids + status, never full auth headers.
 - **TypeScript:** strict. No `any` without a comment saying why. Prefer discriminated unions for job/step results.
+- **Dropped files:** the renderer gets a dropped file's path only through `window.api.getPathForFile` (Electron `webUtils`). Main re-checks extension and existence before using it.
 - **UI:** confirm dialog on every destructive action; helpful empty states; Cmd+N opens a new post; dropping a video anywhere opens the editor with it filled in.
 - **Jobs:** idempotent and resumable. Persist progress (video id, backfill cursor, step status) before moving on. A job holds the power-save blocker through `power.ts` refcounting.
 
@@ -117,6 +119,6 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 
 ## Packaging gotchas
 
-- `asarUnpack` ffmpeg-static, ffprobe-static and better-sqlite3. Resolve binary paths with `.replace('app.asar', 'app.asar.unpacked')`.
+- `asarUnpack` ffmpeg-static, `@ffprobe-installer/*` and better-sqlite3. Resolve binary paths with `.replace('app.asar', 'app.asar.unpacked')`.
 - Ship `drizzle/` as an extra resource and run migrations at startup.
 - Unsigned dmg: first launch via right-click → Open.

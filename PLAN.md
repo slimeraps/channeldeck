@@ -73,16 +73,16 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 
 ## Phase 3 — Post editor and queue table (no uploading)
 
-- [ ] Post editor: channel picker, file by drag-drop / picker, ffprobe metadata (duration, resolution, size, aspect ratio), Short detection (vertical or square and ≤ 3 min), > 15 min warning
-- [ ] Title (≤ 100 chars, counter, no `<` `>`), description (≤ 5000 bytes, byte counter, no `<` `>`), tag chips (~500 chars total, YouTube's counting incl. quotes for spaced tags), category (`videoCategories.list`, US, cached), playlist (`playlists.list` mine, cached + refresh)
-- [ ] Thumbnail JPG/PNG ≤ 2 MB with preview
-- [ ] Made for kids (required, default from channel), notify subscribers, license, embeddable, default + audio language, synthetic media
-- [ ] Visibility mode; publish date/time picker in local zone with UTC value and relative time ("in 3h 20m")
-- [ ] Missed policy: Publish now / Ask me (default Ask me)
-- [ ] Save as Draft / Add to Queue; shared zod schema validates in renderer (inline errors) and again in main
-- [ ] Dropping a video anywhere on the window opens a new post with it filled in
-- [ ] Queue table: thumbnail, title, channel dot, source icon, local publish time, status, progress; filter by channel/status/source; sort by publish time; row actions Edit, Duplicate, Reveal in Finder, Unschedule (others appear in later phases)
-- [ ] `cdmedia://` protocol for previews (decision 8)
+- [x] Post editor: channel picker, file by drag-drop / picker, ffprobe metadata (duration, resolution, size, aspect ratio), Short detection (vertical or square and ≤ 3 min), > 15 min warning
+- [x] Title (≤ 100 chars, counter, no `<` `>`), description (≤ 5000 bytes, byte counter, no `<` `>`), tag chips (~500 chars total, YouTube's counting incl. quotes for spaced tags), category (`videoCategories.list`, US, cached), playlist (`playlists.list` mine, cached + refresh)
+- [x] Thumbnail JPG/PNG ≤ 2 MB with preview
+- [x] Made for kids (required, default from channel), notify subscribers, license, embeddable, default + audio language, synthetic media
+- [x] Visibility mode; publish date/time picker in local zone with UTC value and relative time ("in 3h 20m")
+- [x] Missed policy: Publish now / Ask me (default Ask me)
+- [x] Save as Draft / Add to Queue; shared zod schema validates in renderer (inline errors) and again in main
+- [x] Dropping a video anywhere on the window opens a new post with it filled in
+- [x] Queue table: thumbnail, title, channel dot, source icon, local publish time, status, progress; filter by channel/status/source; sort by publish time; row actions Edit, Duplicate, Reveal in Finder, Unschedule, Delete draft (others appear in later phases)
+- [x] `cdmedia://` protocol for previews (decision 8)
 
 **Acceptance:** validation unit tests (title, description bytes, tags, Short detection, publishAt formatting/time zones); a draft and a queued post persist and reappear after restart. By hand: drop a vertical clip and see it flagged Short; bad title shows inline error.
 

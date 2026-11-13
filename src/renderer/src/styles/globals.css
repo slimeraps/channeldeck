@@ -124,3 +124,8 @@
 .app-no-drag {
   -webkit-app-region: no-drag;
 }
+
+/* Native date/time pickers follow the dark theme. */
+.dark {
+  color-scheme: dark;
+}
