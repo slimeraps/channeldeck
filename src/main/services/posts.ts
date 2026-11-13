@@ -289,11 +289,17 @@ export function createPostsService(deps: PostsServiceDeps) {
             `This post is ${existing.status.replace('_', ' ')} and can't be edited right now.`
           )
         }
-        post = repos.posts.update(id, fields)
+        // A status change carries the new fields in the same transaction, so a failed
+        // transition can't leave the edited fields saved under the old status.
         if (mode === 'draft' && existing.status !== 'draft') {
-          post = repos.posts.transition(id, 'to_draft', { reason: 'saved as draft' })
+          post = repos.posts.transition(id, 'to_draft', {
+            patch: fields,
+            reason: 'saved as draft'
+          })
         } else if (mode === 'queue' && existing.status === 'draft') {
-          post = repos.posts.transition(id, 'enqueue')
+          post = repos.posts.transition(id, 'enqueue', { patch: fields })
+        } else {
+          post = repos.posts.update(id, fields)
         }
       }
       if (post.filePath) media.grant(post.filePath)
