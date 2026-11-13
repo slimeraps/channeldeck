@@ -26,6 +26,23 @@ export function isInvalidGrant(error: unknown): boolean {
   return typeof e.message === 'string' && /\binvalid_grant\b/.test(e.message)
 }
 
+/**
+ * The YouTube Data API isn't enabled in the Google Cloud project (403 accessNotConfigured /
+ * SERVICE_DISABLED). Sign-in still succeeds in this case; the first API call fails.
+ */
+export function isApiNotEnabled(error: unknown): boolean {
+  const reason = googleErrorReason(error)
+  if (reason === 'accessNotConfigured' || reason === 'SERVICE_DISABLED') return true
+  const message = asGaxios(error)?.message ?? ''
+  return /has not been used in project|is disabled\. Enable it|SERVICE_DISABLED/.test(message)
+}
+
+/** The Google Cloud project number mentioned in an "API not enabled" error, if any. */
+export function projectNumberFrom(error: unknown): string | null {
+  const message = asGaxios(error)?.message ?? ''
+  return /project (\d{6,})/.exec(message)?.[1] ?? null
+}
+
 /** The first `reason` from a YouTube API error body, e.g. "quotaExceeded". */
 export function googleErrorReason(error: unknown): string | null {
   const e = asGaxios(error)

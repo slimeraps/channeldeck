@@ -18,7 +18,7 @@ import {
   clientIdHint,
   type GoogleClientConfig
 } from '../google/clientConfig'
-import { isInvalidGrant } from '../google/errors'
+import { isApiNotEnabled, isInvalidGrant, projectNumberFrom } from '../google/errors'
 import type { LoopbackReceiver } from '../google/loopback'
 import { signInWithGoogle } from '../google/oauth'
 import {
@@ -180,6 +180,27 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
     deps.emitChanged()
   }
 
+  /** Turns Google setup problems into messages Cody can act on; rethrows anything else. */
+  function explainSetupError(error: unknown): never {
+    if (isApiNotEnabled(error)) {
+      const project = projectNumberFrom(error)
+      throw new UserFacingError(
+        `The YouTube Data API v3 is turned off in your Google Cloud project${project ? ` (${project})` : ''}. ` +
+          'In Google Cloud Console go to APIs & Services → Library, open "YouTube Data API v3", click Enable, wait a minute, then try again.',
+        { cause: error }
+      )
+    }
+    throw error
+  }
+
+  async function explained<T>(call: () => Promise<T>): Promise<T> {
+    try {
+      return await call()
+    } catch (error) {
+      explainSetupError(error)
+    }
+  }
+
   /** Runs `fn` with an API client for the channel; turns invalid_grant into "needs re-auth". */
   async function withApi<T>(accountId: number, fn: (api: YouTubeApi) => Promise<T>): Promise<T> {
     const account = requireActiveAccount(accountId)
@@ -202,7 +223,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
           { cause: error }
         )
       }
-      throw error
+      explainSetupError(error)
     }
   }
 
@@ -275,7 +296,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
     async addChannel(): Promise<AccountView[]> {
       const { client, refreshToken } = await runSignIn()
       const api = createYouTubeApi({ auth: client, recordCall: (m) => recordCall(m, null) })
-      const channels = await api.channelsMine()
+      const channels = await explained(() => api.channelsMine())
       if (channels.length === 0) {
         throw new UserFacingError(
           "That Google account doesn't have a YouTube channel. Pick a different account or brand account, or create a channel on youtube.com first."
@@ -334,7 +355,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
       const account = requireActiveAccount(accountId)
       const { client, refreshToken } = await runSignIn()
       const api = createYouTubeApi({ auth: client, recordCall: (m) => recordCall(m, account.id) })
-      const channels = await api.channelsMine()
+      const channels = await explained(() => api.channelsMine())
       const match = channels.find((c) => c.channelId === account.channelId)
       if (!match) {
         const got = channels.map((c) => c.title).join(', ') || 'an account with no channel'

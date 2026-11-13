@@ -170,6 +170,31 @@ describe('adding a channel', () => {
     expect(t.repos.accounts.list()).toHaveLength(0)
   })
 
+  it('explains when the YouTube Data API is not enabled in the Cloud project', async () => {
+    const message =
+      'YouTube Data API v3 has not been used in project 135191883251 before or it is disabled. Enable it by visiting https://console.developers.google.com/apis/api/youtube.googleapis.com/overview?project=135191883251 then retry.'
+    server.use(
+      http.get('https://youtube.googleapis.com/youtube/v3/channels', () =>
+        HttpResponse.json(
+          {
+            error: {
+              code: 403,
+              message,
+              errors: [{ message, domain: 'usageLimits', reason: 'accessNotConfigured' }],
+              status: 'PERMISSION_DENIED'
+            }
+          },
+          { status: 403 }
+        )
+      )
+    )
+    await expect(service.addChannel()).rejects.toThrow(
+      /YouTube Data API v3 is turned off in your Google Cloud project \(135191883251\)/
+    )
+    expect(t.repos.accounts.list()).toHaveLength(0)
+    server.resetHandlers()
+  })
+
   it('requires both YouTube scopes', async () => {
     google.grantedScope = 'https://www.googleapis.com/auth/youtube'
     await expect(service.addChannel()).rejects.toThrow(/both YouTube permissions/)
