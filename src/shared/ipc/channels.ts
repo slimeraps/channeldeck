@@ -20,12 +20,23 @@ export const INVOKE_CHANNELS = [
   'accounts:removalPreview',
   'accounts:remove',
   'youtube:categories',
-  'youtube:playlists'
+  'youtube:playlists',
+  'media:pickVideo',
+  'media:inspectVideo',
+  'media:pickThumbnail',
+  'media:inspectThumbnail',
+  'posts:list',
+  'posts:get',
+  'posts:save',
+  'posts:duplicate',
+  'posts:cancel',
+  'posts:deleteDraft',
+  'posts:reveal'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 
 /** Main → renderer push events (webContents.send). */
-export const EVENT_CHANNELS = ['ui:newPost', 'accounts:changed'] as const
+export const EVENT_CHANNELS = ['ui:newPost', 'accounts:changed', 'posts:changed'] as const
 export type EventChannel = (typeof EVENT_CHANNELS)[number]
 
 export function isInvokeChannel(value: unknown): value is InvokeChannel {

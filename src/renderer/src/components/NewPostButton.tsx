@@ -7,7 +7,7 @@ import { cn } from '@renderer/lib/utils'
 export function NewPostButton({ className }: { className?: string }): React.JSX.Element {
   const openNewPost = useUiStore((s) => s.openNewPost)
   return (
-    <Button className={cn('justify-between', className)} onClick={openNewPost}>
+    <Button className={cn('justify-between', className)} onClick={() => openNewPost()}>
       <span className="flex items-center gap-2">
         <Plus aria-hidden />
         New post

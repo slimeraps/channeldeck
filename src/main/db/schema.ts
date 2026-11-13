@@ -260,7 +260,8 @@ export const posts = sqliteTable(
     categoryId: text('category_id'),
     playlistId: text('playlist_id'),
     thumbnailPath: text('thumbnail_path'),
-    madeForKids: integer('made_for_kids', { mode: 'boolean' }).notNull().default(false),
+    /** null until chosen; required (true/false) before a post can be queued. */
+    madeForKids: integer('made_for_kids', { mode: 'boolean' }),
     notifySubscribers: integer('notify_subscribers', { mode: 'boolean' }).notNull().default(true),
     license: text('license', { enum: LICENSES }).notNull().default('youtube'),
     embeddable: integer('embeddable', { mode: 'boolean' }).notNull().default(true),

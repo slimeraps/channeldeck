@@ -7,6 +7,15 @@ import {
   playlistSchema,
   videoCategorySchema
 } from '../schemas/account'
+import {
+  mediaInfoSchema,
+  postDetailSchema,
+  postFilterSchema,
+  postInputSchema,
+  postListItemSchema,
+  SAVE_MODES,
+  thumbnailInfoSchema
+} from '../schemas/post'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -17,6 +26,8 @@ import type { EventChannel, InvokeChannel } from './channels'
 
 const noInput = z.undefined()
 const accountIdInput = z.object({ accountId: z.number().int().positive() }).strict()
+const postIdInput = z.object({ id: z.uuid() }).strict()
+const pathInput = z.object({ path: z.string().min(1).max(4096) }).strict()
 
 export const appInfoSchema = z.object({
   name: z.string(),
@@ -110,13 +121,66 @@ export const invokeContract = {
       .object({ accountId: z.number().int().positive(), refresh: z.boolean().default(false) })
       .strict(),
     output: z.array(playlistSchema)
+  },
+
+  // Media files for the post editor
+  'media:pickVideo': {
+    input: noInput,
+    output: mediaInfoSchema.nullable()
+  },
+  'media:inspectVideo': {
+    // A file dropped onto the window (path from webUtils.getPathForFile in the preload).
+    input: pathInput,
+    output: mediaInfoSchema
+  },
+  'media:pickThumbnail': {
+    input: noInput,
+    output: thumbnailInfoSchema.nullable()
+  },
+  'media:inspectThumbnail': {
+    input: pathInput,
+    output: thumbnailInfoSchema
+  },
+
+  // Posts
+  'posts:list': {
+    input: postFilterSchema,
+    output: z.array(postListItemSchema)
+  },
+  'posts:get': {
+    input: postIdInput,
+    output: postDetailSchema
+  },
+  'posts:save': {
+    input: z
+      .object({ id: z.uuid().optional(), input: postInputSchema, mode: z.enum(SAVE_MODES) })
+      .strict(),
+    output: postListItemSchema
+  },
+  'posts:duplicate': {
+    input: postIdInput,
+    output: postListItemSchema
+  },
+  'posts:cancel': {
+    input: postIdInput,
+    output: postListItemSchema
+  },
+  'posts:deleteDraft': {
+    input: postIdInput,
+    output: z.object({ deleted: z.boolean() })
+  },
+  'posts:reveal': {
+    input: postIdInput,
+    output: z.object({ revealed: z.boolean() })
   }
 } as const satisfies Record<InvokeChannel, { input: z.ZodType; output: z.ZodType }>
 
 export const eventContract = {
   'ui:newPost': z.undefined(),
   /** Channels were added, removed, or changed status (e.g. needs re-auth). */
-  'accounts:changed': z.undefined()
+  'accounts:changed': z.undefined(),
+  /** Posts were created, changed status, or were deleted. */
+  'posts:changed': z.undefined()
 } as const satisfies Record<EventChannel, z.ZodType>
 
 export type InvokeInput<C extends InvokeChannel> = z.input<(typeof invokeContract)[C]['input']>

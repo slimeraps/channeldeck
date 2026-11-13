@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync } from 'node:fs'
+import { cpSync, mkdtempSync, readFileSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
@@ -92,5 +92,47 @@ describe('openDatabase', () => {
     expect(() =>
       openDatabase({ file: ':memory:', migrationsFolder: join(tmpdir(), 'no-such-migrations') })
     ).toThrow()
+  })
+
+  it('keeps child rows when a migration rebuilds a parent table', () => {
+    // A copy of the migrations folder that stops before 0002 (which rebuilds `posts`).
+    const dir = mkdtempSync(join(tmpdir(), 'channeldeck-mig-'))
+    dirs.push(dir)
+    const partial = join(dir, 'drizzle')
+    cpSync(MIGRATIONS_FOLDER, partial, { recursive: true })
+    const journalPath = join(partial, 'meta', '_journal.json')
+    const journal = JSON.parse(readFileSync(journalPath, 'utf8')) as { entries: { tag: string }[] }
+    const rebuildIndex = journal.entries.findIndex((e) => e.tag.startsWith('0002_'))
+    expect(rebuildIndex).toBeGreaterThan(0)
+    journal.entries = journal.entries.slice(0, rebuildIndex)
+    writeFileSync(journalPath, JSON.stringify(journal))
+
+    const file = tempDbFile()
+    const old = openDatabase({ file, migrationsFolder: partial })
+    old.sqlite.exec(`
+      INSERT INTO accounts (id, channel_id, channel_title) VALUES (1, 'UC1', 'Drift');
+      INSERT INTO posts (id, account_id, status, made_for_kids) VALUES ('p1', 1, 'queued', 0);
+      INSERT INTO post_steps (post_id, step) VALUES ('p1', 'insert'), ('p1', 'thumbnail');
+      INSERT INTO event_log (at_utc, kind, message, post_id) VALUES ('2026-11-12T00:00:00Z', 'post.created', 'x', 'p1');
+      INSERT INTO quota_usage (at_utc, quota_day, bucket, method, cost, post_id)
+        VALUES ('2026-11-12T00:00:00Z', '2026-11-12', 'units', 'videos.list', 1, 'p1');
+    `)
+    old.close()
+
+    const upgraded = openDatabase({ file, migrationsFolder: MIGRATIONS_FOLDER })
+    const one = (q: string): unknown => upgraded.sqlite.prepare(q).get()
+    expect(one('SELECT count(*) AS n FROM post_steps')).toEqual({ n: 2 })
+    expect(one('SELECT post_id FROM event_log')).toEqual({ post_id: 'p1' })
+    expect(one('SELECT post_id FROM quota_usage')).toEqual({ post_id: 'p1' })
+    expect(one("SELECT status, made_for_kids FROM posts WHERE id = 'p1'")).toEqual({
+      status: 'queued',
+      made_for_kids: 0
+    })
+    // The rebuilt table still has the never-twice partial index.
+    expect(
+      one("SELECT count(*) AS n FROM sqlite_master WHERE name = 'posts_clip_account_active_uq'")
+    ).toEqual({ n: 1 })
+    expect(upgraded.sqlite.pragma('foreign_keys', { simple: true })).toBe(1)
+    upgraded.close()
   })
 })

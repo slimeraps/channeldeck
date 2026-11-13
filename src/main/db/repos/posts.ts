@@ -1,7 +1,8 @@
 import { randomUUID } from 'node:crypto'
-import { and, asc, eq, inArray, type SQL } from 'drizzle-orm'
+import { and, asc, eq, inArray, or, type SQL } from 'drizzle-orm'
 import type { InitialPostStatus, PostSource, PostStatus } from '@shared/constants/enums'
 import { nextPostStatus, type PostEvent } from '../../domain/postState'
+import { UserFacingError } from '../../errors'
 import type { Db } from '../client'
 import { eventLog, posts } from '../schema'
 import { type Clock, DuplicateError, isoNow, isUniqueViolation, NotFoundError } from './common'
@@ -43,6 +44,8 @@ export interface PostsRepo {
   transition(id: string, event: PostEvent, options?: TransitionOptions): PostRow
   /** Drafts are deleted outright; anything else is canceled through transition(). */
   deleteDraft(id: string): void
+  /** Whether any post uses this file as its video or thumbnail (for the media protocol). */
+  referencesFile(path: string): boolean
 }
 
 function assertNoStatus(patch: object): void {
@@ -166,13 +169,24 @@ export function createPostsRepo(db: Db, clock: Clock): PostsRepo {
     deleteDraft(id) {
       const row = repo.require(id)
       if (row.status !== 'draft') {
-        throw new Error(
+        throw new UserFacingError(
           `Only drafts can be deleted; this post is ${row.status}. Cancel it instead.`
         )
       }
       db.delete(posts)
         .where(and(eq(posts.id, id), eq(posts.status, 'draft')))
         .run()
+    },
+
+    referencesFile(path) {
+      return (
+        db
+          .select({ id: posts.id })
+          .from(posts)
+          .where(or(eq(posts.filePath, path), eq(posts.thumbnailPath, path)))
+          .limit(1)
+          .get() !== undefined
+      )
     }
   }
   return repo

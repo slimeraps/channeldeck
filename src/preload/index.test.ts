@@ -14,7 +14,8 @@ vi.mock('electron', () => ({
   contextBridge: {
     exposeInMainWorld: (key: string, value: unknown) => exposed.set(key, value)
   },
-  ipcRenderer
+  ipcRenderer,
+  webUtils: { getPathForFile: () => '/Users/cody/Movies/drop.mp4' }
 }))
 
 async function loadPreload(): Promise<void> {
@@ -40,10 +41,10 @@ describe('preload bridge', () => {
     await loadPreload()
   })
 
-  it('exposes only window.api, with only invoke and on', () => {
+  it('exposes only window.api, with only invoke, on and getPathForFile', () => {
     expect([...exposed.keys()]).toEqual(['api'])
     const api = exposedApi()
-    expect(Object.keys(api).sort()).toEqual(['invoke', 'on'])
+    expect(Object.keys(api).sort()).toEqual(['getPathForFile', 'invoke', 'on'])
     expect(Object.isFrozen(api)).toBe(true)
     // Nothing that would hand the renderer Node or raw IPC.
     for (const leaked of ['ipcRenderer', 'require', 'process', 'send', 'sendSync']) {
