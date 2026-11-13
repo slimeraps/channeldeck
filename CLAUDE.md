@@ -90,6 +90,8 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 - **TypeScript:** strict. No `any` without a comment saying why. Prefer discriminated unions for job/step results.
 - **Dropped files:** the renderer gets a dropped file's path only through `window.api.getPathForFile` (Electron `webUtils`). Main re-checks extension and existence before using it.
 - **UI:** confirm dialog on every destructive action; helpful empty states; Cmd+N opens a new post; dropping a video anywhere opens the editor with it filled in.
+- **Job runner** (`src/main/jobs/runner.ts`): ticks every 30 s, on start, on wake (`powerMonitor` resume) and on `kickJobs()`. An item that just finished is not restarted until the next timer tick or kick, so a job whose item stays "ready" can't spin. Register new job types in `src/main/jobs/index.ts`.
+- **Uploads:** `src/main/jobs/upload.ts` runs insert → thumbnail → playlist as `post_steps`. Our own resumable upload (`google/resumableUpload.ts`, fetch + `Content-Range`) does the video; thumbnails and playlist use `@googleapis/youtube`. Errors go through `classifyGoogleError()` → retryable / quota / auth / fatal. A refused thumbnail (unverified channel) is skipped, not fatal. Dry Run ids start with `DRYRUN-`.
 - **Jobs:** idempotent and resumable. Persist progress (video id, backfill cursor, step status) before moving on. A job holds the power-save blocker through `power.ts` refcounting.
 
 ## YouTube API rules

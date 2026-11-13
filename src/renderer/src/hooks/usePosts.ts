@@ -87,3 +87,27 @@ export function useRevealPost(): UseMutationResult<{ revealed: boolean }, Error,
     onError: (e) => toast.error(e.message)
   })
 }
+
+export function useUploadNow(): UseMutationResult<PostListItem, Error, string> {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: (id: string) => invoke('posts:uploadNow', { id }),
+    onSuccess: (post) => {
+      invalidate()
+      toast.success(`Uploading "${post.title}" now`)
+    },
+    onError: (e) => toast.error(e.message)
+  })
+}
+
+export function useRetryPost(): UseMutationResult<PostListItem, Error, string> {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: (id: string) => invoke('posts:retry', { id }),
+    onSuccess: (post) => {
+      invalidate()
+      toast.success(`Retrying "${post.title}"`)
+    },
+    onError: (e) => toast.error(e.message)
+  })
+}

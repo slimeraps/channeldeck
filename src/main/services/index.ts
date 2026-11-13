@@ -15,6 +15,12 @@ import { createYouTubeAccountsService, type YouTubeAccountsService } from './you
 let youtubeAccounts: YouTubeAccountsService | null = null
 let posts: PostsService | null = null
 let mediaAccess: MediaAccess | null = null
+let kickHook: (() => void) | null = null
+
+/** Lets services poke the job runner without importing it (avoids an import cycle). */
+export function setKickJobs(fn: () => void): void {
+  kickHook = fn
+}
 
 /** Creates the app's services. Call once, after initDatabase(). */
 export function initServices(): void {
@@ -46,7 +52,8 @@ export function initServices(): void {
     repos,
     probe: probeVideo,
     media: mediaAccess,
-    emitChanged: () => emitToRenderer('posts:changed', undefined)
+    emitChanged: () => emitToRenderer('posts:changed', undefined),
+    kickJobs: () => kickHook?.()
   })
 }
 

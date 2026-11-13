@@ -1,0 +1,1 @@
+ALTER TABLE `posts` ADD `retry_after_utc` text;

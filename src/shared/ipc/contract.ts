@@ -16,6 +16,7 @@ import {
   SAVE_MODES,
   thumbnailInfoSchema
 } from '../schemas/post'
+import { settingsPatchSchema, settingsSchema } from '../schemas/settings'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -172,6 +173,24 @@ export const invokeContract = {
   'posts:reveal': {
     input: postIdInput,
     output: z.object({ revealed: z.boolean() })
+  },
+  'posts:uploadNow': {
+    input: postIdInput,
+    output: postListItemSchema
+  },
+  'posts:retry': {
+    input: postIdInput,
+    output: postListItemSchema
+  },
+
+  // Settings
+  'settings:get': {
+    input: noInput,
+    output: z.object({ settings: settingsSchema, uploadsPausedUntil: z.string().nullable() })
+  },
+  'settings:update': {
+    input: settingsPatchSchema.strict(),
+    output: settingsSchema
   }
 } as const satisfies Record<InvokeChannel, { input: z.ZodType; output: z.ZodType }>
 
@@ -180,7 +199,13 @@ export const eventContract = {
   /** Channels were added, removed, or changed status (e.g. needs re-auth). */
   'accounts:changed': z.undefined(),
   /** Posts were created, changed status, or were deleted. */
-  'posts:changed': z.undefined()
+  'posts:changed': z.undefined(),
+  /** Live upload progress (not every byte; throttled in main). */
+  'posts:progress': z.object({
+    postId: z.string(),
+    sentBytes: z.number().nonnegative(),
+    totalBytes: z.number().nonnegative()
+  })
 } as const satisfies Record<EventChannel, z.ZodType>
 
 export type InvokeInput<C extends InvokeChannel> = z.input<(typeof invokeContract)[C]['input']>

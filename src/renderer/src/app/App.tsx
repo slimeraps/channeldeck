@@ -14,6 +14,7 @@ import { ChannelsPage } from '@renderer/pages/ChannelsPage'
 import { PlaceholderPage } from '@renderer/pages/PlaceholderPage'
 import { QueuePage } from '@renderer/pages/QueuePage'
 import { SettingsPage } from '@renderer/pages/SettingsPage'
+import { useProgressStore } from '@renderer/stores/progress'
 import { useUiStore } from '@renderer/stores/ui'
 
 function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JSX.Element {
@@ -54,9 +55,13 @@ export function App(): React.JSX.Element {
       void queryClient.invalidateQueries({ queryKey: postsKey })
       void queryClient.invalidateQueries({ queryKey: accountsKey })
     })
+    const offProgress = onEvent('posts:progress', ({ postId, sentBytes, totalBytes }) =>
+      useProgressStore.getState().set(postId, sentBytes, totalBytes)
+    )
     return () => {
       offAccounts()
       offPosts()
+      offProgress()
     }
   }, [queryClient])
 

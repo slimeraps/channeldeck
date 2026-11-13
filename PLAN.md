@@ -88,19 +88,20 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 
 ## Phase 4 — Upload engine
 
-- [ ] Job runner: 30 s tick, immediate tick on start and `powerMonitor` 'resume'; job types registered (clip sync, clip download, planner, upload, status sync); per-type concurrency
-- [ ] `powerSaveBlocker.start('prevent-app-suspension')` held while any job runs
-- [ ] Upload concurrency setting 1–3 (default 1)
-- [ ] Steps per post: render (if needed) → insert → thumbnail → playlist, tracked in `post_steps`, each retried on its own
-- [ ] Pre-flight: file exists with same size (and mtime), else fail "File missing"
-- [ ] Resumable `videos.insert` from a file stream; byte progress pushed to renderer over IPC
-- [ ] Save `youtube_video_id` the moment insert succeeds; never re-insert a post that has one
-- [ ] Error classifier: network/5xx → retry with exponential backoff + jitter (max 5); `quotaExceeded` / `uploadLimitExceeded` → `waiting_quota` until next midnight Pacific; `invalidTitle`, `invalidDescription`, `invalidPublishAt`, `forbidden` on thumbnails (channel not verified), `youtubeSignupRequired`, `invalid_grant` → named messages
-- [ ] Crash recovery: on launch, any post in `uploading`/`rendering` without a video id goes back to `queued`
-- [ ] Quota logging for every call; Dry Run wraps the YouTube client and logs call + payload instead of sending
-- [ ] Notifications: upload finished, failed
-- [ ] Queue row actions: Upload now, Retry; live progress bar
-- [ ] Post-upload check: if a Public/Unlisted upload comes back locked private, show the compliance-audit message and don't retry
+- [x] Job runner: 30 s tick, immediate tick on start and `powerMonitor` 'resume'; job types registered (clip sync, clip download, planner, upload, status sync); per-type concurrency
+- [x] `powerSaveBlocker.start('prevent-app-suspension')` held while any job runs
+- [x] Upload concurrency setting 1–3 (default 1)
+- [x] Steps per post: render (if needed) → insert → thumbnail → playlist, tracked in `post_steps`, each retried on its own
+- [x] Pre-flight: file exists with same size (and mtime), else fail "File missing"
+- [x] Resumable `videos.insert` from a file stream; byte progress pushed to renderer over IPC
+- [x] Save `youtube_video_id` the moment insert succeeds; never re-insert a post that has one
+- [x] Error classifier: network/5xx → retry with exponential backoff + jitter (max 5); `quotaExceeded` / `uploadLimitExceeded` → `waiting_quota` until next midnight Pacific; `invalidTitle`, `invalidDescription`, `invalidPublishAt`, `forbidden` on thumbnails (channel not verified), `youtubeSignupRequired`, `invalid_grant` → named messages
+- [x] Crash recovery: on launch, any post in `uploading`/`rendering` without a video id goes back to `queued`
+- [x] Quota logging for every call; Dry Run wraps the YouTube client and logs call + payload instead of sending
+- [x] Notifications: upload finished, failed
+- [x] Queue row actions: Upload now, Retry; live progress bar
+- [x] Post-upload check: if a Public/Unlisted upload comes back locked private, show the compliance-audit message and don't retry
+- [x] Also done early: missed publish time at upload follows the post's policy (ask → Needs decision, or publish now). Phase 5 adds the decision UI and status sync (Processing → Scheduled → Published).
 
 **Acceptance:** integration test (mocked YouTube) uploads a post end-to-end through all steps; a 5xx on thumbnail retries only the thumbnail step; quotaExceeded parks the post in `waiting_quota` with the right Pacific-midnight time (DST-tested); killing mid-upload and relaunching requeues it; Dry Run makes zero HTTP calls to Google. By hand: upload a short private test video to a real channel.
 

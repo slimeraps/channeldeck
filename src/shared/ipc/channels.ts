@@ -31,12 +31,21 @@ export const INVOKE_CHANNELS = [
   'posts:duplicate',
   'posts:cancel',
   'posts:deleteDraft',
-  'posts:reveal'
+  'posts:reveal',
+  'posts:uploadNow',
+  'posts:retry',
+  'settings:get',
+  'settings:update'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 
 /** Main → renderer push events (webContents.send). */
-export const EVENT_CHANNELS = ['ui:newPost', 'accounts:changed', 'posts:changed'] as const
+export const EVENT_CHANNELS = [
+  'ui:newPost',
+  'accounts:changed',
+  'posts:changed',
+  'posts:progress'
+] as const
 export type EventChannel = (typeof EVENT_CHANNELS)[number]
 
 export function isInvokeChannel(value: unknown): value is InvokeChannel {
