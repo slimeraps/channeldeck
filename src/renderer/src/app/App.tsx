@@ -7,6 +7,7 @@ import { getPage } from '@renderer/app/nav'
 import { AppSidebar } from '@renderer/components/AppSidebar'
 import { PostEditor } from '@renderer/components/post-editor/PostEditor'
 import { ReauthBanner } from '@renderer/components/ReauthBanner'
+import { SetupChecklist } from '@renderer/components/SetupChecklist'
 import { accountsKey } from '@renderer/hooks/useAccounts'
 import { postsKey } from '@renderer/hooks/usePosts'
 import { clipsKey, twitchKey } from '@renderer/hooks/useTwitch'
@@ -28,7 +29,12 @@ import { useUiStore } from '@renderer/stores/ui'
 function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JSX.Element {
   switch (id) {
     case 'queue':
-      return <QueuePage />
+      return (
+        <>
+          <SetupChecklist />
+          <QueuePage />
+        </>
+      )
     case 'channels':
       return <ChannelsPage />
     case 'clips':

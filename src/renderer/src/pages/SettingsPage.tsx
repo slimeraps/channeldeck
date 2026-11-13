@@ -413,6 +413,16 @@ export function SettingsPage(): React.JSX.Element {
             <FolderOpen aria-hidden />
             Open logs folder
           </Button>
+          {s?.setupDismissed ? (
+            <Button
+              variant="ghost"
+              onClick={() => {
+                update.mutate({ setupDismissed: false })
+              }}
+            >
+              Show setup checklist
+            </Button>
+          ) : null}
           {openLogs.isError ? (
             <span className="text-sm text-destructive">{openLogs.error.message}</span>
           ) : null}

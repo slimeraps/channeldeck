@@ -1,30 +1,49 @@
-# Finalized in Phase 10 (asarUnpack for ffmpeg/ffprobe/better-sqlite3, drizzle migrations).
+# macOS arm64 .dmg, ad-hoc signed, not notarized (first launch needs Open Anyway; see README).
 appId: com.slimeraps.channeldeck
 productName: ChannelDeck
+copyright: Personal use
 directories:
   buildResources: build
   output: release
+# Package the Electron that's already installed (no download at build time).
+electronDist: node_modules/electron/dist
 files:
   - '!**/.vscode/*'
   - '!src/*'
   - '!tests/*'
+  - '!scripts/*'
+  - '!drizzle/*'
+  - '!release/*'
   - '!{electron.vite.config,vitest.config}.{js,ts,mjs,mts,cjs}'
-  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,.editorconfig,components.json}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,.editorconfig,components.json,drizzle.config.ts}'
   - '!{CLAUDE.md,PLAN.md,README.md}'
   - '!{.env,.env.*,.npmrc}'
   - '!{tsconfig.json,tsconfig.base.json,tsconfig.node.json,tsconfig.web.json}'
+# Native binaries can't run from inside app.asar; code resolves them with
+# .replace('app.asar', 'app.asar.unpacked').
 asarUnpack:
   - resources/**
+  - node_modules/ffmpeg-static/**
+  - node_modules/@ffprobe-installer/**
+  - node_modules/better-sqlite3/**
 mac:
   target:
     - target: dmg
       arch: [arm64]
   category: public.app-category.video
+  icon: build/icon.icns
   entitlementsInherit: build/entitlements.mac.plist
-  identity: null
+  # Ad-hoc signature: no Apple Developer account needed, and Apple Silicon requires a valid
+  # signature. Hardened runtime stays off with ad-hoc signing (electron-builder docs).
+  identity: '-'
+  hardenedRuntime: false
   notarize: false
+  extendInfo:
+    NSHumanReadableCopyright: Personal use
 dmg:
   artifactName: ${productName}-${version}-arm64.${ext}
+  title: ${productName} ${version}
+# better-sqlite3 ships an N-API prebuild that works in Electron as is.
 npmRebuild: false
 # SQL migrations, applied at startup from Resources/drizzle.
 extraResources:

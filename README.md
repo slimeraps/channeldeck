@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** in active development, built in phases. Features marked ✅ are done; the rest list the phase that builds them. See the [changelog](#changelog) at the bottom.
+> **Status:** version 1.0.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -104,19 +104,22 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Disk usage per Twitch channel, and "delete local files N days after posting"
 - ✅ Backup export/import as JSON, never with tokens or secrets (channels come back signed out, rules switched off)
 - ✅ App icon
-- 🔜 Downloadable `.dmg` for Apple Silicon and a first-run checklist (Phase 10)
+- ✅ `.dmg` for Apple Silicon (`npm run dist`) and a first-run setup checklist
 
 ---
 
 ## Getting started
 
-### Requirements
+### Install the app
 
-- A Mac with Apple Silicon and a recent macOS
-- [Node.js](https://nodejs.org) 22 or newer (LTS recommended)
-- Xcode Command Line Tools (`xcode-select --install`) for git
+1. Build the `.dmg` (see [Building the app](#building-the-app)), or use one you built before.
+2. Open `ChannelDeck-<version>-arm64.dmg` and drag **ChannelDeck** to **Applications**.
+3. Open it. A copy you built on this Mac opens normally. A copy that was downloaded is blocked the first time, because it's ad-hoc signed rather than notarized by Apple. Go to **System Settings → Privacy & Security**, scroll down to the ChannelDeck message, click **Open Anyway**, and confirm. (On macOS 15 and later, right-click → Open no longer skips this.)
+4. Follow the **Set up ChannelDeck** checklist at the top of the Queue. The two sections below walk through the Google and Twitch steps.
 
-### Install and run
+### Run from source
+
+Requirements: a Mac with Apple Silicon, [Node.js](https://nodejs.org) 22 or newer (LTS recommended), and Xcode Command Line Tools (`xcode-select --install`) for git.
 
 ```bash
 git clone https://github.com/slimeraps/channeldeck.git
@@ -125,14 +128,18 @@ npm install
 npm run dev
 ```
 
+Running from source and the installed app share the same database, so only one can be open at a time.
+
 ### Connect Google (one time)
 
 1. In [Google Cloud Console](https://console.cloud.google.com), create a project and enable **YouTube Data API v3**.
 2. Under **Google Auth Platform → Audience**, set the user type to External and click **Publish app** so the status is **In production**. In Testing mode Google signs you out of every channel after 7 days. You don't need verification for personal use; you'll click **Advanced → Go to ChannelDeck** on the warning screen.
 3. Under **Clients**, create an OAuth client ID of type **Desktop app** and download its JSON.
-4. In ChannelDeck, open **Channels** (or Settings) → **Import Google client file**, then **Add channel**.
+4. In ChannelDeck, click **Import…** in the setup checklist (or **Settings → Google and Twitch apps**) and pick the downloaded `client_secret_….json`. Then **Add channel**, once per channel. A Brand Account channel is picked in Google's chooser.
 
-The client file is copied into `~/Library/Application Support/ChannelDeck/` with owner-only permissions. It is never stored in this repository.
+The client file is copied into `~/Library/Application Support/ChannelDeck/google-client.json` with owner-only permissions. It is never stored in this repository (`client_secret*.json` is gitignored).
+
+Sign-in opens your browser and returns to ChannelDeck on a temporary `127.0.0.1` address, so there's nothing to configure for redirects.
 
 ### Connect Twitch (one time)
 
@@ -155,6 +162,10 @@ Clips are saved to `~/Movies/ChannelDeck/Clips/<channel>/<year>/<year-month>/` (
 | Sign-in tokens     | Inside the database, encrypted with the macOS Keychain         |
 | Twitch clips       | `~/Movies/ChannelDeck/Clips` (changeable in Settings)          |
 
+### Backups
+
+**Settings → Backup → Export backup…** saves a JSON file with your settings, channels, Twitch channels, templates, series, layouts, rules and posts not yet on YouTube. It never contains sign-in tokens or secrets. When you import it on a new Mac, click **Reconnect** on each channel and turn the rules back on. Clips come back from Twitch on the next sync.
+
 ### YouTube quota
 
 Quota belongs to your Google Cloud project and is shared by all your channels. Uploads have their own daily allowance (100 per day); everything else shares 10,000 units per day (a thumbnail or playlist add costs 50, a list call costs 1). Both reset at midnight Pacific. It's free; going over just pauses until the reset.
@@ -172,11 +183,25 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 | `npm test`            | Vitest, run on Electron's own Node                       |
 | `npm run db:generate` | Generate a SQL migration from `src/main/db/schema.ts`    |
 | `npm run build`       | Typecheck and build                                      |
-| `npm run dist`        | Build the macOS `.dmg` (Phase 10)                        |
+| `npm run dist`        | Build the macOS `.dmg` into `release/`                   |
 
 **Stack:** Electron, TypeScript (strict), React, electron-vite, Tailwind CSS + shadcn/ui, TanStack Query, Zustand, SQLite (better-sqlite3 + Drizzle), Google's official YouTube client, Vitest + msw.
 
 **Layout:** `src/main` (database, Google and Twitch clients, job runner, media, IPC), `src/preload` (the only bridge to the window), `src/renderer` (React UI), `src/shared` (types, validation, constants). The plan lives in [PLAN.md](PLAN.md) and the working notes in [CLAUDE.md](CLAUDE.md).
+
+### Building the app
+
+```bash
+npm run dist
+```
+
+This produces `release/ChannelDeck-<version>-arm64.dmg` (Apple Silicon, ad-hoc signed, not notarized) and the app itself in `release/mac-arm64/`. ffmpeg, ffprobe and SQLite's native module are unpacked from the app archive so they can run, and the database migrations ship in `Contents/Resources/drizzle`.
+
+To check a build without touching your data, run its self-test. It uses a throwaway folder: it applies every migration, makes a test video with the bundled ffmpeg, reads it with ffprobe, renders a vertical version, and runs a Dry Run upload through the real upload job. It prints a report and exits 0 when everything works:
+
+```bash
+CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/MacOS/ChannelDeck
+```
 
 **Icons:** `swift scripts/draw-icons.swift <dir>` draws the app icon and the menu bar template images with CoreGraphics; `build/icon.icns` is made from the PNG with `sips` + `iconutil`.
 
@@ -188,7 +213,17 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
-### Unreleased
+### 1.0.0 (2026-11-13)
+
+All ten phases are done; this is the first version with a number.
+
+#### Phase 10: Packaging (2026-11-13)
+
+- `npm run dist` builds an Apple Silicon `.dmg` (ad-hoc signed, not notarized), with ffmpeg, ffprobe and SQLite unpacked and the migrations bundled.
+- Added the **Set up ChannelDeck** checklist: Google client file → consent screen In production → add a channel → Twitch app → connect Twitch → clip folder. You can hide it, and bring it back from Settings.
+- Added a build self-test (`CHANNELDECK_SELF_TEST`) that checks an installed app end to end in a throwaway folder.
+- Older backups (from before a setting existed) still import.
+- README: installing and opening the app, building it, and the self-test.
 
 #### Phase 9: Mac polish (2026-11-13)
 

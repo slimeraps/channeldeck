@@ -1,5 +1,7 @@
 import { join } from 'node:path'
 import { app, type BrowserWindow, dialog, Menu, session } from 'electron'
+import { resourcePath } from './paths'
+import { runSelfTest } from './selfTest'
 import { APP_NAME } from '@shared/constants/app'
 import { emitToRenderer, onEmit, setMainWindow } from './appWindow'
 import { closeDatabase, databasePath, getRepos, initDatabase } from './db'
@@ -28,6 +30,14 @@ import { createMainWindow } from './window'
 
 // Name first: it decides ~/Library/Application Support/ChannelDeck and ~/Library/Logs/ChannelDeck.
 app.setName(APP_NAME)
+
+// Self-test (CHANNELDECK_SELF_TEST=<empty folder>): checks a build end to end in a throwaway
+// data folder and exits. Never touches your real database. See README → Building.
+const selfTestDir = process.env['CHANNELDECK_SELF_TEST']
+if (selfTestDir) {
+  app.setPath('userData', selfTestDir)
+  app.setPath('logs', join(selfTestDir, 'logs'))
+}
 initLogger()
 
 // Every renderer is sandboxed, even ones we don't create directly.
@@ -94,7 +104,7 @@ async function start(): Promise<void> {
   hardenSessions()
   // Packaged builds take the icon from the bundle; from source, show it in the Dock too.
   if (!app.isPackaged && process.platform === 'darwin') {
-    app.dock?.setIcon(join(__dirname, '../../resources/icon.png'))
+    app.dock?.setIcon(resourcePath('icon.png'))
   }
 
   try {
@@ -201,8 +211,12 @@ if (!app.requestSingleInstanceLock()) {
     closeDatabase()
   })
 
-  start().catch((error: unknown) => {
-    logger.error('[app] failed to start', error)
-    app.exit(1)
-  })
+  if (selfTestDir) {
+    void runSelfTest().then((code) => app.exit(code))
+  } else {
+    start().catch((error: unknown) => {
+      logger.error('[app] failed to start', error)
+      app.exit(1)
+    })
+  }
 }
