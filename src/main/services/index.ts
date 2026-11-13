@@ -75,7 +75,8 @@ export function initServices(): void {
     media: mediaAccess,
     emitChanged: () => emitToRenderer('posts:changed', undefined),
     kickJobs: () => kickHook?.(),
-    withApi: (accountId, fn) => getYouTubeAccounts().withApi(accountId, fn)
+    withApi: (accountId, fn) => getYouTubeAccounts().withApi(accountId, fn),
+    renderVertical: ({ spec, video, output }) => renderVertical({ spec, video, output })
   })
 
   twitchAccounts = createTwitchAccountsService({

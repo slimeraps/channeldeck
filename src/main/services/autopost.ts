@@ -99,6 +99,7 @@ export function toRuleInput(rule: AutopostRuleRow): RuleInput {
     filters: rule.filtersJson,
     format: rule.format,
     layoutPresetId: rule.layoutPresetId,
+    useTwitchVertical: rule.useTwitchVertical,
     titleTpl: rule.titleTpl,
     descriptionTpl: rule.descriptionTpl,
     tags: rule.tagsJson,
@@ -213,13 +214,19 @@ export function createAutopostService(deps: AutopostDeps) {
     }
   }
 
-  /** Short + no portrait file = convert the landscape file with the rule's layout. */
-  function needsRender(format: RuleInput['format'], clip: ClipRow): boolean {
-    return (
-      format === 'short' &&
-      !(clip.portraitPath && existsSync(clip.portraitPath)) &&
-      Boolean(clip.landscapePath)
-    )
+  /**
+   * Shorts render the horizontal clip with the rule's layout, unless the rule prefers Twitch's
+   * own vertical version and the clip has one (or there's no horizontal file at all).
+   */
+  function needsRender(
+    rule: Pick<RuleInput, 'format' | 'useTwitchVertical'>,
+    clip: ClipRow
+  ): boolean {
+    if (rule.format !== 'short') return false
+    const hasLandscape = Boolean(clip.landscapePath && existsSync(clip.landscapePath))
+    const hasPortrait = Boolean(clip.portraitPath && existsSync(clip.portraitPath))
+    if (!hasLandscape) return false
+    return !(rule.useTwitchVertical && hasPortrait)
   }
 
   function renderSpec(rule: AutopostRuleRow, clip: ClipRow): RenderSpecJson {
@@ -254,10 +261,10 @@ export function createAutopostService(deps: AutopostDeps) {
       isShort: boolean
       renderJson: RenderSpecJson | null
     }
-    if (needsRender(rule.format, clip)) {
+    if (needsRender(toRuleInput(rule), clip)) {
       const spec = renderSpec(rule, clip)
       file = {
-        filePath: join(rendersRoot(), renderFileName(clip.id, spec.presetId)),
+        filePath: join(rendersRoot(), renderFileName(spec.sourcePath, spec.kind, spec.crops)),
         fileSize: null,
         fileMtime: null,
         durationSec: clip.durationSec,
@@ -403,6 +410,7 @@ export function createAutopostService(deps: AutopostDeps) {
       filtersJson: input.filters,
       format: input.format,
       layoutPresetId: input.layoutPresetId,
+      useTwitchVertical: input.useTwitchVertical,
       titleTpl: input.titleTpl,
       descriptionTpl: input.descriptionTpl,
       tagsJson: normalizeTags(input.tags),
@@ -521,7 +529,7 @@ export function createAutopostService(deps: AutopostDeps) {
               thumbUrl: thumb ? mediaUrl(thumb) : clip.thumbnailUrl,
               renderedTitle: text.title,
               renderedDescription: finalizeDescription(text.description),
-              needsRender: needsRender(input.format, clip)
+              needsRender: needsRender(input, clip)
             }
           }
         }),
@@ -572,7 +580,7 @@ export function createAutopostService(deps: AutopostDeps) {
           durationSec: clip.durationSec,
           createdAtUtc: clip.createdAtUtc,
           gameName: clip.gameName,
-          needsRender: needsRender(rule.format, clip)
+          needsRender: needsRender(toRuleInput(rule), clip)
         }
       })
     },

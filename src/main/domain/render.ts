@@ -1,3 +1,4 @@
+import { createHash } from 'node:crypto'
 import type { LayoutKind } from '@shared/constants/enums'
 import type { CropRect, LayoutCrops } from '@shared/types/json'
 
@@ -126,7 +127,20 @@ export function renderArgs(args: {
   ]
 }
 
-/** Output path for a clip's vertical render (PLAN.md decision 11). */
-export function renderFileName(clipId: string, presetId: number | null): string {
-  return `${clipId}_${presetId ?? 'blur'}.mp4`
+/**
+ * File name for a vertical render of `sourcePath` with a layout, in the renders folder
+ * (PLAN.md decision 11). The name includes a hash of the source and the layout, so the same
+ * render is reused (e.g. "Render now" in the editor, then the upload) and a changed layout
+ * never picks up a stale file.
+ */
+export function renderFileName(sourcePath: string, kind: LayoutKind, crops: LayoutCrops): string {
+  const base = (sourcePath.split('/').pop() ?? 'video')
+    .replace(/\.[^.]+$/, '')
+    .replace(/_(landscape|portrait)$/, '')
+    .slice(0, 80)
+  const hash = createHash('sha256')
+    .update(JSON.stringify([sourcePath, kind, kind === 'facecam_split' ? crops : {}]))
+    .digest('hex')
+    .slice(0, 8)
+  return `${base}_${kind}_${hash}.mp4`
 }

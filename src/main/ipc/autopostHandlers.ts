@@ -3,6 +3,9 @@ import { handle } from './handle'
 
 export function registerAutopostHandlers(): void {
   handle('posts:approve', ({ id }) => getPosts().approve(id))
+  handle('posts:renderVertical', ({ sourcePath, kind, presetId }) =>
+    getPosts().renderVertical(sourcePath, { kind, presetId })
+  )
 
   handle('autopost:list', () => getAutopost().list())
   handle('autopost:save', ({ id, input }) => getAutopost().save(input, id))

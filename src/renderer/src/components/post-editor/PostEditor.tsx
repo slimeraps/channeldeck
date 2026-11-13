@@ -21,6 +21,7 @@ import {
 import { MediaPanel } from '@renderer/components/post-editor/MediaPanel'
 import { PublishTimeField } from '@renderer/components/post-editor/PublishTimeField'
 import { TagInput } from '@renderer/components/post-editor/TagInput'
+import { FormatPicker } from '@renderer/components/post-editor/FormatPicker'
 import { TemplatePicker } from '@renderer/components/post-editor/TemplatePicker'
 import { ThumbnailPicker } from '@renderer/components/post-editor/ThumbnailPicker'
 import { Badge } from '@renderer/components/ui/badge'
@@ -251,7 +252,8 @@ function PostEditorForm({
       const info = await fetcher()
       if (!info) return
       setMedia(info)
-      setInput((prev) => withVideo(prev, info))
+      // A different video starts without a vertical render; the Format switch sets one.
+      setInput((prev) => ({ ...withVideo(prev, info), render: null }))
       setTouched((prev) => new Set(prev).add('filePath'))
     } catch (error) {
       toast.error((error as Error).message)
@@ -351,10 +353,24 @@ function PostEditorForm({
                 onDropPath={(path) => void loadVideo(() => invoke('media:inspectVideo', { path }))}
                 onClear={() => {
                   setMedia(null)
-                  set('filePath', null)
+                  setInput((prev) => ({ ...prev, filePath: null, render: null }))
                 }}
               />
             </Field>
+            <FormatPicker
+              input={input}
+              media={media}
+              clip={detail?.clip ?? null}
+              disabled={readOnly || mediaBusy}
+              onChoose={({ filePath, render }) => {
+                void (async () => {
+                  if (filePath && filePath !== input.filePath) {
+                    await loadVideo(() => invoke('media:inspectVideo', { path: filePath }))
+                  }
+                  setInput((prev) => ({ ...prev, render }))
+                })()
+              }}
+            />
             <Field label="Thumbnail">
               <ThumbnailPicker
                 thumbnail={thumbnail}

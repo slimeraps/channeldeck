@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { LAYOUT_KINDS } from '../constants/enums'
 import {
   accountRemoveSchema,
   accountUpdateSchema,
@@ -350,6 +351,16 @@ export const invokeContract = {
     output: z.object({ created: z.number().int(), skipped: z.array(z.string()) })
   },
   'posts:approve': { input: postIdInput, output: postListItemSchema },
+  'posts:renderVertical': {
+    input: z
+      .object({
+        sourcePath: z.string().min(1),
+        kind: z.enum(LAYOUT_KINDS),
+        presetId: z.number().int().positive().nullable()
+      })
+      .strict(),
+    output: mediaInfoSchema
+  },
   'autopost:list': { input: noInput, output: z.array(ruleViewSchema) },
   'autopost:save': { input: ruleSaveSchema, output: ruleViewSchema },
   'autopost:delete': {

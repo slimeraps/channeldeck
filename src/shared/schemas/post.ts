@@ -1,5 +1,6 @@
 import { z } from 'zod'
 import {
+  LAYOUT_KINDS,
   LICENSES,
   MISSED_POLICIES,
   POST_SOURCES,
@@ -42,7 +43,18 @@ export const postInputSchema = z
     /** The template it started from (for reference only). */
     templateId: z.number().int().positive().nullable().optional(),
     /** Series whose next number fills {{n}} when the post is queued. */
-    seriesId: z.number().int().positive().nullable().optional()
+    seriesId: z.number().int().positive().nullable().optional(),
+    /**
+     * Convert to vertical (1080×1920) with a layout: filePath stays the horizontal source and
+     * the post uploads the render. null = upload filePath as it is.
+     */
+    render: z
+      .object({
+        kind: z.enum(LAYOUT_KINDS),
+        presetId: z.number().int().positive().nullable()
+      })
+      .nullable()
+      .optional()
   })
   .strict()
 export type PostInput = z.infer<typeof postInputSchema>
@@ -275,7 +287,18 @@ export const postDetailSchema = z.object({
   status: z.enum(POST_STATUSES),
   source: z.enum(POST_SOURCES),
   input: postInputSchema,
+  /** The video being edited (the horizontal source when the post renders to vertical). */
   media: mediaInfoSchema.nullable(),
+  /** The vertical render, if it has been made already (Render now, or uploaded). */
+  rendered: mediaInfoSchema.nullable(),
+  /** For Twitch clip posts: the clip's files, for the Format switch. */
+  clip: z
+    .object({
+      twitchAccountId: z.number().int(),
+      landscapePath: z.string().nullable(),
+      portraitPath: z.string().nullable()
+    })
+    .nullable(),
   thumbnail: thumbnailInfoSchema.nullable(),
   editable: z.boolean()
 })

@@ -87,7 +87,8 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Rules mapping Twitch accounts to a YouTube channel, with daily time slots and weekdays, planned up to 14 days ahead
 - ✅ Daylight-saving safe: a time skipped in spring moves to the next valid minute; a repeated time in fall is used once
 - ✅ Pick order (oldest, newest, most viewed) and filters (games, length, views, featured)
-- ✅ Shorts from Twitch's portrait file, or converted to 1080×1920 with a layout: blurred fill, center crop, or facecam-on-top split drawn in a crop editor with a live preview and an 8-second test render
+- ✅ Shorts made from the horizontal clip with a layout (blurred fill, center crop, or facecam-on-top split drawn in a crop editor with a live preview and an 8-second test render), or from Twitch's own vertical version if the rule prefers it
+- ✅ **Format** switch in the post editor: any clip post (or horizontal video) can be horizontal, Twitch's vertical version, or a vertical render with a layout, and **Render now** previews the Short
 - ✅ Title and description templates with `{{clip_title}}`, `{{game}}`, `{{broadcaster}}`, `{{clipper}}`, `{{clip_date}}`, `{{clip_url}}`, `{{twitch_url}}`, `{{views}}`, `{{n}}`; titles trimmed safely to 100 characters
 - ✅ Review mode (approve first) or Auto; unapproved autoposts are dropped at their publish time and the clip goes back to the bank
 - ✅ Unscheduling an autopost refills its slot with the next clip; that rule never picks the skipped clip again
@@ -220,6 +221,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
 ### Unreleased
+
+- Clip posts keep the horizontal clip as their source. The post editor's new **Format** switch changes a post between horizontal, Twitch's vertical version and a vertical render (blurred fill, center crop or your layouts); **Render now** shows the Short before it uploads.
+- Autopost rules make Shorts from the horizontal clip with their layout. A new switch, **Use Twitch's own vertical version**, brings back the old behavior. "Add as drafts" on the Clips page starts horizontal.
+- Fixed: confirm buttons (Unschedule, Delete, Remove…) showed white text on a light background; they're now pink with readable text.
 
 - Added a homepage and privacy policy (GitHub Pages, from `docs/`) for Google's Branding page, which now needs both before the consent screen can be published.
 

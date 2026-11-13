@@ -1,0 +1,1 @@
+ALTER TABLE `autopost_rules` ADD `use_twitch_vertical` integer DEFAULT false NOT NULL;

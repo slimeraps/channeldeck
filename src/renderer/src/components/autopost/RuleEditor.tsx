@@ -124,6 +124,7 @@ export function RuleEditor({
         filters: {},
         format: 'short',
         layoutPresetId: null,
+        useTwitchVertical: false,
         titleTpl: DEFAULT_TITLE_TEMPLATE,
         descriptionTpl: DEFAULT_DESCRIPTION_TEMPLATE,
         tags: [],
@@ -193,6 +194,7 @@ export function RuleEditor({
           filters: input.filters,
           format: input.format,
           layoutPresetId: input.layoutPresetId,
+          useTwitchVertical: input.useTwitchVertical,
           titleTpl: input.titleTpl || '{{clip_title}}',
           descriptionTpl: input.descriptionTpl,
           lookaheadDays: input.lookaheadDays,
@@ -526,7 +528,7 @@ export function RuleEditor({
               </RadioGroup>
               {input.format === 'short' ? (
                 <div className="grid gap-1.5">
-                  <Label>When Twitch has no portrait version</Label>
+                  <Label>Vertical layout</Label>
                   <div className="flex gap-2">
                     <Select
                       value={input.layoutPresetId ? String(input.layoutPresetId) : NONE}
@@ -552,6 +554,17 @@ export function RuleEditor({
                       <Plus aria-hidden /> New layout
                     </Button>
                   </div>
+                  <label className="mt-1 flex items-center gap-2 text-sm">
+                    <Switch
+                      checked={input.useTwitchVertical}
+                      onCheckedChange={(on) => set('useTwitchVertical', on)}
+                    />
+                    Use Twitch’s own vertical version when a clip has one
+                  </label>
+                  <p className="text-xs text-muted-foreground">
+                    Off: every Short is made from the horizontal clip with this layout. You can
+                    change any autopost’s format in the editor.
+                  </p>
                 </div>
               ) : null}
             </Section>

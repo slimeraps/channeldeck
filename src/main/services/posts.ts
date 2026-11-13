@@ -1,8 +1,14 @@
 import { stat } from 'node:fs/promises'
 import { existsSync } from 'node:fs'
-import { basename, isAbsolute } from 'node:path'
-import { isThumbnailPath, isVideoPath, THUMBNAIL_MAX_BYTES } from '@shared/constants/limits'
-import type { PostStatus } from '@shared/constants/enums'
+import { basename, isAbsolute, join } from 'node:path'
+import {
+  isThumbnailPath,
+  isVideoPath,
+  SHORT_MAX_SECONDS,
+  THUMBNAIL_MAX_BYTES
+} from '@shared/constants/limits'
+import type { LayoutKind, PostStatus } from '@shared/constants/enums'
+import type { RenderSpecJson } from '@shared/types/json'
 import { accountDefaultsSchema } from '@shared/schemas/account'
 import {
   hasErrors,
@@ -25,6 +31,7 @@ import {
 import { type Clock, systemClock } from '../db/repos/common'
 import type { Repos } from '../db/repos'
 import type { PostRow, PostFields } from '../db/repos/posts'
+import { renderFileName } from '../domain/render'
 import { buildStatusUpdate, type StatusChange } from '../domain/statusSync'
 import { UserFacingError } from '../errors'
 import { classifyGoogleError } from '../google/errors'
@@ -51,6 +58,12 @@ export interface PostsServiceDeps {
   clock?: Clock
   /** IANA zone for {{date}} (default: the Mac's). */
   zone?: string
+  /** ffmpeg vertical conversion (media/ffmpeg renderVertical), for "Render now". */
+  renderVertical?: (args: {
+    spec: RenderSpecJson
+    video: { width: number; height: number; durationSec: number }
+    output: string
+  }) => Promise<void>
 }
 
 /** Statuses the editor may change. Later phases widen this (failed, needs_decision...). */
@@ -178,7 +191,14 @@ export function createPostsService(deps: PostsServiceDeps) {
       publishAtUtc: post.publishAtUtc,
       missedPolicy: post.missedPolicy,
       templateId: post.templateId,
-      seriesId: post.seriesId
+      seriesId: post.seriesId,
+      // A vertical render is edited as its horizontal source plus the layout.
+      ...(post.renderJson
+        ? {
+            filePath: post.renderJson.sourcePath,
+            render: { kind: post.renderJson.kind, presetId: post.renderJson.presetId }
+          }
+        : { render: null })
     }
   }
 
@@ -216,15 +236,23 @@ export function createPostsService(deps: PostsServiceDeps) {
     return now.toISOString()
   }
 
-  /**
-   * @param pendingRender an autopost whose vertical render hasn't run yet: its file doesn't
-   *   exist, so keep the planned file details instead of probing.
-   */
-  async function buildFields(
-    input: PostInput,
-    mode: SaveMode,
-    pendingRender?: PostRow
-  ): Promise<PostFields> {
+  /** What a vertical render of `sourcePath` with this layout would be (path and spec). */
+  function planRender(
+    sourcePath: string,
+    choice: { kind: LayoutKind; presetId: number | null }
+  ): { outputPath: string; spec: RenderSpecJson } {
+    const preset = choice.presetId ? repos.layoutPresets.get(choice.presetId) : undefined
+    const kind = preset?.kind ?? choice.kind
+    const crops = preset?.cropsJson ?? {}
+    const outputPath = join(
+      repos.settings.getKey('clipsRoot'),
+      '_renders',
+      renderFileName(sourcePath, kind, crops)
+    )
+    return { outputPath, spec: { sourcePath, kind, crops, presetId: preset?.id ?? null } }
+  }
+
+  async function buildFields(input: PostInput, mode: SaveMode): Promise<PostFields> {
     const now = clock()
     const tags = normalizeTags(input.tags)
     const clean: PostInput = {
@@ -235,27 +263,46 @@ export function createPostsService(deps: PostsServiceDeps) {
     }
 
     let probe: ProbeResult | null = null
-    if (pendingRender) {
-      probe = {
-        path: pendingRender.filePath as string,
-        fileName: '',
-        sizeBytes: 0,
-        mtimeMs: 0,
-        durationSec: pendingRender.durationSec ?? 0,
-        width: pendingRender.width ?? 1080,
-        height: pendingRender.height ?? 1920,
-        videoCodec: null,
-        aspectRatio: '9:16',
-        isShort: pendingRender.isShort,
-        isLong: false
-      }
-    } else if (clean.filePath) {
+    if (clean.filePath) {
       if (!isVideoPath(clean.filePath)) throw new UserFacingError('That file is not a video.')
       try {
         probe = await deps.probe(clean.filePath)
       } catch (error) {
         // A draft may point at a file that's gone; a queued post may not.
         if (mode === 'queue') throw error
+      }
+    }
+
+    // Vertical render: filePath is the horizontal source; the post uploads the render.
+    let file: Pick<
+      PostFields,
+      'filePath' | 'fileSize' | 'fileMtime' | 'durationSec' | 'width' | 'height' | 'isShort'
+    > & { renderJson: RenderSpecJson | null } = {
+      filePath: clean.filePath,
+      fileSize: probe?.sizeBytes ?? null,
+      fileMtime: probe?.mtimeMs ?? null,
+      durationSec: probe?.durationSec ?? null,
+      width: probe?.width ?? null,
+      height: probe?.height ?? null,
+      isShort: probe?.isShort ?? false,
+      renderJson: null
+    }
+    if (clean.render && clean.filePath) {
+      const { outputPath, spec } = planRender(clean.filePath, clean.render)
+      // Already rendered (Render now)? Use its real details; otherwise it renders at upload.
+      const rendered = existsSync(outputPath)
+        ? await deps.probe(outputPath).catch(() => null)
+        : null
+      const durationSec = rendered?.durationSec ?? probe?.durationSec ?? null
+      file = {
+        filePath: outputPath,
+        fileSize: rendered?.sizeBytes ?? null,
+        fileMtime: rendered?.mtimeMs ?? null,
+        durationSec,
+        width: 1080,
+        height: 1920,
+        isShort: durationSec === null || durationSec <= SHORT_MAX_SECONDS,
+        renderJson: spec
       }
     }
     if (clean.thumbnailPath) await inspectThumbnail(clean.thumbnailPath)
@@ -277,13 +324,7 @@ export function createPostsService(deps: PostsServiceDeps) {
 
     return {
       accountId: clean.accountId,
-      filePath: clean.filePath,
-      fileSize: pendingRender ? null : (probe?.sizeBytes ?? null),
-      fileMtime: pendingRender ? null : (probe?.mtimeMs ?? null),
-      durationSec: probe?.durationSec ?? null,
-      width: probe?.width ?? null,
-      height: probe?.height ?? null,
-      isShort: probe?.isShort ?? false,
+      ...file,
       title: clean.title,
       description: clean.description,
       tagsJson: tags,
@@ -352,14 +393,28 @@ export function createPostsService(deps: PostsServiceDeps) {
 
     async get(id: string): Promise<PostDetail> {
       const post = repos.posts.require(id)
-      let mediaInfo: MediaInfo | null = null
-      if (post.filePath && existsSync(post.filePath)) {
+      const probeIfThere = async (path: string | null): Promise<MediaInfo | null> => {
+        if (!path || !existsSync(path)) return null
         try {
-          mediaInfo = toMediaInfo(await deps.probe(post.filePath))
+          return toMediaInfo(await deps.probe(path))
         } catch {
-          mediaInfo = null
+          return null
         }
       }
+      const input = toInput(post)
+      const mediaInfo = await probeIfThere(input.filePath)
+      const rendered = post.renderJson ? await probeIfThere(post.filePath) : null
+      const clipRow = post.clipId ? repos.clips.get(post.clipId) : undefined
+      const onDisk = (p: string | null): string | null => (p && existsSync(p) ? p : null)
+      const clip = clipRow
+        ? {
+            twitchAccountId: clipRow.twitchAccountId,
+            landscapePath: onDisk(clipRow.landscapePath),
+            portraitPath: onDisk(clipRow.portraitPath)
+          }
+        : null
+      if (clip?.landscapePath) media.grant(clip.landscapePath)
+      if (clip?.portraitPath) media.grant(clip.portraitPath)
       let thumbnail: ThumbnailInfo | null = null
       if (post.thumbnailPath) {
         thumbnail = await inspectThumbnail(post.thumbnailPath).catch(() => null)
@@ -368,8 +423,10 @@ export function createPostsService(deps: PostsServiceDeps) {
         id: post.id,
         status: post.status,
         source: post.source,
-        input: toInput(post),
+        input,
         media: mediaInfo,
+        rendered,
+        clip,
         thumbnail,
         editable: EDITABLE.includes(post.status) && !post.youtubeVideoId
       }
@@ -385,16 +442,8 @@ export function createPostsService(deps: PostsServiceDeps) {
       mode: SaveMode
     }): Promise<PostListItem> {
       const before = id ? repos.posts.require(id) : undefined
-      // An autopost still waiting for its vertical render keeps it (unless you swap the video).
-      const pendingRender =
-        before?.renderJson &&
-        input.filePath === before.filePath &&
-        !existsSync(before.filePath ?? '')
-          ? before
-          : undefined
       const fields = {
-        ...(await buildFields(input, mode, pendingRender)),
-        ...(before?.renderJson && input.filePath !== before.filePath ? { renderJson: null } : {}),
+        ...(await buildFields(input, mode)),
         // A different series means a different number.
         ...(before && before.seriesId !== (input.seriesId ?? null) ? { seriesNumber: null } : {})
       }
@@ -686,6 +735,26 @@ export function createPostsService(deps: PostsServiceDeps) {
     deleteDraft(id: string): void {
       repos.posts.deleteDraft(id)
       deps.emitChanged()
+    },
+
+    /**
+     * "Render now": converts the source to vertical with the layout, into the same file the
+     * upload would make (so the upload reuses it). Returns the rendered video's details.
+     */
+    async renderVertical(
+      sourcePath: string,
+      choice: { kind: LayoutKind; presetId: number | null }
+    ): Promise<MediaInfo> {
+      if (!isAbsolute(sourcePath) || !isVideoPath(sourcePath) || !existsSync(sourcePath)) {
+        throw new UserFacingError('Pick a video first.')
+      }
+      if (!deps.renderVertical) throw new UserFacingError('Vertical rendering is not available.')
+      const { outputPath, spec } = planRender(sourcePath, choice)
+      if (!existsSync(outputPath)) {
+        const source = await deps.probe(sourcePath)
+        await deps.renderVertical({ spec, video: source, output: outputPath })
+      }
+      return toMediaInfo(await deps.probe(outputPath))
     },
 
     filePathFor(id: string): string {
