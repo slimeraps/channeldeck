@@ -1,0 +1,28 @@
+# Finalized in Phase 10 (asarUnpack for ffmpeg/ffprobe/better-sqlite3, drizzle migrations).
+appId: com.slimeraps.channeldeck
+productName: ChannelDeck
+directories:
+  buildResources: build
+  output: release
+files:
+  - '!**/.vscode/*'
+  - '!src/*'
+  - '!tests/*'
+  - '!{electron.vite.config,vitest.config}.{js,ts,mjs,mts,cjs}'
+  - '!{.eslintcache,eslint.config.mjs,.prettierignore,.prettierrc.yaml,.editorconfig,components.json}'
+  - '!{CLAUDE.md,PLAN.md,README.md}'
+  - '!{.env,.env.*,.npmrc}'
+  - '!{tsconfig.json,tsconfig.base.json,tsconfig.node.json,tsconfig.web.json}'
+asarUnpack:
+  - resources/**
+mac:
+  target:
+    - target: dmg
+      arch: [arm64]
+  category: public.app-category.video
+  entitlementsInherit: build/entitlements.mac.plist
+  identity: null
+  notarize: false
+dmg:
+  artifactName: ${productName}-${version}-arm64.${ext}
+npmRebuild: false

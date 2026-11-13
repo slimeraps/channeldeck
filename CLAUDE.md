@@ -3,6 +3,7 @@
 Personal macOS (Apple Silicon) Electron app: Twitch clip bank + YouTube upload scheduler for several channels. The phased plan lives in `PLAN.md`. Build one phase at a time and stop after each one.
 
 ## Working rules
+
 - One phase at a time. End each phase with typecheck + lint + tests passing, `npm run dev` launching cleanly, a "test by hand" list, and one git commit. Then wait for "go".
 - Git: repo is public at github.com/slimeraps/channeldeck. `main` holds approved work only. Each phase is built on its own branch off `main` (`phase-0-scaffold`, `phase-1-data-layer`, …), pushed, and merged into `main` through a pull request after Cody approves the phase. Extra branches for side experiments are fine. Never force-push `main`.
 - **Never commit secrets** (`client_secret*.json`, tokens, `.env*`, the DB). **Never log tokens**: logging goes through the redacting logger only.
@@ -11,6 +12,7 @@ Personal macOS (Apple Silicon) Electron app: Twitch clip bank + YouTube upload s
 - Commit messages end with: `Co-Authored-By: Claude Opus 5.5 <noreply@anthropic.com>`
 
 ## Stack
+
 - Electron (latest stable) + TypeScript strict + React, built with electron-vite
 - Tailwind CSS + shadcn/ui (Radix) + lucide-react; dark theme default
 - TanStack Query (server/IPC data), Zustand (UI state only)
@@ -23,21 +25,24 @@ Personal macOS (Apple Silicon) Electron app: Twitch clip bank + YouTube upload s
 - Tests: Vitest + msw. Packaging: electron-builder, arm64 dmg, unsigned
 
 ## Commands
+
 ```
 npm install            # postinstall runs electron-builder install-app-deps (rebuilds better-sqlite3 for Electron)
 npm run dev            # electron-vite dev (hot reload)
 npm run typecheck      # tsc for node (main/preload/shared) and web (renderer) projects
 npm run lint           # eslint .
-npm run format         # prettier --write .
-npm test               # vitest run, executed with ELECTRON_RUN_AS_NODE=1 under Electron's Node
+npm run format         # prettier --write .  (format:check verifies)
+npm test               # vitest run (config: vitest.config.mts), executed with ELECTRON_RUN_AS_NODE=1 under Electron's Node
 npm run test:watch
 npm run db:generate    # drizzle-kit generate → ./drizzle (commit the generated SQL)
 npm run build          # electron-vite build
 npm run dist           # build + electron-builder --mac dmg --arm64
 ```
+
 Tests run on Electron's Node so better-sqlite3 has a single native build. Don't add a second plain-Node build.
 
 ## Folder layout
+
 ```
 src/
   main/
@@ -65,9 +70,11 @@ tests/
   integration/          daily sync + download, planner run, full upload
   mocks/                msw handlers for YouTube and Helix, fixtures
 ```
+
 Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 
 ## Conventions
+
 - **Process boundary:** all network, disk, DB and ffmpeg work runs in main. The renderer only calls `window.api`.
 - **IPC:** every channel is declared once in `src/shared/ipc`. Main registers it with `handle(channel, fn)`, which zod-parses the payload and rejects bad input. Push events (upload progress, job state, sync progress) also go through typed channels. Don't add ad-hoc `ipcMain.on`.
 - **Window security:** `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, strict CSP, navigation and `window.open` blocked. Local media reaches the renderer only through `cdmedia://`, which only serves paths under the clip folder, the render folder, or files referenced by a post.
@@ -82,6 +89,7 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 - **Jobs:** idempotent and resumable. Persist progress (video id, backfill cursor, step status) before moving on. A job holds the power-save blocker through `power.ts` refcounting.
 
 ## YouTube API rules
+
 - Scheduling: upload with `status.privacyStatus = "private"` and `status.publishAt` (RFC 3339 UTC, in the future). `publishAt` only works with private.
 - Required on insert: `snippet.title`, `snippet.categoryId`, `status.privacyStatus`, `status.selfDeclaredMadeForKids`.
 - Limits: title ≤ 100 chars, description ≤ 5000 bytes, neither may contain `<` or `>`; tags ~500 chars total.
@@ -95,6 +103,7 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 - Dry Run: the YouTube wrapper logs method + payload and returns a fake response. No Google HTTP calls.
 
 ## Twitch API rules
+
 - Every Helix call sends `Client-Id` and `Authorization: Bearer <token>`.
 - Auth: Authorization Code flow with a Confidential app (redirect `http://localhost:17563/twitch/callback`) is primary. Device Code flow (public client) is the fallback; its refresh tokens are one-time use and expire after 30 days. Always store the newest refresh token (rotation). On refresh failure, mark needs re-auth and pause sync.
 - Scopes: `channel:manage:clips` when signing in as the broadcaster, `editor:manage:clips` when signing in as an editor. Request only the one needed.
@@ -105,6 +114,7 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 - Clip files: `<clipsRoot>/<login>/<YYYY>/<YYYY-MM>/<YYYY-MM-DD_HHmmss>_<clip_id>_<slug>_<landscape|portrait>.mp4` (UTC `created_at`), with thumbnail and `.json` sidecar alongside. Download to a temp file → ffprobe verify → atomic rename.
 
 ## Packaging gotchas
+
 - `asarUnpack` ffmpeg-static, ffprobe-static and better-sqlite3. Resolve binary paths with `.replace('app.asar', 'app.asar.unpacked')`.
 - Ship `drizzle/` as an extra resource and run migrations at startup.
 - Unsigned dmg: first launch via right-click → Open.
