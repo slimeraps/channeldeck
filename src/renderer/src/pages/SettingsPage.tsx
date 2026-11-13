@@ -41,6 +41,7 @@ export function SettingsPage(): React.JSX.Element {
               value={info.data ? `${info.data.platform} ${info.data.arch}` : undefined}
             />
             <Row label="Logs" value={info.data?.logsPath} />
+            <Row label="Database" value={info.data?.databasePath} />
           </div>
         )}
       </section>

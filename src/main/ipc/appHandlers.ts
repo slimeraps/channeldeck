@@ -1,5 +1,6 @@
 import { app, shell } from 'electron'
 import { APP_NAME } from '@shared/constants/app'
+import { databasePath } from '../db'
 import { handle } from './handle'
 
 export function registerAppHandlers(): void {
@@ -12,7 +13,8 @@ export function registerAppHandlers(): void {
     platform: process.platform,
     arch: process.arch,
     isPackaged: app.isPackaged,
-    logsPath: app.getPath('logs')
+    logsPath: app.getPath('logs'),
+    databasePath: databasePath()
   }))
 
   handle('app:ping', ({ message }) => ({

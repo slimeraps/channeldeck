@@ -40,5 +40,10 @@ export default defineConfig(
     files: ['src/renderer/src/components/ui/**/*.tsx'],
     rules: { 'react-refresh/only-export-components': 'off' }
   },
+  {
+    // Tests may assert a row exists with `!`; a wrong assumption fails the test anyway.
+    files: ['**/*.test.{ts,tsx}', 'tests/**/*.ts'],
+    rules: { '@typescript-eslint/no-non-null-assertion': 'off' }
+  },
   prettier
 )

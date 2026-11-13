@@ -26,3 +26,7 @@ mac:
 dmg:
   artifactName: ${productName}-${version}-arm64.${ext}
 npmRebuild: false
+# SQL migrations, applied at startup from Resources/drizzle.
+extraResources:
+  - from: drizzle
+    to: drizzle

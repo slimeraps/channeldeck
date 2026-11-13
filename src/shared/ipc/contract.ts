@@ -18,7 +18,8 @@ export const appInfoSchema = z.object({
   platform: z.string(),
   arch: z.string(),
   isPackaged: z.boolean(),
-  logsPath: z.string()
+  logsPath: z.string(),
+  databasePath: z.string()
 })
 export type AppInfo = z.infer<typeof appInfoSchema>
 
