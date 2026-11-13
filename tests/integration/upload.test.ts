@@ -27,9 +27,12 @@ beforeAll(() => {
 afterAll(() => server.close())
 
 const secrets = createSecretBox({
-  isEncryptionAvailable: () => true,
-  encryptString: (s) => Buffer.from(s, 'utf8').reverse(),
-  decryptString: (b) => Buffer.from(b).reverse().toString('utf8')
+  isAsyncEncryptionAvailable: async () => true,
+  encryptStringAsync: async (s) => Buffer.from(s, 'utf8').reverse(),
+  decryptStringAsync: async (b) => ({
+    result: Buffer.from(b).reverse().toString('utf8'),
+    shouldReEncrypt: false
+  })
 })
 
 const VIDEO_BYTES = 256 * 1024
@@ -134,7 +137,7 @@ async function tick(): Promise<string[]> {
   return ids
 }
 
-beforeEach(() => {
+beforeEach(async () => {
   Object.assign(google, createGoogleState())
   t = createTestDb()
   dir = mkdtempSync(join(tmpdir(), 'cd-upload-'))
@@ -145,7 +148,7 @@ beforeEach(() => {
   accountId = t.repos.accounts.create({
     channelId: 'UCdrift',
     channelTitle: 'Drift Channel',
-    encRefreshToken: secrets.encrypt('rt-initial')
+    encRefreshToken: await secrets.encrypt('rt-initial')
   }).id
   setup()
 })

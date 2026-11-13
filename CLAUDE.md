@@ -90,7 +90,7 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 - **Never-twice:** partial unique index `posts(clip_id, account_id) WHERE clip_id IS NOT NULL AND status <> 'canceled'`. Don't work around it in code.
 - **Pure domain layer:** time, slots, picking, templates, quota and error classification are pure functions with injected `now` and zone. Unit-test them there.
 - **Time:** store UTC; display local time plus relative time ("in 3h 20m"). The quota day and `waiting_quota` retry use `America/Los_Angeles` midnight.
-- **Secrets:** refresh tokens and the Twitch client secret are stored as `safeStorage` ciphertext in SQLite. Decrypt only where the value is used. Never put them in IPC responses, logs, event_log, backups or errors.
+- **Secrets:** refresh tokens and the Twitch client secret are stored as `safeStorage` ciphertext in SQLite (async API: `encryptStringAsync`/`decryptStringAsync` through `secrets/secretBox.ts`). Decrypt only where the value is used. Never put them in IPC responses, logs, event_log, backups or errors. Secret settings live under `settings` keys `secret.<name>` (`settingsRepo.getSecret/setSecret`), are left out of `settings.get()`, and backups must skip them.
 - **Logging:** use `logger` (redacts `access_token`, `refresh_token`, `client_secret`, `code`, `Authorization`). Log API calls as method + ids + status, never full auth headers.
 - **TypeScript:** strict. No `any` without a comment saying why. Prefer discriminated unions for job/step results.
 - **Dropped files:** the renderer gets a dropped file's path only through `window.api.getPathForFile` (Electron `webUtils`). Main re-checks extension and existence before using it.
@@ -122,6 +122,7 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 - Sync window: last successful sync − 2 days → now (`vod_offset` can take minutes to fill in; overlap also refreshes view counts).
 - Get Clips Download: `GET /helix/clips/downloads?editor_id&broadcaster_id&clip_id` (1–10 ids). `editor_id` must equal the token's user id; 403 = not an editor. Clips it can't access are silently left out → mark "Not downloadable". `landscape_download_url` / `portrait_download_url` may be null and are temporary: fetch them right before downloading. 100 requests/min.
 - Rate limits: read `Ratelimit-Remaining` / `Ratelimit-Reset`; back off on 429.
+- Clip download status: `pending, downloading, downloaded, failed, not_downloadable, deleted` (`deleted` = local files removed by the user; never re-downloaded automatically). Failures retry 5 min × 4ⁿ (cap 1 day), 5 attempts. Reconnect forces a sync past any failure backoff.
 - Clip files: `<clipsRoot>/<login>/<YYYY>/<YYYY-MM>/<YYYY-MM-DD_HHmmss>_<clip_id>_<slug>_<landscape|portrait>.mp4` (UTC `created_at`), with thumbnail and `.json` sidecar alongside. Download to a temp file → ffprobe verify → atomic rename.
 
 ## Packaging gotchas

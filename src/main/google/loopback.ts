@@ -33,24 +33,69 @@ function respond(res: ServerResponse, status: number, html: string): void {
   res.end(html)
 }
 
-export async function startLoopbackReceiver(): Promise<LoopbackReceiver> {
+export interface LoopbackOptions {
+  /** Fixed port (Twitch needs the registered redirect); default: any free port. */
+  port?: number
+  /** Callback path, default "/". */
+  path?: string
+  /**
+   * Host name used in the redirect URI. "127.0.0.1" (default, Google) binds only IPv4;
+   * "localhost" (Twitch) binds both 127.0.0.1 and ::1, since browsers may use either.
+   */
+  host?: '127.0.0.1' | 'localhost'
+  /** Wording on the browser page, e.g. "Google" or "Twitch". */
+  provider?: string
+}
+
+export async function startLoopbackReceiver(
+  options: LoopbackOptions = {}
+): Promise<LoopbackReceiver> {
+  const path = options.path ?? '/'
+  const host = options.host ?? '127.0.0.1'
+  const provider = options.provider ?? 'Google'
   let onRequest: ((req: IncomingMessage, res: ServerResponse) => void) | null = null
-  const server = createServer((req, res) => {
+  const handler = (req: IncomingMessage, res: ServerResponse): void => {
     if (onRequest) onRequest(req, res)
     else respond(res, 404, page('Not found', 'ChannelDeck is not waiting for a sign-in.'))
-  })
+  }
 
-  await new Promise<void>((resolve, reject) => {
-    server.once('error', reject)
-    server.listen(0, '127.0.0.1', () => resolve())
-  })
-  const { port } = server.address() as AddressInfo
-  const redirectUri = `http://127.0.0.1:${port}`
+  const listen = (address: string, port: number) =>
+    new Promise<ReturnType<typeof createServer>>((resolve, reject) => {
+      const server = createServer(handler)
+      server.once('error', reject)
+      server.listen(port, address, () => resolve(server))
+    })
+
+  const servers: ReturnType<typeof createServer>[] = []
+  try {
+    servers.push(await listen('127.0.0.1', options.port ?? 0))
+  } catch (error) {
+    if ((error as { code?: string }).code === 'EADDRINUSE') {
+      throw new UserFacingError(
+        `Port ${options.port ?? ''} is already in use, so the sign-in can't receive its reply. Close whatever is using it (or another ChannelDeck sign-in) and try again.`
+      )
+    }
+    throw error
+  }
+  const [first] = servers
+  if (!first) throw new Error('Sign-in listener did not start')
+  const { port } = first.address() as AddressInfo
+  if (host === 'localhost') {
+    // Best effort: some browsers resolve "localhost" to ::1 first.
+    try {
+      servers.push(await listen('::1', port))
+    } catch {
+      // IPv6 loopback unavailable; IPv4 is enough.
+    }
+  }
+  const redirectUri = `http://${host}:${port}${path === '/' ? '' : path}`
 
   const close = (): void => {
     onRequest = null
-    server.close()
-    server.closeAllConnections()
+    for (const server of servers) {
+      server.close()
+      server.closeAllConnections()
+    }
   }
 
   return {
@@ -76,8 +121,8 @@ export async function startLoopbackReceiver(): Promise<LoopbackReceiver> {
         signal?.addEventListener('abort', onAbort, { once: true })
 
         onRequest = (req, res) => {
-          const url = new URL(req.url ?? '/', redirectUri)
-          if (url.pathname !== '/') {
+          const url = new URL(req.url ?? '/', `http://${host}:${port}`)
+          if (url.pathname !== path) {
             respond(res, 404, page('Not found', ''))
             return
           }
@@ -101,8 +146,8 @@ export async function startLoopbackReceiver(): Promise<LoopbackReceiver> {
               reject(
                 new UserFacingError(
                   error === 'access_denied'
-                    ? 'You declined access in the Google window, so no channel was added.'
-                    : `Google sign-in failed (${error}).`
+                    ? `You declined access in the ${provider} window, so nothing was connected.`
+                    : `${provider} sign-in failed (${error}).`
                 )
               )
             )

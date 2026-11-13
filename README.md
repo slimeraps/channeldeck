@@ -72,11 +72,12 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 
 ### Twitch clip bank
 
-- 🔜 Connect Twitch channels as the broadcaster or an editor (Phase 6)
-- 🔜 Daily clip sync at a time you choose, plus on launch/wake if overdue, plus **Sync now** (Phase 6)
-- 🔜 Full backfill from a start date, resumable after a quit (Phase 6)
-- 🔜 Downloads landscape and portrait files, thumbnail and metadata, named so Finder sorts oldest to newest (Phase 6)
-- 🔜 Clips page: sort, filter (game, length, views, featured, posted, dates, title), preview, bulk actions, disk usage (Phase 6)
+- ✅ Connect Twitch channels as the broadcaster or an editor
+- ✅ Daily clip sync at a time you choose, plus on launch/wake if overdue, plus **Sync now**
+- ✅ Full backfill from a start date, resumable after a quit
+- ✅ Downloads landscape and portrait files, thumbnail and metadata, named so Finder sorts oldest to newest
+- ✅ Clips page: sort, filter (game, length, views, featured, posted, dates, title), preview, bulk actions, disk usage
+- ✅ Add clips as draft posts to any YouTube channel; a clip can never be added twice to the same channel
 
 ### Autoposting
 
@@ -123,6 +124,17 @@ npm run dev
 
 The client file is copied into `~/Library/Application Support/ChannelDeck/` with owner-only permissions. It is never stored in this repository.
 
+### Connect Twitch (one time)
+
+1. In the [Twitch developer console](https://dev.twitch.tv/console/apps/create), click **Register Your Application**.
+2. Add the OAuth Redirect URL `http://localhost:17563/twitch/callback`, set **Client Type** to **Confidential**, and create it.
+3. Open **Manage**, click **New Secret**, and paste the Client ID and Client Secret into ChannelDeck (**Channels → Twitch accounts**).
+4. Click **Connect Twitch**, choose whether you're the broadcaster or an editor, and pick how far back to backfill.
+
+Without a secret, ChannelDeck uses Twitch's device-code sign-in instead, but those sign-ins expire after 30 days.
+
+Clips are saved to `~/Movies/ChannelDeck/Clips/<channel>/<year>/<year-month>/` (changeable in Settings) as `2026-11-12_204512_<clip id>_<title>_landscape.mp4`, so Finder sorts them oldest to newest. A thumbnail and a `.json` file with the clip's details sit next to each video.
+
 ### Your data
 
 | What               | Where                                                          |
@@ -131,6 +143,7 @@ The client file is copied into `~/Library/Application Support/ChannelDeck/` with
 | Google client file | `~/Library/Application Support/ChannelDeck/google-client.json` |
 | Logs               | `~/Library/Logs/ChannelDeck/main.log`                          |
 | Sign-in tokens     | Inside the database, encrypted with the macOS Keychain         |
+| Twitch clips       | `~/Movies/ChannelDeck/Clips` (changeable in Settings)          |
 
 ### YouTube quota
 
@@ -164,6 +177,17 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
 ### Unreleased
+
+#### Phase 6: Twitch connect and clip bank (2026-11-12)
+
+- Added Twitch sign-in as the broadcaster or as an editor, with your own Twitch app (Client ID + Secret kept in the Keychain) or device-code sign-in without a secret.
+- Expired Twitch sign-ins are detected: notification, "Needs re-auth" badge, and that channel's sync pauses until **Reconnect**.
+- Added the clip bank: a full backfill week by week from a start date (resumes after a quit), then a daily sync at a time you choose, plus **Sync now**.
+- Busy weeks are split automatically so Twitch's ~1,000-clips-per-query limit never hides clips; rate limits are respected.
+- Clips download as landscape and portrait files with a thumbnail and a `.json` sidecar, verified with ffprobe before they're kept; failed downloads retry with backoff.
+- Added the Clips page: tab per channel, sorting, filters, preview, disk usage, and bulk actions (add as drafts to a channel, hide, re-download, delete local files).
+- Added Settings → Clip bank: clip folder and daily sync time.
+- Secrets are now encrypted with Electron's newer async Keychain API.
 
 #### Phase 5: Scheduling and status sync (2026-11-12)
 

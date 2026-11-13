@@ -1,13 +1,13 @@
 import { useIsMutating } from '@tanstack/react-query'
-import { FileKey2, Info, Loader2, Plus, Radio } from 'lucide-react'
+import { FileKey2, Info, Loader2, Plus } from 'lucide-react'
 import { useState } from 'react'
 import type { AccountView } from '@shared/schemas/account'
 import { ChannelDefaultsDialog } from '@renderer/components/channels/ChannelDefaultsDialog'
 import { ChannelRow } from '@renderer/components/channels/ChannelRow'
 import { GoogleSetupCard } from '@renderer/components/channels/GoogleSetupCard'
 import { RemoveChannelDialog } from '@renderer/components/channels/RemoveChannelDialog'
+import { TwitchSection } from '@renderer/components/twitch/TwitchSection'
 import { Alert, AlertDescription } from '@renderer/components/ui/alert'
-import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
 import {
   useAccounts,
@@ -120,19 +120,7 @@ export function ChannelsPage(): React.JSX.Element {
         ) : null}
       </section>
 
-      <section className="space-y-3">
-        <div>
-          <h2 className="text-base font-semibold">Twitch accounts</h2>
-          <p className="text-sm text-muted-foreground">
-            Channels whose clips ChannelDeck banks and autoposts.
-          </p>
-        </div>
-        <div className="flex items-center gap-3 rounded-lg border border-dashed px-4 py-4 text-sm text-muted-foreground">
-          <Radio className="size-5" aria-hidden />
-          <span className="flex-1">Connecting Twitch arrives with the clip bank.</span>
-          <Badge variant="outline">Coming in Phase 6</Badge>
-        </div>
-      </section>
+      <TwitchSection />
 
       {editing ? (
         <ChannelDefaultsDialog account={editing} onClose={() => setEditing(null)} />

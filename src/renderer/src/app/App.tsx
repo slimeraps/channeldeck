@@ -9,8 +9,10 @@ import { PostEditor } from '@renderer/components/post-editor/PostEditor'
 import { ReauthBanner } from '@renderer/components/ReauthBanner'
 import { accountsKey } from '@renderer/hooks/useAccounts'
 import { postsKey } from '@renderer/hooks/usePosts'
+import { clipsKey, twitchKey } from '@renderer/hooks/useTwitch'
 import { onEvent } from '@renderer/lib/ipc'
 import { ChannelsPage } from '@renderer/pages/ChannelsPage'
+import { ClipsPage } from '@renderer/pages/ClipsPage'
 import { PlaceholderPage } from '@renderer/pages/PlaceholderPage'
 import { QueuePage } from '@renderer/pages/QueuePage'
 import { SettingsPage } from '@renderer/pages/SettingsPage'
@@ -23,6 +25,8 @@ function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JS
       return <QueuePage />
     case 'channels':
       return <ChannelsPage />
+    case 'clips':
+      return <ClipsPage />
     case 'settings':
       return <SettingsPage />
     default:
@@ -58,10 +62,19 @@ export function App(): React.JSX.Element {
     const offProgress = onEvent('posts:progress', ({ postId, sentBytes, totalBytes }) =>
       useProgressStore.getState().set(postId, sentBytes, totalBytes)
     )
+    const offTwitch = onEvent('twitch:changed', () => {
+      void queryClient.invalidateQueries({ queryKey: twitchKey })
+      void queryClient.invalidateQueries({ queryKey: clipsKey })
+    })
+    const offDeviceCode = onEvent('twitch:deviceCode', (info) =>
+      useUiStore.getState().setDeviceCode(info)
+    )
     return () => {
       offAccounts()
       offPosts()
       offProgress()
+      offTwitch()
+      offDeviceCode()
     }
   }, [queryClient])
 

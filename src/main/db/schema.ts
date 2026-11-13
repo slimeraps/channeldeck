@@ -121,6 +121,10 @@ export const clips = sqliteTable(
     downloadStatus: text('download_status', { enum: DOWNLOAD_STATUSES })
       .notNull()
       .default('pending'),
+    downloadAttempts: integer('download_attempts').notNull().default(0),
+    downloadError: text('download_error'),
+    /** Don't retry a failed download before this. */
+    downloadRetryAfterUtc: text('download_retry_after_utc'),
     /** Hidden clips are never autoposted. */
     hidden: integer('hidden', { mode: 'boolean' }).notNull().default(false),
     firstSeenUtc: text('first_seen_utc').notNull().default(nowIso),

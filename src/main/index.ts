@@ -6,6 +6,7 @@ import { registerAccountHandlers } from './ipc/accountHandlers'
 import { registerAppHandlers } from './ipc/appHandlers'
 import { setIpcOrigin } from './ipc/handle'
 import { registerPostHandlers } from './ipc/postHandlers'
+import { registerTwitchHandlers } from './ipc/twitchHandlers'
 import { kickJobs, startJobs, stopJobs } from './jobs'
 import { initLogger, logger } from './logger'
 import { handleMediaProtocol, registerMediaScheme } from './media/protocol'
@@ -85,6 +86,7 @@ async function start(): Promise<void> {
   registerAppHandlers()
   registerAccountHandlers()
   registerPostHandlers()
+  registerTwitchHandlers()
 
   Menu.setApplicationMenu(
     buildAppMenu({

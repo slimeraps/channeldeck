@@ -17,6 +17,16 @@ import {
   thumbnailInfoSchema
 } from '../schemas/post'
 import { settingsPatchSchema, settingsSchema } from '../schemas/settings'
+import {
+  clipIdsSchema,
+  clipSearchSchema,
+  clipViewSchema,
+  deviceCodeEventSchema,
+  twitchAccountViewSchema,
+  twitchConfigSchema,
+  twitchConfigUpdateSchema,
+  twitchConnectSchema
+} from '../schemas/twitch'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -220,6 +230,56 @@ export const invokeContract = {
   'settings:update': {
     input: settingsPatchSchema.strict(),
     output: settingsSchema
+  },
+  'settings:chooseClipsFolder': {
+    // Main shows the folder picker itself.
+    input: noInput,
+    output: z.object({ changed: z.boolean(), clipsRoot: z.string() })
+  },
+
+  // Twitch
+  'twitch:getConfig': { input: noInput, output: twitchConfigSchema },
+  'twitch:setConfig': { input: twitchConfigUpdateSchema, output: twitchConfigSchema },
+  'twitch:list': { input: noInput, output: z.array(twitchAccountViewSchema) },
+  'twitch:connect': { input: twitchConnectSchema, output: twitchAccountViewSchema },
+  'twitch:cancelConnect': { input: noInput, output: z.object({ canceled: z.boolean() }) },
+  'twitch:reconnect': {
+    input: z.object({ id: z.number().int().positive() }).strict(),
+    output: twitchAccountViewSchema
+  },
+  'twitch:update': {
+    input: z
+      .object({ id: z.number().int().positive(), syncEnabled: z.boolean().optional() })
+      .strict(),
+    output: twitchAccountViewSchema
+  },
+  'twitch:syncNow': {
+    input: z.object({ id: z.number().int().positive() }).strict(),
+    output: z.object({ started: z.boolean() })
+  },
+  'twitch:remove': {
+    input: z.object({ id: z.number().int().positive() }).strict(),
+    output: z.object({ removedClips: z.number().int() })
+  },
+
+  // Clip bank
+  'clips:search': {
+    input: clipSearchSchema,
+    output: z.object({
+      items: z.array(clipViewSchema),
+      total: z.number().int(),
+      games: z.array(z.object({ id: z.string(), name: z.string() }))
+    })
+  },
+  'clips:setHidden': {
+    input: clipIdsSchema.extend({ hidden: z.boolean() }),
+    output: z.object({ updated: z.number().int() })
+  },
+  'clips:redownload': { input: clipIdsSchema, output: z.object({ queued: z.number().int() }) },
+  'clips:deleteLocal': { input: clipIdsSchema, output: z.object({ deleted: z.number().int() }) },
+  'clips:addToChannel': {
+    input: clipIdsSchema.extend({ accountId: z.number().int().positive() }),
+    output: z.object({ created: z.number().int(), skipped: z.array(z.string()) })
   }
 } as const satisfies Record<InvokeChannel, { input: z.ZodType; output: z.ZodType }>
 
@@ -229,6 +289,10 @@ export const eventContract = {
   'accounts:changed': z.undefined(),
   /** Posts were created, changed status, or were deleted. */
   'posts:changed': z.undefined(),
+  /** Twitch accounts or the clip bank changed (sync progress, downloads, connect). */
+  'twitch:changed': z.undefined(),
+  /** Device Code sign-in: show this code to type at twitch.tv/activate. */
+  'twitch:deviceCode': deviceCodeEventSchema,
   /** Live upload progress (not every byte; throttled in main). */
   'posts:progress': z.object({
     postId: z.string(),
