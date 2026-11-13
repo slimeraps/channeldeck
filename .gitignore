@@ -26,3 +26,6 @@ client_secret*.json
 .idea/
 .vscode/*
 !.vscode/extensions.json
+
+# Tool caches
+.eslintcache
