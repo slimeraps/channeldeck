@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.0.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.1.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -220,12 +220,11 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
-### Unreleased
+### 1.1.0 (2026-11-13)
 
 - Clip posts keep the horizontal clip as their source. The post editor's new **Format** switch changes a post between horizontal, Twitch's vertical version and a vertical render (blurred fill, center crop or your layouts); **Render now** shows the Short before it uploads.
 - Autopost rules make Shorts from the horizontal clip with their layout. A new switch, **Use Twitch's own vertical version**, brings back the old behavior. "Add as drafts" on the Clips page starts horizontal.
 - Fixed: confirm buttons (Unschedule, Delete, Remove…) showed white text on a light background; they're now pink with readable text.
-
 - Added a homepage and privacy policy (GitHub Pages, from `docs/`) for Google's Branding page, which now needs both before the consent screen can be published.
 
 ### 1.0.0 (2026-11-13)
