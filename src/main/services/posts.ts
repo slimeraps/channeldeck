@@ -100,7 +100,10 @@ export function createPostsService(deps: PostsServiceDeps) {
     accounts: Map<number, { title: string; color: string }>
   ): PostListItem {
     const account = accounts.get(post.accountId)
-    const fileExists = post.filePath ? existsSync(post.filePath) : false
+    // An autopost waiting for its vertical render has no file yet: check its source instead.
+    const rendered = post.filePath ? existsSync(post.filePath) : false
+    const previewPath = !rendered && post.renderJson ? post.renderJson.sourcePath : post.filePath
+    const fileExists = rendered || (previewPath ? existsSync(previewPath) : false)
     return {
       id: post.id,
       accountId: post.accountId,
@@ -117,14 +120,22 @@ export function createPostsService(deps: PostsServiceDeps) {
       uploadProgress: post.uploadProgress,
       lastError: post.lastError,
       retryAfterUtc: post.retryAfterUtc,
-      fileMissing: Boolean(post.filePath) && !fileExists && !post.youtubeVideoId,
-      videoPreviewUrl: post.filePath && fileExists ? mediaUrl(post.filePath) : null,
+      fileMissing: Boolean(previewPath) && !fileExists && !post.youtubeVideoId,
+      videoPreviewUrl: previewPath && fileExists ? mediaUrl(previewPath) : null,
       thumbnailPreviewUrl:
         post.thumbnailPath && existsSync(post.thumbnailPath) ? mediaUrl(post.thumbnailPath) : null,
       youtubeVideoId: post.youtubeVideoId,
+      ruleId: post.ruleId,
+      ruleName: post.ruleId ? (repos.autopostRules.get(post.ruleId)?.name ?? null) : null,
+      needsRender: Boolean(post.renderJson) && !rendered,
       createdAt: post.createdAt,
       updatedAt: post.updatedAt
     }
+  }
+
+  /** An autopost you unscheduled or deleted: its rule won't pick that clip again. */
+  function rememberSkipped(post: PostRow): void {
+    if (post.ruleId && post.clipId) repos.autopostRules.addSkipped(post.ruleId, post.clipId)
   }
 
   function accountLookup(): Map<number, { title: string; color: string }> {
@@ -168,7 +179,15 @@ export function createPostsService(deps: PostsServiceDeps) {
     return now.toISOString()
   }
 
-  async function buildFields(input: PostInput, mode: SaveMode): Promise<PostFields> {
+  /**
+   * @param pendingRender an autopost whose vertical render hasn't run yet: its file doesn't
+   *   exist, so keep the planned file details instead of probing.
+   */
+  async function buildFields(
+    input: PostInput,
+    mode: SaveMode,
+    pendingRender?: PostRow
+  ): Promise<PostFields> {
     const now = clock()
     const tags = normalizeTags(input.tags)
     const clean: PostInput = {
@@ -179,7 +198,21 @@ export function createPostsService(deps: PostsServiceDeps) {
     }
 
     let probe: ProbeResult | null = null
-    if (clean.filePath) {
+    if (pendingRender) {
+      probe = {
+        path: pendingRender.filePath as string,
+        fileName: '',
+        sizeBytes: 0,
+        mtimeMs: 0,
+        durationSec: pendingRender.durationSec ?? 0,
+        width: pendingRender.width ?? 1080,
+        height: pendingRender.height ?? 1920,
+        videoCodec: null,
+        aspectRatio: '9:16',
+        isShort: pendingRender.isShort,
+        isLong: false
+      }
+    } else if (clean.filePath) {
       if (!isVideoPath(clean.filePath)) throw new UserFacingError('That file is not a video.')
       try {
         probe = await deps.probe(clean.filePath)
@@ -208,8 +241,8 @@ export function createPostsService(deps: PostsServiceDeps) {
     return {
       accountId: clean.accountId,
       filePath: clean.filePath,
-      fileSize: probe?.sizeBytes ?? null,
-      fileMtime: probe?.mtimeMs ?? null,
+      fileSize: pendingRender ? null : (probe?.sizeBytes ?? null),
+      fileMtime: pendingRender ? null : (probe?.mtimeMs ?? null),
       durationSec: probe?.durationSec ?? null,
       width: probe?.width ?? null,
       height: probe?.height ?? null,
@@ -312,7 +345,18 @@ export function createPostsService(deps: PostsServiceDeps) {
       input: PostInput
       mode: SaveMode
     }): Promise<PostListItem> {
-      const fields = await buildFields(input, mode)
+      const before = id ? repos.posts.require(id) : undefined
+      // An autopost still waiting for its vertical render keeps it (unless you swap the video).
+      const pendingRender =
+        before?.renderJson &&
+        input.filePath === before.filePath &&
+        !existsSync(before.filePath ?? '')
+          ? before
+          : undefined
+      const fields = {
+        ...(await buildFields(input, mode, pendingRender)),
+        ...(before?.renderJson && input.filePath !== before.filePath ? { renderJson: null } : {})
+      }
       let post: PostRow
       if (!id) {
         post = repos.posts.create({
@@ -380,7 +424,25 @@ export function createPostsService(deps: PostsServiceDeps) {
         throw new UserFacingError(`This post is ${post.status} and can't be unscheduled right now.`)
       }
       const updated = repos.posts.transition(id, 'cancel', { reason: 'unscheduled' })
+      rememberSkipped(post)
       deps.emitChanged()
+      return toListItem(updated, accountLookup())
+    },
+
+    /** Review mode: an autopost you've checked goes into the upload queue. */
+    approve(id: string): PostListItem {
+      const post = repos.posts.require(id)
+      if (post.status !== 'needs_approval') {
+        throw new UserFacingError(`This post is ${post.status}, not waiting for approval.`)
+      }
+      if (post.publishAtUtc && post.publishAtUtc <= clock().toISOString()) {
+        throw new UserFacingError(
+          'Its publish time has already passed. Change the time first, or unschedule it.'
+        )
+      }
+      const updated = repos.posts.transition(id, 'approve', { reason: 'approved' })
+      deps.emitChanged()
+      deps.kickJobs?.()
       return toListItem(updated, accountLookup())
     },
 
@@ -552,6 +614,7 @@ export function createPostsService(deps: PostsServiceDeps) {
       const updated = repos.posts.transition(id, 'delete_from_youtube', {
         reason: 'you deleted it from YouTube'
       })
+      rememberSkipped(post)
       deps.emitChanged()
       return toListItem(updated, accountLookup())
     },

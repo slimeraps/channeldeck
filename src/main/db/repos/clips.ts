@@ -120,6 +120,8 @@ export interface ClipsRepo {
   referencedIds(ids: string[]): Set<string>
   deleteUnreferenced(twitchAccountId: number): number
   fillGameNames(): void
+  /** Downloaded, visible clips of these Twitch accounts: what autopost rules pick from. */
+  bankFor(twitchAccountIds: number[]): ClipRow[]
 }
 
 export function createClipsRepo(db: Db, clock: Clock): ClipsRepo {
@@ -342,6 +344,21 @@ export function createClipsRepo(db: Db, clock: Clock): ClipsRepo {
         UPDATE ${clips} SET game_name = (SELECT ${games.name} FROM ${games} WHERE ${games.id} = ${clips.gameId})
         WHERE ${clips.gameName} IS NULL AND ${clips.gameId} IS NOT NULL
       `)
+    },
+
+    bankFor(twitchAccountIds) {
+      if (twitchAccountIds.length === 0) return []
+      return db
+        .select()
+        .from(clips)
+        .where(
+          and(
+            inArray(clips.twitchAccountId, twitchAccountIds),
+            eq(clips.downloadStatus, 'downloaded'),
+            eq(clips.hidden, false)
+          )
+        )
+        .all()
     },
 
     countForAccount(twitchAccountId) {

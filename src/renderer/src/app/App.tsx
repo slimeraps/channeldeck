@@ -11,6 +11,8 @@ import { accountsKey } from '@renderer/hooks/useAccounts'
 import { postsKey } from '@renderer/hooks/usePosts'
 import { clipsKey, twitchKey } from '@renderer/hooks/useTwitch'
 import { onEvent } from '@renderer/lib/ipc'
+import { autopostKey, layoutsKey } from '@renderer/hooks/useAutopost'
+import { AutopostPage } from '@renderer/pages/AutopostPage'
 import { ChannelsPage } from '@renderer/pages/ChannelsPage'
 import { ClipsPage } from '@renderer/pages/ClipsPage'
 import { PlaceholderPage } from '@renderer/pages/PlaceholderPage'
@@ -27,6 +29,8 @@ function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JS
       return <ChannelsPage />
     case 'clips':
       return <ClipsPage />
+    case 'autopost':
+      return <AutopostPage />
     case 'settings':
       return <SettingsPage />
     default:
@@ -58,6 +62,7 @@ export function App(): React.JSX.Element {
     const offPosts = onEvent('posts:changed', () => {
       void queryClient.invalidateQueries({ queryKey: postsKey })
       void queryClient.invalidateQueries({ queryKey: accountsKey })
+      void queryClient.invalidateQueries({ queryKey: autopostKey })
     })
     const offProgress = onEvent('posts:progress', ({ postId, sentBytes, totalBytes }) =>
       useProgressStore.getState().set(postId, sentBytes, totalBytes)
@@ -65,6 +70,8 @@ export function App(): React.JSX.Element {
     const offTwitch = onEvent('twitch:changed', () => {
       void queryClient.invalidateQueries({ queryKey: twitchKey })
       void queryClient.invalidateQueries({ queryKey: clipsKey })
+      void queryClient.invalidateQueries({ queryKey: autopostKey })
+      void queryClient.invalidateQueries({ queryKey: layoutsKey })
     })
     const offDeviceCode = onEvent('twitch:deviceCode', (info) =>
       useUiStore.getState().setDeviceCode(info)

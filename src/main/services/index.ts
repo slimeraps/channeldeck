@@ -9,7 +9,10 @@ import { probeVideo } from '../media/ffprobe'
 import { notify } from '../notify'
 import { secrets } from '../secrets'
 import { isSafeExternalUrl } from '../security'
+import { grabFrame, renderVertical } from '../media/ffmpeg'
+import { createAutopostService, type AutopostService } from './autopost'
 import { createClipsService, type ClipsService } from './clips'
+import { createLayoutsService, type LayoutsService } from './layouts'
 import { createPostsService, type PostsService } from './posts'
 import { createTwitchAccountsService, type TwitchAccountsService } from './twitchAccounts'
 import { createYouTubeAccountsService, type YouTubeAccountsService } from './youtubeAccounts'
@@ -21,6 +24,8 @@ let kickHook: (() => void) | null = null
 let twitchAccounts: TwitchAccountsService | null = null
 let clips: ClipsService | null = null
 let syncingProbe: ((accountId: number) => boolean) | null = null
+let autopost: AutopostService | null = null
+let layouts: LayoutsService | null = null
 
 /** Lets the Twitch view show "syncing…" without importing the job runner. */
 export function setSyncingProbe(fn: (accountId: number) => boolean): void {
@@ -90,6 +95,40 @@ export function initServices(): void {
     emitPostsChanged: () => emitToRenderer('posts:changed', undefined),
     kickJobs: () => kickHook?.()
   })
+
+  autopost = createAutopostService({
+    repos,
+    probe: probeVideo,
+    media: mediaAccess,
+    notify,
+    emitPostsChanged: () => emitToRenderer('posts:changed', undefined),
+    kickJobs: () => kickHook?.(),
+    logger
+  })
+
+  layouts = createLayoutsService({
+    repos,
+    media: mediaAccess,
+    probe: probeVideo,
+    grabFrame,
+    renderTest: ({ sourcePath, kind, crops, video, output, maxSeconds }) =>
+      renderVertical({
+        spec: { sourcePath, kind, crops },
+        video,
+        output,
+        maxSeconds
+      })
+  })
+}
+
+export function getAutopost(): AutopostService {
+  if (!autopost) throw new Error('Services not initialized')
+  return autopost
+}
+
+export function getLayouts(): LayoutsService {
+  if (!layouts) throw new Error('Services not initialized')
+  return layouts
 }
 
 export function getTwitchAccounts(): TwitchAccountsService {

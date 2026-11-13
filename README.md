@@ -48,7 +48,8 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Edit, Duplicate, Reveal file in Finder, Unschedule, Delete draft
 - ✅ Live upload progress, **Upload now**, **Retry**, **Open in YouTube Studio**, and the reason a post failed
 - ✅ **Check status** button to ask YouTube for the latest state right away
-- 🔜 Approve (autoposts in Review mode) and Swap clip (Phases 7–8)
+- ✅ **Approve** autoposts made in Review mode, one at a time or all at once per rule
+- 🔜 Swap clip (Phase 8)
 
 ### Uploading
 
@@ -81,11 +82,15 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 
 ### Autoposting
 
-- 🔜 Rules mapping Twitch accounts to a YouTube channel, with daily time slots and weekdays (Phase 7)
-- 🔜 Pick order (oldest, newest, most viewed) and filters (Phase 7)
-- 🔜 Shorts from Twitch's portrait file, or converted with a layout preset: blurred fill, center crop, or facecam-on-top split drawn in a crop editor (Phase 7)
-- 🔜 Title and description templates with clip variables; Review mode (approve first) or Auto (Phase 7)
-- 🔜 Never posts the same clip twice to the same channel (already enforced by the database)
+- ✅ Rules mapping Twitch accounts to a YouTube channel, with daily time slots and weekdays, planned up to 14 days ahead
+- ✅ Daylight-saving safe: a time skipped in spring moves to the next valid minute; a repeated time in fall is used once
+- ✅ Pick order (oldest, newest, most viewed) and filters (games, length, views, featured)
+- ✅ Shorts from Twitch's portrait file, or converted to 1080×1920 with a layout: blurred fill, center crop, or facecam-on-top split drawn in a crop editor with a live preview and an 8-second test render
+- ✅ Title and description templates with `{{clip_title}}`, `{{game}}`, `{{broadcaster}}`, `{{clipper}}`, `{{clip_date}}`, `{{clip_url}}`, `{{twitch_url}}`, `{{views}}`, `{{n}}`; titles trimmed safely to 100 characters
+- ✅ Review mode (approve first) or Auto; unapproved autoposts are dropped at their publish time and the clip goes back to the bank
+- ✅ Unscheduling an autopost refills its slot with the next clip; that rule never picks the skipped clip again
+- ✅ Never posts the same clip twice to the same channel (enforced by the database)
+- ✅ "Out of clips" notification (once a day per rule) and a quota warning when your rules would go over YouTube's daily limits
 
 ### Mac app
 
@@ -177,6 +182,15 @@ Quota belongs to your Google Cloud project and is shared by all your channels. U
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
 ### Unreleased
+
+#### Phase 7: Autoposting (2026-11-13)
+
+- Added the Autopost page: rules that turn banked Twitch clips into scheduled YouTube posts on daily time slots, with a live preview of the next posts.
+- Added vertical conversion with ffmpeg (blurred fill, center crop, facecam split) as a render step before upload, and a crop editor to draw the facecam and gameplay boxes on a real frame.
+- Added Review and Auto modes; **Approve** and **Approve all** in the queue.
+- Added clip title/description templates, a running number per rule, and safe trimming to YouTube's limits.
+- Added a quota warning when enabled rules plus queued uploads would exceed 100 uploads or 10,000 units in a day.
+- The queue shows which rule made an autopost and whether it still needs its vertical render.
 
 #### Fixes from the release branch (2026-11-13)
 

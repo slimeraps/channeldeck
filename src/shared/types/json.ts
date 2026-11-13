@@ -44,6 +44,16 @@ export interface LayoutCrops {
   sourceHeight?: number
 }
 
+/** What to render for a post that needs a vertical conversion (posts.render_json). */
+export interface RenderSpecJson {
+  /** The landscape clip file to convert. */
+  sourcePath: string
+  kind: 'blur_fill' | 'center_crop' | 'facecam_split'
+  crops: LayoutCrops
+  /** The layout preset it came from (null = default blurred fill). */
+  presetId: number | null
+}
+
 /** Daily time slots, local time, "HH:mm". */
 export type SlotTimes = string[]
 

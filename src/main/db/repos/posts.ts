@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { and, asc, eq, inArray, or, type SQL } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, ne, or, type SQL } from 'drizzle-orm'
 import type { InitialPostStatus, PostSource, PostStatus } from '@shared/constants/enums'
 import { nextPostStatus, type PostEvent } from '../../domain/postState'
 import { UserFacingError } from '../../errors'
@@ -24,6 +24,7 @@ export interface ListPostsFilter {
   statuses?: PostStatus[]
   accountId?: number
   source?: PostSource
+  ruleId?: number
 }
 
 export interface TransitionOptions {
@@ -46,6 +47,8 @@ export interface PostsRepo {
   deleteDraft(id: string): void
   /** Whether any post uses this file as its video or thumbnail (for the media protocol). */
   referencesFile(path: string): boolean
+  /** Clip ids with a post on this channel that isn't canceled (the never-twice set). */
+  activeClipIds(accountId: number): Set<string>
 }
 
 function assertNoStatus(patch: object): void {
@@ -97,8 +100,9 @@ export function createPostsRepo(db: Db, clock: Clock): PostsRepo {
       return row
     },
 
-    list({ statuses, accountId, source } = {}) {
+    list({ statuses, accountId, source, ruleId } = {}) {
       const filters: SQL[] = []
+      if (ruleId !== undefined) filters.push(eq(posts.ruleId, ruleId))
       if (statuses?.length) filters.push(inArray(posts.status, statuses))
       if (accountId !== undefined) filters.push(eq(posts.accountId, accountId))
       if (source) filters.push(eq(posts.source, source))
@@ -187,6 +191,17 @@ export function createPostsRepo(db: Db, clock: Clock): PostsRepo {
           .limit(1)
           .get() !== undefined
       )
+    },
+
+    activeClipIds(accountId) {
+      const rows = db
+        .select({ clipId: posts.clipId })
+        .from(posts)
+        .where(
+          and(eq(posts.accountId, accountId), isNotNull(posts.clipId), ne(posts.status, 'canceled'))
+        )
+        .all()
+      return new Set(rows.map((r) => r.clipId as string))
     }
   }
   return repo

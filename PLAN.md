@@ -138,18 +138,25 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 
 ## Phase 7 — Autoposting
 
-- [ ] Autopost page: rules list + editor (Twitch accounts → one YouTube channel, slots, weekdays, pick order, filters, format, layout preset, title/description templates, tags, category, playlist, made for kids, mode, look-ahead, enabled)
-- [ ] Slot generator in local zone (DST-safe: skipped times move to the next valid minute; repeated times use the first occurrence)
-- [ ] Picker: oldest unposted (default) / newest / most viewed; filters; excludes hidden, not-downloadable, and clips already active for that channel
-- [ ] Planner job: each tick fill empty slots in the look-ahead; posts created as `needs_approval` (Review) or `queued` (Auto); `publish_at` = slot; render step added when needed
-- [ ] Template rendering with `{{clip_title}} {{game}} {{broadcaster}} {{clipper}} {{clip_date}} {{clip_url}} {{views}} {{n}}`; default description credits the clipper and links the Twitch channel; output re-validated against title/description limits (truncate title safely)
-- [ ] Vertical conversion with ffmpeg: use portrait file if present, else layout preset (blur fill / center crop / facecam split) → 1080×1920
-- [ ] Crop editor: grab a sample frame, draw facecam + gameplay rectangles, save to `layout_presets.crops_json`
-- [ ] Bank empty → slot left empty + one notification per rule per day
-- [ ] Quota warning when enabled rules + queued posts would exceed 100 uploads/day or the 10,000-unit bucket
-- [ ] Queue: Approve action; Approve all for a rule
+- [x] Autopost page: rules list + editor (Twitch accounts → one YouTube channel, slots, weekdays, pick order, filters, format, layout preset, title/description templates, tags, category, playlist, made for kids, mode, look-ahead, enabled)
+- [x] Slot generator in local zone (DST-safe: skipped times move to the next valid minute; repeated times use the first occurrence)
+- [x] Picker: oldest unposted (default) / newest / most viewed; filters; excludes hidden, not-downloadable, and clips already active for that channel
+- [x] Planner job: each tick fill empty slots in the look-ahead; posts created as `needs_approval` (Review) or `queued` (Auto); `publish_at` = slot; render step added when needed
+- [x] Template rendering with `{{clip_title}} {{game}} {{broadcaster}} {{clipper}} {{clip_date}} {{clip_url}} {{views}} {{n}}`; default description credits the clipper and links the Twitch channel; output re-validated against title/description limits (truncate title safely)
+- [x] Vertical conversion with ffmpeg: use portrait file if present, else layout preset (blur fill / center crop / facecam split) → 1080×1920
+- [x] Crop editor: grab a sample frame, draw facecam + gameplay rectangles, save to `layout_presets.crops_json`
+- [x] Bank empty → slot left empty + one notification per rule per day
+- [x] Quota warning when enabled rules + queued posts would exceed 100 uploads/day or the 10,000-unit bucket
+- [x] Queue: Approve action; Approve all for a rule
 
 **Acceptance:** integration test: planner run creates the right autoposts for 3 days × 4 slots, respects never-twice, filters and pick order. Unit tests: slots across DST changes, pick order/filters, template rendering. By hand: draw a facecam split on one of your clips and check the rendered Short.
+
+## Next patch (after Phase 7) — Clips page polish
+
+Requested by Cody on 2026-11-13.
+
+- [ ] Channel colors for Twitch clips: each Twitch account gets a color (picker on the Channels page, like YouTube channels), shown on clip cards, account tabs, and autopost rule sources
+- [ ] Easier sorting by account: an **All channels** view on the Clips page next to the per-account tabs, with an account filter and sort that work across all accounts
 
 ## Phase 8 — Calendar, templates and series
 
