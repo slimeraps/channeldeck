@@ -162,6 +162,24 @@ describe('saving posts', () => {
     expect(log).toEqual(['queued → draft (to_draft): saved as draft', 'draft → queued (enqueue)'])
   })
 
+  it('leaves the old fields and status untouched when the status change fails', async () => {
+    const draft = await service.save({ input: input(), mode: 'draft' })
+    // Make the database itself reject draft → queued, after the new fields would be written.
+    t.sqlite.exec(`
+      CREATE TRIGGER block_queued BEFORE UPDATE OF status ON posts
+      WHEN NEW.status = 'queued'
+      BEGIN SELECT RAISE(ABORT, 'blocked for test'); END`)
+
+    await expect(
+      service.save({ id: draft.id, input: input({ title: 'Edited title' }), mode: 'queue' })
+    ).rejects.toThrow()
+
+    const row = t.repos.posts.require(draft.id)
+    expect(row.status).toBe('draft')
+    expect(row.title).toBe('MW4 Day 9')
+    expect(row.uploadAfterUtc).toBeNull()
+  })
+
   it('refuses a removed channel', async () => {
     t.repos.accounts.archive(accountId)
     await expect(service.save({ input: input(), mode: 'draft' })).rejects.toThrow(
