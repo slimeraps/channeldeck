@@ -127,6 +127,13 @@ function useAction<TVars>(
   })
 }
 
+export function useApprovePost(): UseMutationResult<PostListItem, Error, string> {
+  return useAction(
+    (id: string) => invoke('posts:approve', { id }),
+    (post) => `Approved "${post.title}"`
+  )
+}
+
 export function useDecide(): UseMutationResult<
   PostListItem,
   Error,

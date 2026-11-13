@@ -4,10 +4,12 @@ import { getRepos } from '../db'
 import { logger } from '../logger'
 import { notify } from '../notify'
 import { createPowerGuard } from '../power'
+import { renderVertical } from '../media/ffmpeg'
 import { probeVideo } from '../media/ffprobe'
-import { getTwitchAccounts, getYouTubeAccounts, setSyncingProbe } from '../services'
+import { getAutopost, getTwitchAccounts, getYouTubeAccounts, setSyncingProbe } from '../services'
 import { createClipDownloadJob } from './clipDownload'
 import { createClipSyncJob } from './clipSync'
+import { createPlannerJob } from './planner'
 import { createJobRunner, type JobRunner } from './runner'
 import { createStatusSyncJob, type StatusSyncJob, type SyncSummary } from './statusSync'
 import { createUploadJob, type UploadJob } from './upload'
@@ -31,7 +33,15 @@ export function startJobs(): void {
     emitChanged: () => emitToRenderer('posts:changed', undefined),
     emitProgress: (postId, sentBytes, totalBytes) =>
       emitToRenderer('posts:progress', { postId, sentBytes, totalBytes }),
-    logger
+    logger,
+    // Autoposts without a portrait file: convert to 1080×1920 before uploading.
+    renderVideo: async (post, signal) => {
+      const spec = post.renderJson
+      if (!spec || !post.filePath) throw new Error('Nothing to render')
+      const source = await probeVideo(spec.sourcePath)
+      await renderVertical({ spec, video: source, output: post.filePath, signal })
+      return probeVideo(post.filePath)
+    }
   })
   // A quit mid-upload leaves posts "uploading": put them back so they restart cleanly.
   uploadJob.recoverInterrupted()
@@ -58,6 +68,8 @@ export function startJobs(): void {
     logger
   })
   setSyncingProbe((id) => clipSync.syncingNow().has(id))
+  // Autoposting: fills each rule's empty slots with clips from the bank.
+  runner.register(createPlannerJob({ autopost: getAutopost() }))
   runner.register(clipSync)
   runner.register(
     createClipDownloadJob({

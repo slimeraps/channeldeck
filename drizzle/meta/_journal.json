@@ -36,6 +36,13 @@
       "when": 1794546338836,
       "tag": "0004_clip_download_tracking",
       "breakpoints": true
+    },
+    {
+      "idx": 5,
+      "version": "6",
+      "when": 1794548466967,
+      "tag": "0005_autopost_rule_state",
+      "breakpoints": true
     }
   ]
 }

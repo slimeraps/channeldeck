@@ -55,7 +55,20 @@ export const INVOKE_CHANNELS = [
   'clips:setHidden',
   'clips:redownload',
   'clips:deleteLocal',
-  'clips:addToChannel'
+  'clips:addToChannel',
+  'posts:approve',
+  'autopost:list',
+  'autopost:save',
+  'autopost:delete',
+  'autopost:setEnabled',
+  'autopost:preview',
+  'autopost:approveAll',
+  'autopost:forecast',
+  'layouts:list',
+  'layouts:save',
+  'layouts:delete',
+  'layouts:sampleFrame',
+  'layouts:testRender'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 

@@ -252,6 +252,11 @@ export const postListItemSchema = z.object({
   videoPreviewUrl: z.string().nullable(),
   thumbnailPreviewUrl: z.string().nullable(),
   youtubeVideoId: z.string().nullable(),
+  /** Autoposts: the rule that made it (null for manual posts or a deleted rule). */
+  ruleId: z.number().int().nullable(),
+  ruleName: z.string().nullable(),
+  /** Converted to vertical before upload. */
+  needsRender: z.boolean(),
   createdAt: z.string(),
   updatedAt: z.string()
 })

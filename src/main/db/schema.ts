@@ -24,6 +24,7 @@ import type {
   AutopostFilters,
   BackfillCursor,
   LayoutCrops,
+  RenderSpecJson,
   SlotTimes,
   Weekdays
 } from '../../shared/types/json'
@@ -190,6 +191,13 @@ export const autopostRules = sqliteTable('autopost_rules', {
   mode: text('mode', { enum: AUTOPOST_MODES }).notNull().default('review'),
   lookaheadDays: integer('lookahead_days').notNull().default(3),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  /** {{n}} for the next autopost; advances each time the planner creates one. */
+  nextNumber: integer('next_number').notNull().default(1),
+  /** Clips you skipped or unscheduled for this rule; the planner won't pick them again. */
+  skippedClipIdsJson: text('skipped_clip_ids_json', { mode: 'json' })
+    .$type<string[]>()
+    .notNull()
+    .default(sql`'[]'`),
   createdAt: createdAt(),
   updatedAt: updatedAt()
 })
@@ -264,6 +272,8 @@ export const posts = sqliteTable(
     categoryId: text('category_id'),
     playlistId: text('playlist_id'),
     thumbnailPath: text('thumbnail_path'),
+    /** Set when the video must be converted to vertical before upload (render step). */
+    renderJson: text('render_json', { mode: 'json' }).$type<RenderSpecJson>(),
     /** null until chosen; required (true/false) before a post can be queued. */
     madeForKids: integer('made_for_kids', { mode: 'boolean' }),
     notifySubscribers: integer('notify_subscribers', { mode: 'boolean' }).notNull().default(true),

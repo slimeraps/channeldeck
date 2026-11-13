@@ -1,6 +1,7 @@
 import { describe, expect, it } from 'vitest'
 import { QUOTA_COSTS } from '@shared/constants/quota'
-import { nextQuotaReset, quotaCost, quotaDayFor } from './quota'
+import { forecastQuota, nextQuotaReset, quotaCost, quotaDayFor } from './quota'
+import { slotsBetween } from './slots'
 
 describe('quotaDayFor', () => {
   it('uses the Pacific calendar day, not UTC', () => {
@@ -49,5 +50,48 @@ describe('quota costs', () => {
     ] as const) {
       expect(QUOTA_COSTS[method]).toEqual({ bucket: 'units', cost: 50 })
     }
+  })
+})
+
+describe('forecastQuota', () => {
+  const now = new Date('2026-11-12T18:00:00Z') // 10:00 Pacific
+  const base = {
+    now,
+    days: 3,
+    leadMs: 24 * 3600_000,
+    zone: 'America/Chicago',
+    slotsBetween
+  }
+
+  it('counts every rule slot on the Pacific day its upload starts', () => {
+    const out = forecastQuota({
+      ...base,
+      rules: [{ slots: ['09:00', '18:00'], weekdays: [1, 2, 3, 4, 5, 6, 7], playlist: true }],
+      posts: []
+    })
+    expect(out.map((d) => d.day)).toEqual(['2026-11-12', '2026-11-13', '2026-11-14'])
+    // Slots inside the lead time upload today; each later day uploads tomorrow's two slots.
+    expect(out.map((d) => d.uploads)).toEqual([3, 2, 2])
+    expect(out[1]).toMatchObject({ units: 2 * 50 + 200, overUploads: false, overUnits: false })
+  })
+
+  it('adds queued manual posts and flags days over the limits', () => {
+    const posts = Array.from({ length: 101 }, () => ({
+      uploadAtUtc: '2026-11-13T20:00:00.000Z',
+      thumbnail: true,
+      playlist: true
+    }))
+    const out = forecastQuota({ ...base, rules: [], posts })
+    expect(out[1]).toMatchObject({ uploads: 101, overUploads: true, overUnits: true })
+    expect(out[0]).toMatchObject({ uploads: 0, units: 200 })
+  })
+
+  it('counts past upload times as today', () => {
+    const out = forecastQuota({
+      ...base,
+      rules: [],
+      posts: [{ uploadAtUtc: '2026-11-01T00:00:00.000Z', thumbnail: false, playlist: false }]
+    })
+    expect(out[0]?.uploads).toBe(1)
   })
 })

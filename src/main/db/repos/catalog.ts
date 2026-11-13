@@ -124,8 +124,45 @@ export type SeriesRow = typeof series.$inferSelect
 
 export const createLayoutPresetsRepo = (db: Db, clock: Clock) =>
   createCrud(db, clock, layoutPresets, 'Layout preset')
-export const createAutopostRulesRepo = (db: Db, clock: Clock) =>
-  createCrud(db, clock, autopostRules, 'Autopost rule')
+export interface AutopostRulesRepo extends CrudRepo<
+  AutopostRuleRow,
+  Omit<typeof autopostRules.$inferInsert, 'id' | 'createdAt' | 'updatedAt'>
+> {
+  /** Atomically returns the rule's next {{n}} and advances it. */
+  takeNextNumber(id: number): number
+  /** Remembers a clip the rule must not pick again. */
+  addSkipped(id: number, clipId: string): void
+}
+
+export function createAutopostRulesRepo(db: Db, clock: Clock): AutopostRulesRepo {
+  const crud = createCrud(db, clock, autopostRules, 'Autopost rule')
+  return {
+    ...crud,
+    takeNextNumber(id) {
+      const row = db
+        .update(autopostRules)
+        .set({ nextNumber: sql`${autopostRules.nextNumber} + 1`, updatedAt: isoNow(clock) })
+        .where(eq(autopostRules.id, id))
+        .returning({ next: autopostRules.nextNumber })
+        .get()
+      if (!row) throw new NotFoundError('Autopost rule', id)
+      return row.next - 1
+    },
+    addSkipped(id, clipId) {
+      db.transaction((tx) => {
+        const rule = tx.select().from(autopostRules).where(eq(autopostRules.id, id)).get()
+        if (!rule || rule.skippedClipIdsJson.includes(clipId)) return
+        tx.update(autopostRules)
+          .set({
+            skippedClipIdsJson: [...rule.skippedClipIdsJson, clipId],
+            updatedAt: isoNow(clock)
+          })
+          .where(eq(autopostRules.id, id))
+          .run()
+      })
+    }
+  }
+}
 export const createTemplatesRepo = (db: Db, clock: Clock) =>
   createCrud(db, clock, templates, 'Template')
 

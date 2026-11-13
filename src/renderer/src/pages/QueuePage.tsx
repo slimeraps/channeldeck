@@ -2,6 +2,8 @@ import {
   ArrowDown,
   ArrowUp,
   CalendarX,
+  Check,
+  CheckCheck,
   Clapperboard,
   CloudUpload,
   Copy,
@@ -51,6 +53,8 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { useAccounts } from '@renderer/hooks/useAccounts'
+import { useAutopostAction, useRules } from '@renderer/hooks/useAutopost'
+import { invoke } from '@renderer/lib/ipc'
 import {
   useCancelPost,
   useDeleteDraft,
@@ -63,7 +67,8 @@ import {
   useRetryPost,
   useRevealPost,
   useSyncStatus,
-  useUploadNow
+  useUploadNow,
+  useApprovePost
 } from '@renderer/hooks/usePosts'
 import { PublishTimeDialog } from '@renderer/components/queue/PublishTimeDialog'
 import { useProgressStore } from '@renderer/stores/progress'
@@ -221,6 +226,13 @@ export function QueuePage(): React.JSX.Element {
   const deleteDraft = useDeleteDraft()
   const reveal = useRevealPost()
   const uploadNow = useUploadNow()
+  const approve = useApprovePost()
+  const rules = useRules()
+  const approveAll = useAutopostAction(
+    (id: number) => invoke('autopost:approveAll', { id }),
+    (r) => `Approved ${r.approved} autopost${r.approved === 1 ? '' : 's'}`
+  )
+  const waiting = (rules.data ?? []).filter((r) => r.pendingApproval > 0)
   const retry = useRetryPost()
   const decide = useDecide()
   const reschedule = useReschedule()
@@ -316,6 +328,27 @@ export function QueuePage(): React.JSX.Element {
         </Button>
       </div>
 
+      {waiting.length > 0 ? (
+        <div className="flex flex-wrap items-center gap-2 rounded-lg border border-amber-500/40 bg-amber-500/5 px-4 py-3 text-sm">
+          <CheckCheck className="size-4 text-amber-300" aria-hidden />
+          <span className="mr-auto">
+            {waiting.reduce((n, r) => n + r.pendingApproval, 0)} autoposts are waiting for your
+            approval.
+          </span>
+          {waiting.map((r) => (
+            <Button
+              key={r.id}
+              size="sm"
+              variant="outline"
+              disabled={approveAll.isPending}
+              onClick={() => approveAll.mutate(r.id)}
+            >
+              Approve all from “{r.input.name}” ({r.pendingApproval})
+            </Button>
+          ))}
+        </div>
+      ) : null}
+
       <div className="overflow-hidden rounded-lg border">
         <table className="w-full text-sm">
           <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
@@ -367,6 +400,16 @@ export function QueuePage(): React.JSX.Element {
                       {post.fileMissing ? (
                         <span className="text-destructive">File missing</span>
                       ) : null}
+                      {post.needsRender ? (
+                        <Badge variant="outline" className="h-4 px-1 text-[10px]">
+                          Vertical render
+                        </Badge>
+                      ) : null}
+                      {post.ruleName ? (
+                        <span className="truncate" title="Made by this autopost rule">
+                          · {post.ruleName}
+                        </span>
+                      ) : null}
                       {post.youtubeVideoId?.startsWith('DRYRUN-') ? (
                         <Badge
                           variant="outline"
@@ -401,7 +444,19 @@ export function QueuePage(): React.JSX.Element {
                     <StatusCell post={post} />
                   </td>
                   <td className="px-3 py-2">
-                    <ProgressCell post={post} />
+                    {post.status === 'needs_approval' ? (
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        className="h-7"
+                        disabled={approve.isPending}
+                        onClick={() => approve.mutate(post.id)}
+                      >
+                        <Check aria-hidden /> Approve
+                      </Button>
+                    ) : (
+                      <ProgressCell post={post} />
+                    )}
                   </td>
                   <td className="px-3 py-2">
                     <DropdownMenu>
@@ -421,6 +476,11 @@ export function QueuePage(): React.JSX.Element {
                         >
                           <Pencil aria-hidden /> Edit…
                         </DropdownMenuItem>
+                        {post.status === 'needs_approval' ? (
+                          <DropdownMenuItem onSelect={() => approve.mutate(post.id)}>
+                            <Check aria-hidden /> Approve
+                          </DropdownMenuItem>
+                        ) : null}
                         {post.status === 'queued' ? (
                           <DropdownMenuItem onSelect={() => uploadNow.mutate(post.id)}>
                             <CloudUpload aria-hidden /> Upload now

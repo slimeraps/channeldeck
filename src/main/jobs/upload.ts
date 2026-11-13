@@ -1,3 +1,4 @@
+import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import type { PostStepName } from '@shared/constants/enums'
 import type { Repos } from '../db/repos'
@@ -11,8 +12,9 @@ import { type BackoffOptions, DEFAULT_BACKOFF, withRetry } from './retry'
 import type { JobType } from './runner'
 
 /**
- * Uploads queued posts. Each post runs as steps (insert → thumbnail → playlist; render
- * arrives in Phase 7), each tracked in post_steps and retried on its own. The YouTube video
+ * Uploads queued posts. Each post runs as steps (render → insert → thumbnail → playlist),
+ * each tracked in post_steps and retried on its own. Render only exists for autoposts that
+ * need a vertical conversion. The YouTube video
  * id is saved the moment videos.insert succeeds, and a post that has one is never inserted
  * again. Status changes only through postsRepo.transition().
  */
@@ -28,6 +30,17 @@ export interface UploadJobDeps {
   clock?: () => Date
   backoff?: BackoffOptions
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
+  /** Converts post.renderJson's source to post.filePath and reports the result. */
+  renderVideo?: (post: PostRow, signal: AbortSignal) => Promise<RenderedFile>
+}
+
+export interface RenderedFile {
+  sizeBytes: number
+  mtimeMs: number
+  durationSec: number
+  width: number
+  height: number
+  isShort: boolean
 }
 
 export interface UploadJob extends JobType<string> {
@@ -41,6 +54,7 @@ const PROGRESS_DB_MS = 1000
 const PROGRESS_EVENT_MS = 200
 
 class FileProblem extends Error {}
+class RenderProblem extends Error {}
 
 export function createUploadJob(deps: UploadJobDeps): UploadJob {
   const { repos, logger } = deps
@@ -61,7 +75,7 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
   }
 
   function stepsFor(post: PostRow): PostStepName[] {
-    const steps: PostStepName[] = ['insert']
+    const steps: PostStepName[] = post.renderJson ? ['render', 'insert'] : ['insert']
     if (post.thumbnailPath) steps.push('thumbnail')
     if (post.playlistId) steps.push('playlist')
     return steps
@@ -88,6 +102,36 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
     }
   }
 
+  /** An autopost whose vertical file doesn't exist yet (or was deleted since). */
+  function needsRender(post: PostRow): boolean {
+    return Boolean(post.renderJson) && !post.youtubeVideoId && !existsSync(post.filePath ?? '')
+  }
+
+  async function render(post: PostRow, signal: AbortSignal): Promise<PostRow> {
+    if (!deps.renderVideo) throw new RenderProblem('Vertical rendering is not available.')
+    const source = post.renderJson?.sourcePath
+    if (!source || !existsSync(source)) {
+      throw new FileProblem(`File missing: ${source ?? 'the clip file'} (needed for the render)`)
+    }
+    let out: RenderedFile
+    try {
+      out = await deps.renderVideo(post, signal)
+    } catch (error) {
+      if (signal.aborted) throw error
+      throw new RenderProblem(error instanceof Error ? error.message : String(error), {
+        cause: error
+      })
+    }
+    return repos.posts.update(post.id, {
+      fileSize: out.sizeBytes,
+      fileMtime: out.mtimeMs,
+      durationSec: out.durationSec,
+      width: out.width,
+      height: out.height,
+      isShort: out.isShort
+    })
+  }
+
   async function runSteps(initial: PostRow, signal: AbortSignal): Promise<PostRow> {
     let post = initial
     // Retrying a post that's already on YouTube: no insert, go straight to the other steps.
@@ -103,7 +147,9 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
       repos.postSteps.set(post.id, step.step, 'running')
 
       try {
-        if (step.step === 'insert') {
+        if (step.step === 'render') {
+          if (needsRender(post)) post = await render(post, signal)
+        } else if (step.step === 'insert') {
           if (!post.youtubeVideoId) {
             await preflight(post)
             const resource = buildVideoResource({ ...post, tags: post.tagsJson })
@@ -177,6 +223,10 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
           )
         }
         repos.postSteps.set(post.id, step.step, 'done', null)
+        if (step.step === 'render' && post.status === 'rendering') {
+          post = repos.posts.transition(post.id, 'start_upload', { reason: 'render done' })
+          deps.emitChanged()
+        }
       } catch (error) {
         const classified = classify(error)
         // A thumbnail YouTube refuses (unverified channel) shouldn't fail an uploaded video.
@@ -214,6 +264,13 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
     if (attached) return attached
     if (error instanceof FileProblem)
       return { kind: 'fatal', reason: 'fileMissing', message: error.message, retryAfterMs: null }
+    if (error instanceof RenderProblem)
+      return {
+        kind: 'fatal',
+        reason: 'render',
+        message: `Vertical render failed: ${error.message}`,
+        retryAfterMs: null
+      }
     // withApi turns invalid_grant into a user-facing error but keeps the original as cause.
     const cause = (error as { cause?: unknown }).cause
     const c = classifyGoogleError(cause ?? error)
@@ -341,7 +398,13 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
             postId: post.id
           })
         }
-        post = repos.posts.transition(post.id, 'start_upload', {
+        const rendering = needsRender(post)
+        if (rendering) {
+          // The vertical file is missing (first run, or deleted since): render it again.
+          repos.postSteps.ensure(post.id, stepsFor(post))
+          repos.postSteps.set(post.id, 'render', 'pending', null)
+        }
+        post = repos.posts.transition(post.id, rendering ? 'start_render' : 'start_upload', {
           patch: { attempts: post.attempts + 1, lastError: null, uploadProgress: 0 }
         })
         deps.emitChanged()

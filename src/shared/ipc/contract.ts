@@ -27,6 +27,18 @@ import {
   twitchConfigUpdateSchema,
   twitchConnectSchema
 } from '../schemas/twitch'
+import {
+  layoutInputSchema,
+  layoutViewSchema,
+  quotaForecastSchema,
+  rulePreviewInputSchema,
+  rulePreviewSchema,
+  ruleSaveSchema,
+  ruleViewSchema,
+  sampleFrameInputSchema,
+  sampleFrameSchema,
+  testRenderInputSchema
+} from '../schemas/autopost'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -38,6 +50,7 @@ import type { EventChannel, InvokeChannel } from './channels'
 const noInput = z.undefined()
 const accountIdInput = z.object({ accountId: z.number().int().positive() }).strict()
 const postIdInput = z.object({ id: z.uuid() }).strict()
+const ruleId = z.number().int().positive()
 const pathInput = z.object({ path: z.string().min(1).max(4096) }).strict()
 
 export const appInfoSchema = z.object({
@@ -280,6 +293,37 @@ export const invokeContract = {
   'clips:addToChannel': {
     input: clipIdsSchema.extend({ accountId: z.number().int().positive() }),
     output: z.object({ created: z.number().int(), skipped: z.array(z.string()) })
+  },
+  'posts:approve': { input: postIdInput, output: postListItemSchema },
+  'autopost:list': { input: noInput, output: z.array(ruleViewSchema) },
+  'autopost:save': { input: ruleSaveSchema, output: ruleViewSchema },
+  'autopost:delete': {
+    input: z.object({ id: ruleId, cancelUpcoming: z.boolean() }).strict(),
+    output: z.object({ canceled: z.number().int() })
+  },
+  'autopost:setEnabled': {
+    input: z.object({ id: ruleId, enabled: z.boolean() }).strict(),
+    output: ruleViewSchema
+  },
+  'autopost:preview': { input: rulePreviewInputSchema, output: rulePreviewSchema },
+  'autopost:approveAll': {
+    input: z.object({ id: ruleId }).strict(),
+    output: z.object({ approved: z.number().int() })
+  },
+  'autopost:forecast': { input: noInput, output: quotaForecastSchema },
+  'layouts:list': { input: noInput, output: z.array(layoutViewSchema) },
+  'layouts:save': {
+    input: z.object({ id: ruleId.optional(), input: layoutInputSchema }).strict(),
+    output: layoutViewSchema
+  },
+  'layouts:delete': {
+    input: z.object({ id: ruleId }).strict(),
+    output: z.object({ ok: z.literal(true) })
+  },
+  'layouts:sampleFrame': { input: sampleFrameInputSchema, output: sampleFrameSchema },
+  'layouts:testRender': {
+    input: testRenderInputSchema,
+    output: z.object({ url: z.string(), path: z.string() })
   }
 } as const satisfies Record<InvokeChannel, { input: z.ZodType; output: z.ZodType }>
 
