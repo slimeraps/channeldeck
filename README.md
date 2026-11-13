@@ -133,7 +133,13 @@ Running from source and the installed app share the same database, so only one c
 ### Connect Google (one time)
 
 1. In [Google Cloud Console](https://console.cloud.google.com), create a project and enable **YouTube Data API v3**.
-2. Under **Google Auth Platform → Audience**, set the user type to External and click **Publish app** so the status is **In production**. In Testing mode Google signs you out of every channel after 7 days. You don't need verification for personal use; you'll click **Advanced → Go to ChannelDeck** on the warning screen.
+2. Under **Google Auth Platform → Branding**, fill in the app name and your email for **User support email** and **Developer contact**, plus these links (Google won't let you publish without them; leave the logo empty):
+   - **Application home page:** `https://slimeraps.github.io/channeldeck/`
+   - **Application privacy policy link:** `https://slimeraps.github.io/channeldeck/privacy.html`
+   - **Authorized domains:** `slimeraps.github.io`
+
+   Then under **Audience**, set the user type to External and click **Publish app** so the status is **In production**. In Testing mode Google signs you out of every channel after 7 days. You don't need verification for personal use; you'll click **Advanced → Go to ChannelDeck** on the warning screen.
+
 3. Under **Clients**, create an OAuth client ID of type **Desktop app** and download its JSON.
 4. In ChannelDeck, click **Import…** in the setup checklist (or **Settings → Google and Twitch apps**) and pick the downloaded `client_secret_….json`. Then **Add channel**, once per channel. A Brand Account channel is picked in Google's chooser.
 
@@ -212,6 +218,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### Unreleased
+
+- Added a homepage and privacy policy (GitHub Pages, from `docs/`) for Google's Branding page, which now needs both before the consent screen can be published.
 
 ### 1.0.0 (2026-11-13)
 
