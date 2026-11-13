@@ -109,6 +109,31 @@ describe('job runner', () => {
   })
 })
 
+describe('pausing', () => {
+  it('starts nothing while paused and picks work up again on resume', async () => {
+    const { guard } = fakePower()
+    const runner = createJobRunner({ power: guard, logger })
+    const ran: string[] = []
+    runner.register({
+      name: 'upload',
+      concurrency: () => 1,
+      findWork: () => (ran.length === 0 ? ['p1'] : []),
+      key: (x: string) => x,
+      run: async (x) => {
+        ran.push(x)
+      }
+    })
+    runner.setPaused(true)
+    runner.kick()
+    await runner.idle()
+    expect(ran).toEqual([])
+    expect(runner.isPaused()).toBe(true)
+    runner.setPaused(false)
+    await runner.idle()
+    expect(ran).toEqual(['p1'])
+  })
+})
+
 describe('power guard', () => {
   it('starts the blocker once and stops it when the last holder releases', () => {
     const { api, guard } = fakePower()

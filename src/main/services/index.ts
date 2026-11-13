@@ -13,6 +13,8 @@ import { grabFrame, renderVertical } from '../media/ffmpeg'
 import { createAutopostService, type AutopostService } from './autopost'
 import { createClipsService, type ClipsService } from './clips'
 import { createLayoutsService, type LayoutsService } from './layouts'
+import { type BackupService, createBackupService } from './backup'
+import { createStatusService, type StatusService } from './status'
 import { createTemplatesService, type TemplatesService } from './templates'
 import { createPostsService, type PostsService } from './posts'
 import { createTwitchAccountsService, type TwitchAccountsService } from './twitchAccounts'
@@ -28,6 +30,8 @@ let syncingProbe: ((accountId: number) => boolean) | null = null
 let autopost: AutopostService | null = null
 let layouts: LayoutsService | null = null
 let templates: TemplatesService | null = null
+let status: StatusService | null = null
+let backup: BackupService | null = null
 
 /** Lets the Twitch view show "syncing…" without importing the job runner. */
 export function setSyncingProbe(fn: (accountId: number) => boolean): void {
@@ -108,6 +112,9 @@ export function initServices(): void {
     logger
   })
 
+  status = createStatusService({ repos })
+  backup = createBackupService({ repos })
+
   templates = createTemplatesService({
     repos,
     emitChanged: () => emitToRenderer('templates:changed', undefined)
@@ -126,6 +133,16 @@ export function initServices(): void {
         maxSeconds
       })
   })
+}
+
+export function getBackup(): BackupService {
+  if (!backup) throw new Error('Services not initialized')
+  return backup
+}
+
+export function getStatus(): StatusService {
+  if (!status) throw new Error('Services not initialized')
+  return status
 }
 
 export function getTemplates(): TemplatesService {

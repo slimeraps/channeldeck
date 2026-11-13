@@ -76,7 +76,11 @@ export const INVOKE_CHANNELS = [
   'series:save',
   'series:delete',
   'autopost:swapCandidates',
-  'autopost:swapClip'
+  'autopost:swapClip',
+  'app:quota',
+  'app:storage',
+  'backup:export',
+  'backup:import'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 

@@ -1,5 +1,6 @@
 import { PAGES } from '@renderer/app/nav'
 import { NewPostButton } from '@renderer/components/NewPostButton'
+import { QuotaMeter } from '@renderer/components/QuotaMeter'
 import { useAppInfo } from '@renderer/hooks/useAppInfo'
 import { useSettings } from '@renderer/hooks/useSettings'
 import { cn } from '@renderer/lib/utils'
@@ -53,6 +54,14 @@ export function AppSidebar(): React.JSX.Element {
           <span className="font-medium">Dry Run is on.</span> Nothing is really uploaded.
         </button>
       ) : null}
+      <button
+        type="button"
+        onClick={() => setPage('settings')}
+        className="mx-3 mb-1 rounded-md px-2 py-2 text-left hover:bg-sidebar-accent/60"
+        title="YouTube quota used today (all channels share it)"
+      >
+        <QuotaMeter />
+      </button>
       <div className="px-5 py-3 text-xs text-muted-foreground" data-testid="app-version">
         {appInfo.data ? `v${appInfo.data.version}` : appInfo.isError ? 'IPC unavailable' : '…'}
       </div>
