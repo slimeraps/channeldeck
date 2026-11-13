@@ -12,6 +12,7 @@ files:
   - '!src/*'
   - '!tests/*'
   - '!scripts/*'
+  - '!docs/*'
   - '!drizzle/*'
   - '!release/*'
   - '!{electron.vite.config,vitest.config}.{js,ts,mjs,mts,cjs}'
