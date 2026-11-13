@@ -1,5 +1,5 @@
 import { createReadStream } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { realpath, stat } from 'node:fs/promises'
 import { Readable } from 'node:stream'
 import { protocol } from 'electron'
 import { logger } from '../logger'
@@ -9,7 +9,8 @@ import {
   type MediaPolicy,
   parseRange,
   pathFromMediaUrl,
-  isServable
+  isServable,
+  resolveServable
 } from './mediaUrl'
 
 /** Must run before app 'ready'. */
@@ -38,6 +39,12 @@ export function handleMediaProtocol(getPolicy: () => MediaPolicy): void {
     } catch {
       return new Response('Not found', { status: 404 })
     }
+    // Resolve symlinks: a link inside a root must not lead out of it.
+    const realPath = await resolveServable(path, getPolicy(), realpath)
+    if (!realPath) {
+      logger.warn('[media] refused (outside allowed folders after resolving links)', path)
+      return new Response('Not allowed', { status: 403 })
+    }
 
     const headers: Record<string, string> = {
       'Content-Type': contentTypeFor(path),
@@ -50,7 +57,7 @@ export function handleMediaProtocol(getPolicy: () => MediaPolicy): void {
     }
     const { start, end } = range ?? { start: 0, end: size - 1 }
     const body = Readable.toWeb(
-      createReadStream(path, { start, end })
+      createReadStream(realPath, { start, end })
     ) as ReadableStream<Uint8Array>
     headers['Content-Length'] = String(end - start + 1)
     if (range) headers['Content-Range'] = `bytes ${start}-${end}/${size}`
