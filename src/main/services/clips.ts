@@ -183,7 +183,8 @@ export function createClipsService(deps: ClipsServiceDeps) {
       let created = 0
       const skipped: string[] = []
       for (const clip of requireClips(ids)) {
-        const file = clip.portraitPath ?? clip.landscapePath
+        // Start from the horizontal clip; the editor's Format switch makes it vertical.
+        const file = [clip.landscapePath, clip.portraitPath].find((p) => p && existsSync(p)) ?? null
         if (!file || !existsSync(file)) {
           skipped.push(`${clip.title}: not downloaded yet`)
           continue

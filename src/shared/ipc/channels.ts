@@ -80,7 +80,8 @@ export const INVOKE_CHANNELS = [
   'app:quota',
   'app:storage',
   'backup:export',
-  'backup:import'
+  'backup:import',
+  'posts:renderVertical'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 

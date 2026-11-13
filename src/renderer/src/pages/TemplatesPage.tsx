@@ -481,7 +481,7 @@ export function TemplatesPage(): React.JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => {
                 if (deleting?.kind === 'template') removeTemplate.mutate(deleting.item.id)
                 if (deleting?.kind === 'series') removeSeries.mutate(deleting.item.id)

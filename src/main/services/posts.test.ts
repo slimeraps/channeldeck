@@ -1,4 +1,4 @@
-import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
@@ -423,5 +423,106 @@ describe('calendar moves and copies', () => {
     expect(() => service.duplicate(clipPost.id, other)).toThrow(/already queued or posted/)
     // Same channel: a plain manual copy.
     expect(t.repos.posts.require(service.duplicate(clipPost.id).id).clipId).toBeNull()
+  })
+})
+
+describe('horizontal or vertical', () => {
+  let landscape: string
+
+  beforeEach(() => {
+    landscape = join(dir, 'clip_landscape.mp4')
+    writeFileSync(landscape, 'horizontal bytes')
+    t.repos.settings.update({ clipsRoot: dir })
+  })
+
+  function wideService(
+    renderVertical: (args: { output: string }) => Promise<void> = async () => {}
+  ) {
+    return createPostsService({
+      repos: t.repos,
+      probe: async (path) => {
+        const vertical = path.includes('_renders')
+        return {
+          path,
+          fileName: path.split('/').pop() ?? path,
+          sizeBytes: vertical ? 777 : 5000,
+          mtimeMs: 1,
+          durationSec: 30,
+          width: vertical ? 1080 : 1920,
+          height: vertical ? 1920 : 1080,
+          videoCodec: 'h264',
+          aspectRatio: vertical ? '9:16' : '16:9',
+          isShort: vertical,
+          isLong: false
+        }
+      },
+      media: createMediaAccess({ roots: () => [], isReferenced: () => false }),
+      emitChanged: vi.fn(),
+      clock: t.clock,
+      renderVertical
+    })
+  }
+
+  it('keeps the horizontal file as the source and uploads a vertical render', async () => {
+    const posts = wideService()
+    const saved = await posts.save({
+      input: input({ filePath: landscape, render: { kind: 'center_crop', presetId: null } }),
+      mode: 'queue'
+    })
+    const row = t.repos.posts.require(saved.id)
+    expect(row).toMatchObject({
+      renderJson: { sourcePath: landscape, kind: 'center_crop', crops: {}, presetId: null },
+      width: 1080,
+      height: 1920,
+      isShort: true,
+      fileSize: null
+    })
+    expect(row.filePath).toMatch(new RegExp(`^${dir}/_renders/clip_center_crop_[0-9a-f]{8}\\.mp4$`))
+
+    // The editor gets the horizontal source and the layout back.
+    const detail = await posts.get(saved.id)
+    expect(detail.input).toMatchObject({
+      filePath: landscape,
+      render: { kind: 'center_crop', presetId: null }
+    })
+    expect(detail.media?.path).toBe(landscape)
+    expect(detail.rendered).toBeNull()
+
+    // Back to horizontal: no render, the original file uploads as is.
+    await posts.save({ id: saved.id, input: { ...detail.input, render: null }, mode: 'queue' })
+    expect(t.repos.posts.require(saved.id)).toMatchObject({
+      filePath: landscape,
+      renderJson: null,
+      width: 1920,
+      isShort: false
+    })
+  })
+
+  it('renders on request into the file the upload will use', async () => {
+    const renderVertical = vi.fn(async ({ output }: { output: string }) => {
+      mkdirSync(join(dir, '_renders'), { recursive: true })
+      writeFileSync(output, 'vertical bytes')
+    })
+    const posts = wideService(renderVertical)
+    const info = await posts.renderVertical(landscape, { kind: 'blur_fill', presetId: null })
+    expect(info).toMatchObject({ width: 1080, height: 1920 })
+    // Asking again reuses the render.
+    await posts.renderVertical(landscape, { kind: 'blur_fill', presetId: null })
+    expect(renderVertical).toHaveBeenCalledTimes(1)
+
+    const saved = await posts.save({
+      input: input({ filePath: landscape, render: { kind: 'blur_fill', presetId: null } }),
+      mode: 'queue'
+    })
+    const row = t.repos.posts.require(saved.id)
+    expect(row.filePath).toBe(info.path)
+    expect(row.fileSize).toBe(777) // the real render's details
+    expect((await posts.get(saved.id)).rendered?.path).toBe(info.path)
+  })
+
+  it('refuses to render something that is not a video on disk', async () => {
+    await expect(
+      wideService().renderVertical(join(dir, 'nope.mp4'), { kind: 'blur_fill', presetId: null })
+    ).rejects.toThrow(/Pick a video/)
   })
 })

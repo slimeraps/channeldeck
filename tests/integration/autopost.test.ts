@@ -89,6 +89,7 @@ function rule(o: Partial<RuleInput> = {}): RuleInput {
     filters: {},
     format: 'short',
     layoutPresetId: null,
+    useTwitchVertical: true,
     titleTpl: '{{clip_title}} #{{n}}',
     descriptionTpl: 'Clipped by {{clipper}}',
     tags: ['mw4'],
@@ -274,7 +275,9 @@ describe('planner', () => {
     )
     await autopost.planRule(id)
     expect(rulePosts(id)[0]).toMatchObject({
-      filePath: join(dir, '_renders', `clip00_${preset.id}.mp4`),
+      filePath: expect.stringMatching(
+        new RegExp(`^${dir}/_renders/clip00_facecam_split_[0-9a-f]{8}\\.mp4$`)
+      ),
       fileSize: null,
       width: 1080,
       height: 1920,
@@ -284,6 +287,30 @@ describe('planner', () => {
         kind: 'facecam_split',
         presetId: preset.id
       }
+    })
+  })
+
+  it('renders Shorts from the horizontal clip unless the rule prefers Twitch’s vertical version', async () => {
+    bankClip(0, { portrait: true })
+    bankClip(1, { portrait: true })
+    const render = autopost.save(
+      rule({ name: 'Render', slots: ['09:00'], lookaheadDays: 1, useTwitchVertical: false })
+    )
+    await autopost.planRule(render.id)
+    expect(rulePosts(render.id)[0]).toMatchObject({
+      clipId: 'clip00',
+      renderJson: { sourcePath: join(dir, 'clip00_landscape.mp4'), kind: 'blur_fill' },
+      width: 1080,
+      height: 1920
+    })
+    const twitchVersion = autopost.save(
+      rule({ name: 'Twitch', slots: ['18:00'], lookaheadDays: 1, useTwitchVertical: true })
+    )
+    await autopost.planRule(twitchVersion.id)
+    expect(rulePosts(twitchVersion.id)[0]).toMatchObject({
+      clipId: 'clip01',
+      renderJson: null,
+      filePath: join(dir, 'clip01_portrait.mp4')
     })
   })
 

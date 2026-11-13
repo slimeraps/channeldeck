@@ -1,6 +1,15 @@
+import { mkdtempSync, rmSync, writeFileSync } from 'node:fs'
+import { tmpdir } from 'node:os'
+import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { ClipSearchInput } from '@shared/schemas/twitch'
-import { createTestDb, seedClip, seedTwitchAccount, type TestDb } from '../../../tests/helpers/db'
+import {
+  createTestDb,
+  seedAccount,
+  seedClip,
+  seedTwitchAccount,
+  type TestDb
+} from '../../../tests/helpers/db'
 import { createMediaAccess } from '../media/access'
 import { type ClipsService, createClipsService } from './clips'
 
@@ -79,5 +88,35 @@ describe('clip search across channels', () => {
     expect(clips.search({ ...base, twitchAccountIds: [a] }).games.map((g) => g.name)).toEqual([
       'MW4'
     ])
+  })
+
+  it('adds clips as drafts starting from the horizontal file', async () => {
+    const dir = mkdtempSync(join(tmpdir(), 'cd-addclip-'))
+    try {
+      const landscape = join(dir, 'a1_landscape.mp4')
+      const portrait = join(dir, 'a1_portrait.mp4')
+      writeFileSync(landscape, 'h')
+      writeFileSync(portrait, 'v')
+      t.repos.clips.setDownload('a1', {
+        downloadStatus: 'downloaded',
+        landscapePath: landscape,
+        portraitPath: portrait
+      })
+      const channel = seedAccount(t.repos).id
+      const service = createClipsService({
+        repos: t.repos,
+        media: createMediaAccess({ roots: () => [], isReferenced: () => false }),
+        probe: async () => {
+          throw new Error('no ffprobe in this test')
+        },
+        emitChanged: vi.fn(),
+        emitPostsChanged: vi.fn(),
+        kickJobs: vi.fn()
+      })
+      expect(await service.addToChannel(['a1'], channel)).toEqual({ created: 1, skipped: [] })
+      expect(t.repos.posts.list({})[0]).toMatchObject({ clipId: 'a1', filePath: landscape })
+    } finally {
+      rmSync(dir, { recursive: true, force: true })
+    }
   })
 })

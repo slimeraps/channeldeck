@@ -332,7 +332,7 @@ export function AutopostPage(): React.JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => deleting && remove.mutate({ id: deleting.id, cancelUpcoming })}
             >
               Delete rule
@@ -358,7 +358,7 @@ export function AutopostPage(): React.JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => deletingLayout && removeLayout.mutate(deletingLayout.id)}
             >
               Delete layout

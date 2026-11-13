@@ -82,8 +82,17 @@ describe('renderArgs', () => {
     expect(args.slice(-3)).toEqual(['-f', 'mp4', '/out.part'])
   })
 
-  it('names renders by clip and preset', () => {
-    expect(renderFileName('AbcClip', 4)).toBe('AbcClip_4.mp4')
-    expect(renderFileName('AbcClip', null)).toBe('AbcClip_blur.mp4')
+  it('names renders by source and layout, so a changed layout never reuses a file', () => {
+    const src = '/clips/helmsyy/2026/2026-11/2026-11-10_000000_clip0_big-play_landscape.mp4'
+    const split = { facecam: { x: 1, y: 1, width: 10, height: 10 } }
+    const a = renderFileName(src, 'facecam_split', split)
+    expect(a).toMatch(/^2026-11-10_000000_clip0_big-play_facecam_split_[0-9a-f]{8}\.mp4$/)
+    expect(renderFileName(src, 'facecam_split', split)).toBe(a) // same layout, same file
+    expect(
+      renderFileName(src, 'facecam_split', { facecam: { x: 2, y: 1, width: 10, height: 10 } })
+    ).not.toBe(a)
+    expect(renderFileName(src, 'blur_fill', {})).toMatch(/_blur_fill_[0-9a-f]{8}\.mp4$/)
+    // Crops don't matter for layouts that don't use them.
+    expect(renderFileName(src, 'center_crop', split)).toBe(renderFileName(src, 'center_crop', {}))
   })
 })

@@ -592,7 +592,7 @@ export function ClipsPage(): React.JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep files</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => deleteLocal.mutate(ids, { onSuccess: clear })}
             >
               Delete files

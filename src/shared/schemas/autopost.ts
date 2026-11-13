@@ -33,8 +33,10 @@ export const ruleInputSchema = z
     pickOrder: z.enum(PICK_ORDERS),
     filters: autopostFiltersSchema,
     format: z.enum(AUTOPOST_FORMATS),
-    /** null = blurred fill when a clip has no portrait file. */
+    /** Layout for vertical renders; null = blurred fill. */
     layoutPresetId: id.nullable(),
+    /** Use Twitch's own vertical version when a clip has one, instead of rendering. */
+    useTwitchVertical: z.boolean(),
     titleTpl: z.string().trim().min(1, 'Add a title template').max(500),
     descriptionTpl: z.string().max(10_000),
     tags: z.array(z.string().max(100)).max(100),
@@ -82,6 +84,7 @@ export const rulePreviewInputSchema = ruleInputSchema
     filters: true,
     format: true,
     layoutPresetId: true,
+    useTwitchVertical: true,
     titleTpl: true,
     descriptionTpl: true,
     lookaheadDays: true,

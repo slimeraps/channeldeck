@@ -641,7 +641,7 @@ export function QueuePage(): React.JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep draft</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => confirmDelete && deleteDraft.mutate(confirmDelete.id)}
             >
               Delete draft
@@ -666,7 +666,7 @@ export function QueuePage(): React.JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() => confirmCancel && cancel.mutate(confirmCancel.id)}
             >
               Unschedule
@@ -744,7 +744,7 @@ export function QueuePage(): React.JSX.Element {
           <AlertDialogFooter>
             <AlertDialogCancel>Keep it</AlertDialogCancel>
             <AlertDialogAction
-              className="bg-destructive text-white hover:bg-destructive/90"
+              variant="destructive"
               onClick={() =>
                 confirmYouTubeDelete && deleteFromYouTube.mutate(confirmYouTubeDelete.id)
               }

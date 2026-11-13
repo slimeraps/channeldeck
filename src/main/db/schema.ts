@@ -181,6 +181,8 @@ export const autopostRules = sqliteTable('autopost_rules', {
   layoutPresetId: integer('layout_preset_id').references(() => layoutPresets.id, {
     onDelete: 'set null'
   }),
+  /** Shorts: use Twitch's own vertical version when a clip has one (else render the layout). */
+  useTwitchVertical: integer('use_twitch_vertical', { mode: 'boolean' }).notNull().default(false),
   titleTpl: text('title_tpl').notNull(),
   descriptionTpl: text('description_tpl').notNull(),
   tagsJson: text('tags_json', { mode: 'json' })

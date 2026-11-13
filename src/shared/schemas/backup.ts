@@ -76,6 +76,8 @@ const backupRule = z.object({
   filters: autopostFiltersSchema,
   format: z.enum(AUTOPOST_FORMATS),
   layout: z.object({ broadcasterId: z.string(), name: z.string() }).nullable(),
+  /** Added after 1.0.0: older backups don't have it. */
+  useTwitchVertical: z.boolean().default(false),
   titleTpl: z.string(),
   descriptionTpl: z.string(),
   tags: z.array(z.string()),

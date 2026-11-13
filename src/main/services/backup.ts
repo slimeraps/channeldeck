@@ -97,6 +97,7 @@ export function createBackupService(deps: { repos: Repos; clock?: Clock }) {
                   name: layout.name
                 }
               : null,
+            useTwitchVertical: r.useTwitchVertical,
             titleTpl: r.titleTpl,
             descriptionTpl: r.descriptionTpl,
             tags: r.tagsJson,
@@ -291,6 +292,7 @@ export function createBackupService(deps: { repos: Repos; clock?: Clock }) {
         layoutPresetId: r.layout
           ? (layoutId.get(layoutKey(r.layout.broadcasterId, r.layout.name)) ?? null)
           : null,
+        useTwitchVertical: r.useTwitchVertical,
         titleTpl: r.titleTpl,
         descriptionTpl: r.descriptionTpl,
         tagsJson: r.tags,
