@@ -261,8 +261,8 @@ export function TwitchSection(): React.JSX.Element {
             <AlertDialogTitle>Remove {removing?.displayName}?</AlertDialogTitle>
             <AlertDialogDescription>
               ChannelDeck stops syncing this channel and forgets its clips. Downloaded files stay in
-              your clip folder. Clips already used by posts block removal until those posts are
-              gone.
+              your clip folder, and videos already on YouTube aren’t touched. Posts made from its
+              clips that aren’t uploaded yet need to be unscheduled first.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

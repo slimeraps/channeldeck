@@ -227,6 +227,8 @@ No version numbers yet; the first version is tagged when all phases are complete
 - Added **From clip library…** to the post editor: pick a banked Twitch clip as the video. Title and "Clipped by" credit fill in, and the post stays linked to the clip.
 - Added **Post…** to every clip on the Clips page (and **Post this clip…** in the preview), opening the editor with that clip.
 - Added **Select all** to the Clips page (all clips shown; "Show more" loads the rest).
+- Fixed: removing a Twitch channel failed once any of its clips had been posted or canceled. Now only posts not on YouTube yet block removal; finished posts are kept and just unlinked from the clip, and autopost rules drop the channel.
+- Fixed: a clip sync still running while its channel was removed logged a database error.
 
 ### 1.1.0 (2026-11-13)
 
