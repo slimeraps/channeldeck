@@ -17,12 +17,12 @@ Personal macOS (Apple Silicon) Electron app: Twitch clip bank + YouTube upload s
 - Tailwind CSS + shadcn/ui (Radix) + lucide-react; dark theme default
 - TanStack Query (server/IPC data), Zustand (UI state only)
 - SQLite: better-sqlite3 + Drizzle ORM + drizzle-kit migrations; DB at `app.getPath('userData')/channeldeck.db` (WAL, foreign keys on)
-- Google: `googleapis` + `google-auth-library`. Twitch: own typed `fetch` client for Helix
+- Google: `@googleapis/youtube` (Google's official per-API package, same client as `googleapis` at 1.8 MB instead of 246 MB) + `google-auth-library`. Twitch: own typed `fetch` client for Helix
 - Media: `ffprobe-static`, `ffmpeg-static`
 - Time: Luxon (IANA zones, DST-safe). Store every timestamp as UTC ISO-8601 with `Z`
 - Validation: zod (IPC payloads, forms, settings, imported files)
 - Logging: electron-log → `~/Library/Logs/ChannelDeck`
-- Tests: Vitest + msw. Packaging: electron-builder, arm64 dmg, unsigned
+- Tests: Vitest + msw 3 (`server.listen({ onUnhandledFrame: 'bypass' })`; fake Google in tests/mocks/google.ts). Packaging: electron-builder, arm64 dmg, unsigned
 
 ## Commands
 
@@ -77,6 +77,7 @@ Unit tests sit next to the file: `foo.ts` → `foo.test.ts`.
 ## Conventions
 
 - **Process boundary:** all network, disk, DB and ffmpeg work runs in main. The renderer only calls `window.api`.
+- **Errors shown to the user:** throw `UserFacingError` (src/main/errors.ts) with a message written for Cody; IPC passes it through as `rejected` and the UI shows it. Any other error becomes a generic "failed, see the log" message. `DuplicateError`, `NotFoundError` and `InvalidPostTransitionError` are user-facing.
 - **IPC:** every channel is declared once in `src/shared/ipc`. Main registers it with `handle(channel, fn)`, which zod-parses the payload and rejects bad input. Push events (upload progress, job state, sync progress) also go through typed channels. Don't add ad-hoc `ipcMain.on`.
 - **Window security:** `contextIsolation: true`, `nodeIntegration: false`, `sandbox: true`, strict CSP, navigation and `window.open` blocked. Local media reaches the renderer only through `cdmedia://`, which only serves paths under the clip folder, the render folder, or files referenced by a post.
 - **Post status:** only `postsRepo.transition(id, event)` writes `posts.status`, and it uses the pure `nextPostStatus()` in `domain/postState.ts`. States: `draft, needs_approval, queued, rendering, uploading, processing, scheduled, published, needs_decision, failed, waiting_quota, canceled`.

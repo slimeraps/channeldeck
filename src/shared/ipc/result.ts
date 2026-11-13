@@ -3,7 +3,12 @@
  * renderer with a stable code and a safe message (never a stack trace or secret).
  */
 
-export type IpcErrorCode = 'invalid_input' | 'forbidden' | 'unknown_channel' | 'internal'
+/**
+ * invalid_input: payload failed the channel's schema. rejected: the action was refused for a
+ * reason the user can act on (message is safe to show). internal: unexpected failure.
+ */
+export type IpcErrorCode =
+  'invalid_input' | 'forbidden' | 'unknown_channel' | 'rejected' | 'internal'
 
 export interface IpcIssue {
   path: string

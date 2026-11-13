@@ -56,6 +56,11 @@ export const accounts = sqliteTable('accounts', {
     .notNull()
     .default(sql`'{}'`),
   enabled: integer('enabled', { mode: 'boolean' }).notNull().default(true),
+  /**
+   * Set when the channel is removed but still has post history (posts reference it).
+   * Removed channels are hidden and have no token; adding the channel again restores it.
+   */
+  removedAt: text('removed_at'),
   createdAt: createdAt(),
   updatedAt: updatedAt()
 })

@@ -59,15 +59,15 @@ A personal macOS app (Electron) that banks Twitch clips on disk and schedules Yo
 
 ## Phase 2 — Google sign-in and YouTube channels
 
-- [ ] Settings → "Import Google client file": validate it's an `installed` client, copy to userData
-- [ ] Loopback OAuth: 127.0.0.1 random port, PKCE (S256), `state` check, `access_type=offline`, `prompt=consent`, scopes `youtube.upload` + `youtube`, system browser via `shell.openExternal`, success page that tells you to return to the app
-- [ ] `channels.list` (snippet,contentDetails, mine=true) → one `accounts` row per channel; reject duplicate channel ids with a clear message
-- [ ] Persist refreshed tokens on the client's `tokens` event (encrypted)
-- [ ] `invalid_grant` → `token_status = needs_reauth`, banner, macOS notification, pause that account's jobs
-- [ ] Channels page: YouTube section with avatar, title, handle, status, color, enabled toggle, defaults editor; Add / Reconnect / Remove
-- [ ] UI hint: "To add a Brand Account channel, click Add channel again and pick it in Google's account picker."
-- [ ] Remove: revoke token, then ask what to do with queued posts (cancel them / move to another channel / keep as drafts)
-- [ ] Quota logging for `channels.list` starts here (cost table in `src/shared/constants/quota.ts`)
+- [x] Settings → "Import Google client file": validate it's an `installed` client, copy to userData
+- [x] Loopback OAuth: 127.0.0.1 random port, PKCE (S256), `state` check, `access_type=offline`, `prompt=consent`, scopes `youtube.upload` + `youtube`, system browser via `shell.openExternal`, success page that tells you to return to the app
+- [x] `channels.list` (snippet,contentDetails, mine=true) → one `accounts` row per channel; reject duplicate channel ids with a clear message
+- [x] Persist refreshed tokens on the client's `tokens` event (encrypted)
+- [x] `invalid_grant` → `token_status = needs_reauth`, banner, macOS notification, pause that account's jobs (calls for that channel stop until Reconnect; the Phase 4 job runner also skips accounts that need re-auth)
+- [x] Channels page: YouTube section with avatar, title, handle, status, color, enabled toggle, defaults editor; Add / Reconnect / Remove
+- [x] UI hint: "To add a Brand Account channel, click Add channel again and pick it in Google's account picker."
+- [x] Remove: revoke token, then ask what to do with queued posts (cancel them / move to another channel / keep as drafts)
+- [x] Quota logging for `channels.list` starts here (cost table in `src/shared/constants/quota.ts`)
 
 **Acceptance:** with mocked Google, a sign-in creates an account, a duplicate is rejected, `invalid_grant` flips status to needs re-auth, remove calls revoke. By hand: real sign-in adds your channel(s); token is ciphertext in the DB; nothing token-like in the log.
 

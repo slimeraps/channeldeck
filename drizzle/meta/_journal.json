@@ -8,6 +8,13 @@
       "when": 1794536081617,
       "tag": "0000_init",
       "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "6",
+      "when": 1794536842202,
+      "tag": "0001_account_removed_at",
+      "breakpoints": true
     }
   ]
 }

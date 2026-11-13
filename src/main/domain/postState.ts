@@ -1,4 +1,5 @@
 import type { PostStatus } from '@shared/constants/enums'
+import { UserFacingError } from '../errors'
 
 /**
  * The post lifecycle as one pure function. Nothing else decides a post's status:
@@ -165,7 +166,7 @@ export interface TransitionContext {
   hasVideoId: boolean
 }
 
-export class InvalidPostTransitionError extends Error {
+export class InvalidPostTransitionError extends UserFacingError {
   readonly from: PostStatus
   readonly event: PostEvent
 

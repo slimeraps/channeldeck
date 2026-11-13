@@ -2,6 +2,7 @@ import type { InvokeChannel } from '@shared/ipc/channels'
 import { invokeContract, type InvokeInput, type InvokeOutput } from '@shared/ipc/contract'
 import { ipcErr, ipcOk, type IpcIssue, type IpcResult } from '@shared/ipc/result'
 import type { z } from 'zod'
+import { isUserFacing } from '../errors'
 
 /**
  * Electron-free core of the IPC layer, so it can be unit-tested: validates the raw payload
@@ -48,6 +49,10 @@ export function createInvokeHandler<C extends InvokeChannel>(
       const data = await handler(parsed.data as InvokeOutputOfInput<C>)
       return ipcOk(data)
     } catch (error) {
+      if (isUserFacing(error)) {
+        logger.warn(`[ipc] ${channel}: ${error.message}`)
+        return ipcErr('rejected', error.message)
+      }
       logger.error(`[ipc] ${channel}: handler failed`, error)
       return ipcErr('internal', `${channel} failed. Details are in the log.`)
     }
