@@ -91,7 +91,12 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
       .some((s) => s.status === 'pending' || s.status === 'running')
   }
 
-  async function preflight(post: PostRow): Promise<void> {
+  /**
+   * Checks the file and returns the post with its real size. An autopost whose vertical file
+   * already existed (an earlier post rendered the same clip and layout) skips the render and
+   * has no size yet: record it now, so YouTube is told the real length and not 0 bytes.
+   */
+  async function preflight(post: PostRow): Promise<PostRow> {
     if (!post.filePath) throw new FileProblem('This post has no video file.')
     let info: Awaited<ReturnType<typeof stat>>
     try {
@@ -104,6 +109,11 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
         `File missing: ${post.filePath} changed size since it was queued (${post.fileSize} → ${info.size} bytes). Open the post and add the video again.`
       )
     }
+    if (info.size === 0) throw new FileProblem(`File is empty: ${post.filePath}`)
+    if (post.fileSize === null) {
+      return repos.posts.update(post.id, { fileSize: info.size, fileMtime: info.mtimeMs })
+    }
+    return post
   }
 
   /** An autopost whose vertical file doesn't exist yet (or was deleted since). */
@@ -155,7 +165,8 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
           if (needsRender(post)) post = await render(post, signal)
         } else if (step.step === 'insert') {
           if (!post.youtubeVideoId) {
-            await preflight(post)
+            post = await preflight(post)
+            const sizeBytes = post.fileSize as number
             const resource = buildVideoResource({ ...post, tags: post.tagsJson })
             let lastDb = 0
             let lastEvent = 0
@@ -164,7 +175,7 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
                 resource,
                 notifySubscribers: post.notifySubscribers,
                 filePath: post.filePath as string,
-                sizeBytes: post.fileSize ?? 0,
+                sizeBytes,
                 contentType: contentTypeFor(post.filePath as string),
                 signal,
                 onProgress: (sent, total) => {
