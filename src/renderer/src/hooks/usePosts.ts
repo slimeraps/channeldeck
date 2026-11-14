@@ -200,3 +200,81 @@ export function useSyncStatus(): UseMutationResult<
     onError: (e) => toast.error(e.message)
   })
 }
+
+export type BulkPostAction =
+  'approve' | 'uploadNow' | 'retry' | 'duplicate' | 'cancel' | 'deleteDraft'
+
+const plural = (n: number, word = 'post'): string => `${n} ${word}${n === 1 ? '' : 's'}`
+
+const BULK: Record<
+  BulkPostAction,
+  { run: (id: string) => Promise<unknown>; done: (n: number) => string; failed: string }
+> = {
+  approve: {
+    run: (id) => invoke('posts:approve', { id }),
+    done: (n) => `Approved ${plural(n)}`,
+    failed: 'approved'
+  },
+  uploadNow: {
+    run: (id) => invoke('posts:uploadNow', { id }),
+    done: (n) => `Uploading ${plural(n)} now`,
+    failed: 'started'
+  },
+  retry: {
+    run: (id) => invoke('posts:retry', { id }),
+    done: (n) => `Retrying ${plural(n)}`,
+    failed: 'retried'
+  },
+  duplicate: {
+    run: (id) => invoke('posts:duplicate', { id }),
+    done: (n) => `Duplicated ${plural(n)} as drafts`,
+    failed: 'duplicated'
+  },
+  cancel: {
+    run: (id) => invoke('posts:cancel', { id }),
+    done: (n) => `Unscheduled ${plural(n)}`,
+    failed: 'unscheduled'
+  },
+  deleteDraft: {
+    run: (id) => invoke('posts:deleteDraft', { id }),
+    done: (n) => `Deleted ${plural(n, 'draft')}`,
+    failed: 'deleted'
+  }
+}
+
+/**
+ * Runs one post action on many posts, one at a time (main checks each post as usual),
+ * then shows a single summary toast.
+ */
+export function useBulkPostAction(): UseMutationResult<
+  { ok: number; errors: string[] },
+  Error,
+  { action: BulkPostAction; ids: string[] }
+> {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: async ({ action, ids }) => {
+      const errors: string[] = []
+      let ok = 0
+      for (const id of ids) {
+        try {
+          await BULK[action].run(id)
+          ok += 1
+        } catch (e) {
+          errors.push(e instanceof Error ? e.message : String(e))
+        }
+      }
+      return { ok, errors }
+    },
+    onSuccess: ({ ok, errors }, { action }) => {
+      invalidate()
+      if (ok > 0) toast.success(BULK[action].done(ok))
+      if (errors.length > 0) {
+        toast.error(
+          `${plural(errors.length)} couldn’t be ${BULK[action].failed}: ${errors[0]}${errors.length > 1 ? ` (+${errors.length - 1} more)` : ''}`
+        )
+      }
+    },
+    onError: (e) => toast.error(e.message)
+  })
+}
