@@ -237,6 +237,7 @@ No version numbers yet; the first version is tagged when all phases are complete
 ### Unreleased
 
 - New **Analytics** page: views, watch time, average view duration, subscribers gained and lost, a views-per-day chart and the top 10 videos for the last 7, 28 or 90 days. Pick one channel or **All channels**, which adds every signed-in channel together (average view duration is weighted by views; top videos are ranked across channels, each with its channel's color). A channel that can't be read is left out with the reason shown. It uses the YouTube Analytics API, which has its own quota, so it doesn't touch your 10,000 daily units; enable **YouTube Analytics API** once in your Google Cloud project. No new sign-in is needed. Titles of videos ChannelDeck didn't post cost one `videos.list` unit per load.
+- Fix (2026-11-14): an autopost whose vertical file was already rendered (by an earlier post of the same clip and layout) got stuck on "Uploading" at 0%. It skipped the render, so it never learned the file's size and told YouTube the video was 0 bytes. The upload now reads the real size from the file first, refuses an empty or unknown-size file, and fails with a clear message instead of hanging.
 
 ### 1.5.0 (2026-11-13)
 
