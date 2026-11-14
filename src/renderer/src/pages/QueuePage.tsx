@@ -4,6 +4,7 @@ import {
   CalendarX,
   Check,
   CheckCheck,
+  CheckSquare,
   Clapperboard,
   CloudUpload,
   Copy,
@@ -20,7 +21,8 @@ import {
   Shuffle,
   Trash2,
   TriangleAlert,
-  Upload
+  Upload,
+  X
 } from 'lucide-react'
 import { useMemo, useState } from 'react'
 import type { PostSource, PostStatus } from '@shared/constants/enums'
@@ -72,7 +74,9 @@ import {
   useRevealPost,
   useSyncStatus,
   useUploadNow,
-  useApprovePost
+  useApprovePost,
+  useBulkPostAction,
+  type BulkPostAction
 } from '@renderer/hooks/usePosts'
 import { PublishTimeDialog } from '@renderer/components/queue/PublishTimeDialog'
 import { SwapClipDialog } from '@renderer/components/queue/SwapClipDialog'
@@ -118,6 +122,16 @@ const UNSCHEDULABLE: PostStatus[] = [
   'needs_decision',
   'failed'
 ]
+
+/** Which selected posts each bulk action applies to (the rest are left alone). */
+const BULK_ELIGIBLE: Record<BulkPostAction, (p: PostListItem) => boolean> = {
+  approve: (p) => p.status === 'needs_approval',
+  uploadNow: (p) => p.status === 'queued',
+  retry: (p) => p.status === 'failed' || p.status === 'waiting_quota',
+  duplicate: () => true,
+  cancel: (p) => UNSCHEDULABLE.includes(p.status) && !p.youtubeVideoId,
+  deleteDraft: (p) => p.status === 'draft'
+}
 
 function Preview({ post }: { post: PostListItem }): React.JSX.Element {
   const box = 'h-12 w-20 shrink-0 overflow-hidden rounded border bg-muted'
@@ -239,6 +253,9 @@ export function QueuePage(): React.JSX.Element {
   const [swapFor, setSwapFor] = useState<PostListItem | null>(null)
   const [confirmKeepPrivate, setConfirmKeepPrivate] = useState<PostListItem | null>(null)
   const [confirmYouTubeDelete, setConfirmYouTubeDelete] = useState<PostListItem | null>(null)
+  const [selected, setSelected] = useState<Set<string>>(new Set())
+  const [confirmBulk, setConfirmBulk] = useState<'cancel' | 'deleteDraft' | null>(null)
+  const clearSelection = (): void => setSelected(new Set())
 
   const accounts = useAccounts()
   const posts = usePosts({
@@ -269,6 +286,7 @@ export function QueuePage(): React.JSX.Element {
   const keepPrivate = useKeepPrivate()
   const deleteFromYouTube = useDeleteFromYouTube()
   const syncStatus = useSyncStatus()
+  const bulk = useBulkPostAction()
 
   // Sorted by publish time; posts without one (drafts, upload-now) go after timed ones.
   const rows = useMemo(() => {
@@ -286,6 +304,21 @@ export function QueuePage(): React.JSX.Element {
 
   const filtersActive = accountFilter !== ALL || statusFilter !== 'active' || sourceFilter !== ALL
 
+  // Only rows still in the table count (a post can leave the filter after an action).
+  const selectedRows = rows.filter((p) => selected.has(p.id))
+  const allSelected = rows.length > 0 && selectedRows.length === rows.length
+  const eligible = (action: BulkPostAction): string[] =>
+    selectedRows.filter(BULK_ELIGIBLE[action]).map((p) => p.id)
+  const runBulk = (action: BulkPostAction): void =>
+    bulk.mutate({ action, ids: eligible(action) }, { onSuccess: clearSelection })
+  const toggle = (id: string): void =>
+    setSelected((s) => {
+      const next = new Set(s)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+
   if (posts.isSuccess && rows.length === 0 && !filtersActive) {
     return (
       <EmptyState icon={ListVideo} title="Nothing in the queue yet" action={<NewPostButton />}>
@@ -298,7 +331,13 @@ export function QueuePage(): React.JSX.Element {
   return (
     <div className="space-y-4 px-8 py-6">
       <div className="flex flex-wrap items-center gap-2">
-        <Select value={accountFilter} onValueChange={setAccountFilter}>
+        <Select
+          value={accountFilter}
+          onValueChange={(v) => {
+            setAccountFilter(v)
+            clearSelection()
+          }}
+        >
           <SelectTrigger size="sm" className="w-48">
             <SelectValue />
           </SelectTrigger>
@@ -316,7 +355,13 @@ export function QueuePage(): React.JSX.Element {
             ))}
           </SelectContent>
         </Select>
-        <Select value={statusFilter} onValueChange={(v) => setStatusFilter(v as StatusFilter)}>
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => {
+            setStatusFilter(v as StatusFilter)
+            clearSelection()
+          }}
+        >
           <SelectTrigger size="sm" className="w-44">
             <SelectValue />
           </SelectTrigger>
@@ -332,7 +377,10 @@ export function QueuePage(): React.JSX.Element {
         </Select>
         <Select
           value={sourceFilter}
-          onValueChange={(v) => setSourceFilter(v as typeof sourceFilter)}
+          onValueChange={(v) => {
+            setSourceFilter(v as typeof sourceFilter)
+            clearSelection()
+          }}
         >
           <SelectTrigger size="sm" className="w-40">
             <SelectValue />
@@ -379,10 +427,84 @@ export function QueuePage(): React.JSX.Element {
         </div>
       ) : null}
 
+      {/* Selection bar */}
+      {selectedRows.length > 0 ? (
+        <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm shadow">
+          <span className="font-medium">{selectedRows.length} selected</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() => setSelected(allSelected ? new Set() : new Set(rows.map((p) => p.id)))}
+          >
+            <CheckSquare aria-hidden />
+            {allSelected ? 'Select none' : `Select all ${rows.length}`}
+          </Button>
+          {(
+            [
+              ['approve', 'Approve', Check],
+              ['uploadNow', 'Upload now', CloudUpload],
+              ['retry', 'Retry', RotateCcw]
+            ] as const
+          ).map(([action, label, Icon]) =>
+            eligible(action).length > 0 ? (
+              <Button
+                key={action}
+                size="sm"
+                variant="ghost"
+                disabled={bulk.isPending}
+                onClick={() => runBulk(action)}
+              >
+                <Icon aria-hidden /> {label} ({eligible(action).length})
+              </Button>
+            ) : null
+          )}
+          <Button
+            size="sm"
+            variant="ghost"
+            disabled={bulk.isPending}
+            onClick={() => runBulk('duplicate')}
+          >
+            <Copy aria-hidden /> Duplicate
+          </Button>
+          {eligible('cancel').length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              disabled={bulk.isPending}
+              onClick={() => setConfirmBulk('cancel')}
+            >
+              <CalendarX aria-hidden /> Unschedule ({eligible('cancel').length})…
+            </Button>
+          ) : null}
+          {eligible('deleteDraft').length > 0 ? (
+            <Button
+              size="sm"
+              variant="ghost"
+              className="text-destructive"
+              disabled={bulk.isPending}
+              onClick={() => setConfirmBulk('deleteDraft')}
+            >
+              <Trash2 aria-hidden /> Delete drafts ({eligible('deleteDraft').length})…
+            </Button>
+          ) : null}
+          <Button
+            size="icon"
+            variant="ghost"
+            className="ml-auto"
+            aria-label="Clear selection"
+            onClick={clearSelection}
+          >
+            <X aria-hidden />
+          </Button>
+        </div>
+      ) : null}
+
       <div className="overflow-x-auto rounded-lg border">
         <table className="w-full min-w-[640px] table-fixed text-sm">
           <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
+              <th className="w-10 py-2 pr-0 pl-3" aria-label="Select" />
               <th className="hidden w-[6.5rem] px-3 py-2 font-medium xl:table-cell" />
               <th className="px-3 py-2 font-medium">Title</th>
               <th className="hidden w-44 px-3 py-2 font-medium lg:table-cell">Channel</th>
@@ -408,12 +530,37 @@ export function QueuePage(): React.JSX.Element {
           <tbody>
             {rows.map((post) => {
               const editable = EDITABLE.includes(post.status) && !post.youtubeVideoId
+              const isSelected = selected.has(post.id)
               return (
                 <tr
                   key={post.id}
-                  className="cursor-default border-t hover:bg-muted/30"
+                  className={cn(
+                    'group cursor-default border-t hover:bg-muted/30',
+                    isSelected && 'bg-primary/5 hover:bg-primary/10'
+                  )}
                   onDoubleClick={() => editable && openEditPost(post.id)}
                 >
+                  <td className="py-2 pr-0 pl-3">
+                    <button
+                      type="button"
+                      role="checkbox"
+                      aria-checked={isSelected}
+                      aria-label={`Select ${post.title || 'post'}`}
+                      onClick={() => toggle(post.id)}
+                      onDoubleClick={(e) => e.stopPropagation()}
+                      className={cn(
+                        'flex size-5 items-center justify-center rounded border transition-opacity',
+                        isSelected
+                          ? 'border-primary bg-primary text-primary-foreground'
+                          : 'border-muted-foreground/50',
+                        !isSelected &&
+                          selectedRows.length === 0 &&
+                          'opacity-0 group-hover:opacity-100 focus-visible:opacity-100'
+                      )}
+                    >
+                      {isSelected ? <Check className="size-3.5" aria-hidden /> : null}
+                    </button>
+                  </td>
                   <td className="hidden px-3 py-2 xl:table-cell">
                     <Preview post={post} />
                   </td>
@@ -627,7 +774,7 @@ export function QueuePage(): React.JSX.Element {
             })}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={7} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={8} className="px-3 py-10 text-center text-sm text-muted-foreground">
                   No posts match these filters.
                 </td>
               </tr>
@@ -680,6 +827,35 @@ export function QueuePage(): React.JSX.Element {
               onClick={() => confirmCancel && cancel.mutate(confirmCancel.id)}
             >
               Unschedule
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog
+        open={confirmBulk !== null}
+        onOpenChange={(open) => !open && setConfirmBulk(null)}
+      >
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>
+              {confirmBulk === 'deleteDraft'
+                ? `Delete ${eligible('deleteDraft').length} draft${eligible('deleteDraft').length === 1 ? '' : 's'}?`
+                : `Unschedule ${eligible('cancel').length} post${eligible('cancel').length === 1 ? '' : 's'}?`}
+            </AlertDialogTitle>
+            <AlertDialogDescription>
+              {confirmBulk === 'deleteDraft'
+                ? 'The selected drafts will be deleted. Your video files stay where they are. Other selected posts are left alone.'
+                : 'None of these have been uploaded, so they will simply be canceled. Nothing changes on YouTube, and Twitch clips go back to the bank. Selected posts that are already on YouTube or can’t be unscheduled are left alone.'}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Keep them</AlertDialogCancel>
+            <AlertDialogAction
+              variant="destructive"
+              onClick={() => confirmBulk && runBulk(confirmBulk)}
+            >
+              {confirmBulk === 'deleteDraft' ? 'Delete drafts' : 'Unschedule'}
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

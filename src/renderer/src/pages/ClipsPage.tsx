@@ -401,25 +401,6 @@ export function ClipsPage(): React.JSX.Element {
         <span className="ml-auto text-xs text-muted-foreground">
           {total.toLocaleString()} clip{total === 1 ? '' : 's'}
         </span>
-        {items.length > 0 ? (
-          <Button
-            size="sm"
-            variant="outline"
-            onClick={() =>
-              setSelected(allShownSelected ? new Set() : new Set(items.map((c) => c.id)))
-            }
-            title={
-              items.length < total
-                ? `Selects the ${items.length} clips shown; "Show more" loads the rest`
-                : undefined
-            }
-          >
-            <CheckSquare aria-hidden />
-            {allShownSelected
-              ? 'Select none'
-              : `Select all${items.length < total ? ` ${items.length} shown` : ''}`}
-          </Button>
-        ) : null}
       </div>
 
       {showFilters ? (
@@ -493,6 +474,23 @@ export function ClipsPage(): React.JSX.Element {
       {selected.size > 0 ? (
         <div className="sticky top-0 z-10 flex flex-wrap items-center gap-2 rounded-lg border bg-card px-3 py-2 text-sm shadow">
           <span className="font-medium">{selected.size} selected</span>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={() =>
+              setSelected(allShownSelected ? new Set() : new Set(items.map((c) => c.id)))
+            }
+            title={
+              items.length < total
+                ? `Selects the ${items.length} clips shown; "Show more" loads the rest`
+                : undefined
+            }
+          >
+            <CheckSquare aria-hidden />
+            {allShownSelected
+              ? 'Select none'
+              : `Select all${items.length < total ? ` ${items.length} shown` : ''}`}
+          </Button>
           <Select value={addTo} onValueChange={setAddTo}>
             <SelectTrigger size="sm" className="w-48">
               <SelectValue placeholder="Add to channel…" />

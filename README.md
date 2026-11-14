@@ -51,6 +51,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ **Check status** button to ask YouTube for the latest state right away
 - ✅ **Approve** autoposts made in Review mode, one at a time or all at once per rule
 - ✅ **Swap clip** for autoposts before upload: pick from the rule's next clips; the old clip is skipped from then on
+- ✅ Select several posts (checkbox on each row) for bulk **Approve**, **Upload now**, **Retry**, **Duplicate**, **Unschedule** and **Delete drafts**; **Select all** appears once something is selected
 
 ### Uploading
 
@@ -82,7 +83,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ A color per Twitch channel (picked on the Channels page, like YouTube channels), shown on clip cards, Clips tabs, autopost rules and layouts
 - ✅ **All channels** view on the Clips page: sort, filter and bulk-select clips from every channel at once, or pick a few channels to show
 - ✅ Add clips as draft posts to any YouTube channel; a clip can never be added twice to the same channel
-- ✅ **Post…** on any clip (card or preview) opens the post editor with that clip; **Select all** for bulk actions
+- ✅ **Post…** on any clip (card or preview) opens the post editor with that clip; **Select all** in the selection bar once a clip is selected
 
 ### Autoposting
 
@@ -224,6 +225,11 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### Unreleased
+
+- Queue: select several posts with the checkbox on each row (it shows on hover, and on every row once one is selected). The selection bar runs **Approve**, **Upload now**, **Retry**, **Duplicate**, **Unschedule…** and **Delete drafts…** on the selected posts each action applies to, with one summary message; the destructive ones ask first. Changing a filter clears the selection (2026-11-13).
+- Clips and Queue: **Select all** / **Select none** now sits in the selection bar and only shows once at least one item is selected (2026-11-13).
 
 ### 1.4.0 (2026-11-13)
 
