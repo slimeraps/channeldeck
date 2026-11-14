@@ -226,6 +226,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
+### Unreleased
+
+- Fixed: an imported backup can no longer put a bad Twitch login (like `../x`) into the clip folder path. A backup with a login that isn't letters, digits and underscore (1 to 25 characters) is refused, and the clip folder code refuses it too, so downloads can't land outside your clip folder.
+
 ### 1.5.0 (2026-11-13)
 
 - Queue: select several posts with the checkbox on each row (it shows on hover, and on every row once one is selected). The selection bar runs **Approve**, **Upload now**, **Retry**, **Duplicate**, **Unschedule…** and **Delete drafts…** on the selected posts each action applies to, with one summary message; the destructive ones ask first. Changing a filter clears the selection.
