@@ -447,4 +447,35 @@ describe('downloads', () => {
       downloadError: expect.stringMatching(/no longer an editor of OtherStreamer/)
     })
   })
+
+  it('fails a clip, and writes nothing outside the clips folder, when the stored login is bad', async () => {
+    // The clips folder is a subfolder of the temp folder, so a path that climbs out of it
+    // still lands inside the temp folder (which afterEach removes).
+    const root = join(dir, 'clips')
+    t.repos.settings.update({ clipsRoot: root })
+    twitch.clips = makeClips('1001', 2, '2026-11-10T00:00:00Z', '2026-11-11T00:00:00Z')
+    const { id } = await service.connect({
+      mode: 'broadcaster',
+      backfillFromUtc: '2026-11-09T00:00:00Z'
+    })
+    await run(sync, id)
+    // A bad login straight in the database (what an old import could have left there).
+    t.repos.twitchAccounts.update(id, { login: '../evil' })
+
+    const download = createClipDownloadJob({
+      repos: t.repos,
+      helixFor: service.helixFor,
+      verifyVideo: async () => {},
+      emitChanged: vi.fn(),
+      logger,
+      clock: t.clock,
+      sleep: fastSleep
+    })
+    await run(download, id)
+
+    expect(existsSync(join(dir, 'evil'))).toBe(false)
+    const clip = t.repos.clips.get('clip0')
+    expect(clip?.downloadStatus).toBe('failed')
+    expect(clip?.downloadError).toMatch(/login/i)
+  })
 })

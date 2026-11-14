@@ -1,3 +1,4 @@
+import { posix } from 'node:path'
 import { describe, expect, it } from 'vitest'
 import {
   advanceBackfill,
@@ -132,5 +133,39 @@ describe('clip files', () => {
   it('backs off retries', () => {
     expect([1, 2, 3].map(downloadRetryDelayMs)).toEqual([300_000, 1_200_000, 4_800_000])
     expect(downloadRetryDelayMs(10)).toBe(86_400_000)
+  })
+})
+
+describe('clipFolder with a bad login', () => {
+  const when = '2026-10-26T03:04:05Z'
+  const hostile = [
+    '../x',
+    '../../x',
+    '..',
+    '.',
+    'a/b',
+    'a\b',
+    '/etc',
+    'C:\temp',
+    '',
+    'a'.repeat(26),
+    'has space',
+    'a\u0000b',
+    'ünïcode'
+  ]
+
+  it('refuses a login that is not a Twitch login', () => {
+    for (const login of hostile) {
+      expect(() => clipFolder(login, when), JSON.stringify(login)).toThrow(/Twitch/)
+    }
+  })
+
+  it('never leaves the clips folder for any login it accepts', () => {
+    for (const login of ['Helmsyy', 'streamer_1', 'a', 'x'.repeat(25), '__', '0']) {
+      const folder = clipFolder(login, when)
+      const inside = posix.relative('/clips', posix.join('/clips', folder))
+      expect(inside.startsWith('..'), folder).toBe(false)
+      expect(folder.split('/')[0]).toBe(login.toLowerCase())
+    }
   })
 })
