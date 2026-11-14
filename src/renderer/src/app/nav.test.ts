@@ -2,10 +2,11 @@ import { describe, expect, it } from 'vitest'
 import { PAGE_IDS, PAGES, getPage } from './nav'
 
 describe('sidebar pages', () => {
-  it('lists the seven sidebar pages in the order from the brief', () => {
+  it('lists the sidebar pages in the order from the brief', () => {
     expect(PAGES.map((p) => p.label)).toEqual([
       'Queue',
       'Calendar',
+      'Analytics',
       'Clips',
       'Autopost',
       'Channels',

@@ -73,6 +73,12 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Week and month views colored by channel, clip icon on Twitch posts, channel filter
 - ✅ Drag to reschedule with a confirmation (updates YouTube if already uploaded); click an empty slot to create a post at that time
 
+### Analytics
+
+- ✅ Views, watch time, average view duration and subscribers for the last 7, 28 or 90 days, per channel or **All channels** added together
+- ✅ Views per day chart (hover a day for its numbers) and the top 10 videos, marked when ChannelDeck posted them
+- ✅ Uses the YouTube Analytics API, which has its own quota, so it doesn't use your 10,000 daily units
+
 ### Twitch clip bank
 
 - ✅ Connect Twitch channels as the broadcaster or an editor
@@ -137,7 +143,7 @@ Running from source and the installed app share the same database, so only one c
 
 ### Connect Google (one time)
 
-1. In [Google Cloud Console](https://console.cloud.google.com), create a project and enable **YouTube Data API v3**.
+1. In [Google Cloud Console](https://console.cloud.google.com), create a project and enable **YouTube Data API v3** and **YouTube Analytics API** (the second is only for the Analytics page).
 2. Under **Google Auth Platform → Branding**, fill in the app name and your email for **User support email** and **Developer contact**, plus these links (Google won't let you publish without them; leave the logo empty):
    - **Application home page:** `https://slimeraps.github.io/channeldeck/`
    - **Application privacy policy link:** `https://slimeraps.github.io/channeldeck/privacy.html`
@@ -180,6 +186,8 @@ Clips are saved to `~/Movies/ChannelDeck/Clips/<channel>/<year>/<year-month>/` (
 ### YouTube quota
 
 Quota belongs to your Google Cloud project and is shared by all your channels. Uploads have their own daily allowance (100 per day); everything else shares 10,000 units per day (a thumbnail or playlist add costs 50, a list call costs 1). Both reset at midnight Pacific. It's free; going over just pauses until the reset.
+
+The Analytics page uses the separate YouTube Analytics API, which has its own quota and doesn't count against these numbers. Its reports are kept for an hour unless you click Refresh.
 
 ---
 
@@ -225,6 +233,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### Unreleased
+
+- New **Analytics** page: views, watch time, average view duration, subscribers gained and lost, a views-per-day chart and the top 10 videos for the last 7, 28 or 90 days. Pick one channel or **All channels**, which adds every signed-in channel together (average view duration is weighted by views; top videos are ranked across channels, each with its channel's color). A channel that can't be read is left out with the reason shown. It uses the YouTube Analytics API, which has its own quota, so it doesn't touch your 10,000 daily units; enable **YouTube Analytics API** once in your Google Cloud project. No new sign-in is needed. Titles of videos ChannelDeck didn't post cost one `videos.list` unit per load.
 
 ### 1.5.0 (2026-11-13)
 

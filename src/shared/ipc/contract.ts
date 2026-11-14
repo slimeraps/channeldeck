@@ -48,6 +48,7 @@ import {
   templateViewSchema
 } from '../schemas/templates'
 import { importReportSchema } from '../schemas/backup'
+import { analyticsInputSchema, analyticsReportSchema } from '../schemas/analytics'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -431,7 +432,9 @@ export const invokeContract = {
   'layouts:testRender': {
     input: testRenderInputSchema,
     output: z.object({ url: z.string(), path: z.string() })
-  }
+  },
+  // YouTube Analytics (its own quota, not the Data API's 10,000 units)
+  'analytics:report': { input: analyticsInputSchema, output: analyticsReportSchema }
 } as const satisfies Record<InvokeChannel, { input: z.ZodType; output: z.ZodType }>
 
 export const eventContract = {

@@ -15,6 +15,7 @@ import { onEvent } from '@renderer/lib/ipc'
 import { autopostKey, layoutsKey } from '@renderer/hooks/useAutopost'
 import { statusKey } from '@renderer/hooks/useStatus'
 import { templatesKey } from '@renderer/hooks/useTemplates'
+import { AnalyticsPage } from '@renderer/pages/AnalyticsPage'
 import { AutopostPage } from '@renderer/pages/AutopostPage'
 import { CalendarPage } from '@renderer/pages/CalendarPage'
 import { TemplatesPage } from '@renderer/pages/TemplatesPage'
@@ -49,6 +50,8 @@ function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JS
       return <TemplatesPage />
     case 'calendar':
       return <CalendarPage />
+    case 'analytics':
+      return <AnalyticsPage />
     case 'settings':
       return <SettingsPage />
     default:

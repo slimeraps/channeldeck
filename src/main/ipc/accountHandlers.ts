@@ -2,7 +2,7 @@ import { readFile } from 'node:fs/promises'
 import { dialog } from 'electron'
 import { getMainWindow } from '../appWindow'
 import { UserFacingError } from '../errors'
-import { getYouTubeAccounts } from '../services'
+import { getAnalytics, getYouTubeAccounts } from '../services'
 import { handle } from './handle'
 
 const MAX_CLIENT_FILE_BYTES = 64 * 1024
@@ -44,4 +44,5 @@ export function registerAccountHandlers(): void {
   handle('accounts:remove', (input) => accounts().remove(input))
   handle('youtube:categories', ({ accountId }) => accounts().categories(accountId))
   handle('youtube:playlists', ({ accountId, refresh }) => accounts().playlists(accountId, refresh))
+  handle('analytics:report', (input) => getAnalytics().report(input))
 }
