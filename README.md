@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.3.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.3.1. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -224,6 +224,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### 1.3.1 (2026-11-13)
+
+- Fixed: "Delete local files after posting" now only deletes inside your clip folder and its `_renders` folder, and a linked folder can't point it anywhere else. Files outside are left alone, with a warning in the log. It also keeps any file an unfinished post (draft, queued, failed, waiting for quota…) still uses, including the clip a vertical render is made from (from the other developer's `fix-cleanup-delete-guard` branch, with tests).
 
 ### 1.3.0 (2026-11-13)
 

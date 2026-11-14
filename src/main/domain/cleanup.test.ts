@@ -16,6 +16,7 @@ const post = (o: Partial<CleanupPost>): CleanupPost => ({
   updatedAt: '2026-11-10T12:00:00.000Z',
   filePath: null,
   rendered: false,
+  renderSourcePath: null,
   ...o
 })
 
@@ -66,5 +67,100 @@ describe('filesToClean', () => {
       days: 7
     })
     expect(out.renderPaths).toEqual(['/r/a_1.mp4'])
+  })
+})
+
+describe('filesToClean: files an unfinished post still needs', () => {
+  const posted = [post({ clipId: 'a' })]
+
+  it('keeps a posted clip whose file a draft or queued post points at directly', () => {
+    const c = clip('a')
+    for (const status of ['draft', 'queued', 'uploading'] as const) {
+      const out = filesToClean({
+        clips: [c],
+        posts: [...posted, post({ status, filePath: c.landscapePath, publishAtUtc: null })],
+        now,
+        days: 7
+      })
+      expect(out.clipIds).toEqual([])
+    }
+  })
+
+  it('keeps a posted clip that an unfinished post renders from', () => {
+    const c = clip('a', { portraitPath: '/c/a_portrait.mp4' })
+    const unfinished = post({
+      status: 'queued',
+      rendered: true,
+      filePath: '/r/a_blur_fill_1234abcd.mp4',
+      renderSourcePath: c.landscapePath
+    })
+    const out = filesToClean({ clips: [c], posts: [...posted, unfinished], now, days: 7 })
+    expect(out.clipIds).toEqual([])
+    // ...and the portrait file is protected the same way.
+    const viaPortrait = { ...unfinished, renderSourcePath: c.portraitPath }
+    expect(
+      filesToClean({ clips: [c], posts: [...posted, viaPortrait], now, days: 7 }).clipIds
+    ).toEqual([])
+  })
+
+  it('keeps a posted clip that a failed or waiting_quota post still points at, since it can be retried', () => {
+    const c = clip('a')
+    for (const status of ['failed', 'waiting_quota'] as const) {
+      // Directly by file path.
+      const byPath = post({ status, filePath: c.landscapePath, publishAtUtc: null })
+      expect(
+        filesToClean({ clips: [c], posts: [...posted, byPath], now, days: 7 }).clipIds
+      ).toEqual([])
+      // As the source of a vertical render.
+      const bySource = post({
+        status,
+        rendered: true,
+        filePath: '/r/a_blur_fill_1234abcd.mp4',
+        renderSourcePath: c.landscapePath,
+        publishAtUtc: null
+      })
+      expect(
+        filesToClean({ clips: [c], posts: [...posted, bySource], now, days: 7 }).clipIds
+      ).toEqual([])
+    }
+  })
+
+  it('still cleans the clip once that post is finished', () => {
+    const c = clip('a')
+    const done = post({
+      status: 'canceled',
+      filePath: c.landscapePath,
+      renderSourcePath: c.landscapePath
+    })
+    expect(filesToClean({ clips: [c], posts: [...posted, done], now, days: 7 }).clipIds).toEqual([
+      'a'
+    ])
+  })
+
+  it('keeps a published render while an unfinished post renders from the same source', () => {
+    const out = filesToClean({
+      clips: [],
+      posts: [
+        post({
+          rendered: true,
+          filePath: '/r/a_blur_fill_1.mp4',
+          renderSourcePath: '/c/a_landscape.mp4'
+        }),
+        post({
+          rendered: true,
+          status: 'draft',
+          filePath: '/r/a_facecam_split_2.mp4',
+          renderSourcePath: '/c/a_landscape.mp4'
+        }),
+        post({
+          rendered: true,
+          filePath: '/r/b_blur_fill_3.mp4',
+          renderSourcePath: '/c/b_landscape.mp4'
+        })
+      ],
+      now,
+      days: 7
+    })
+    expect(out.renderPaths).toEqual(['/r/b_blur_fill_3.mp4'])
   })
 })
