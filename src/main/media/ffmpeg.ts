@@ -146,6 +146,68 @@ export async function renderEdit(args: {
   }
 }
 
+/** Tiles across a filmstrip: about one a second, between 8 and 60. */
+export function filmstripFrames(durationSec: number): number {
+  return Math.max(8, Math.min(60, Math.ceil(durationSec)))
+}
+
+/**
+ * A filmstrip for the editor's timeline: `frames` small frames spread evenly over the whole
+ * video, side by side in one JPEG (160 px wide each).
+ */
+export async function makeFilmstrip(args: {
+  input: string
+  output: string
+  durationSec: number
+  frames: number
+  binary?: string
+}): Promise<void> {
+  await mkdir(dirname(args.output), { recursive: true })
+  const rate = args.frames / Math.max(0.1, args.durationSec)
+  await runFfmpeg(
+    [
+      '-hide_banner',
+      '-nostdin',
+      '-y',
+      '-i',
+      args.input,
+      '-an',
+      '-vf',
+      `fps=${rate.toFixed(6)},scale=160:-2,tile=${args.frames}x1`,
+      '-frames:v',
+      '1',
+      '-q:v',
+      '5',
+      args.output
+    ],
+    args.binary ? { binary: args.binary } : {}
+  )
+}
+
+/** The audio's waveform over the whole video, as a light PNG on transparent. */
+export async function makeWaveform(args: {
+  input: string
+  output: string
+  binary?: string
+}): Promise<void> {
+  await mkdir(dirname(args.output), { recursive: true })
+  await runFfmpeg(
+    [
+      '-hide_banner',
+      '-nostdin',
+      '-y',
+      '-i',
+      args.input,
+      '-filter_complex',
+      'aformat=channel_layouts=mono,showwavespic=s=2400x96:colors=0xf5f7fa',
+      '-frames:v',
+      '1',
+      args.output
+    ],
+    args.binary ? { binary: args.binary } : {}
+  )
+}
+
 /** Saves one frame as a JPEG (for the crop editor). */
 export async function grabFrame(args: {
   input: string

@@ -49,6 +49,8 @@ import {
 } from '../schemas/templates'
 import { importReportSchema } from '../schemas/backup'
 import { analyticsInputSchema, analyticsReportSchema } from '../schemas/analytics'
+import { editSpecSchema } from '../schemas/edit'
+import { editorRenderSchema, editorSourceSchema, editorStripsSchema } from '../schemas/editor'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -382,6 +384,14 @@ export const invokeContract = {
     output: z.object({ approved: z.number().int() })
   },
   'autopost:forecast': { input: noInput, output: quotaForecastSchema },
+  'editor:source': { input: pathInput, output: editorSourceSchema },
+  'editor:strips': { input: pathInput, output: editorStripsSchema },
+  'editor:render': {
+    input: z.object({ spec: editSpecSchema }).strict(),
+    output: editorRenderSchema
+  },
+  'editor:cancelRender': { input: noInput, output: z.object({ canceled: z.boolean() }) },
+  'editor:reveal': { input: pathInput, output: z.object({ revealed: z.boolean() }) },
   'autopost:sync': {
     input: z.object({ id: ruleId }).strict(),
     output: z.object({ requeued: z.number().int(), onYouTube: z.number().int() })
@@ -453,6 +463,8 @@ export const eventContract = {
   /** Device Code sign-in: show this code to type at twitch.tv/activate. */
   'twitch:deviceCode': deviceCodeEventSchema,
   /** Live upload progress (not every byte; throttled in main). */
+  /** "Render now" in the editor: 0..1 as the render advances. */
+  'editor:renderProgress': z.object({ fraction: z.number().min(0).max(1) }),
   'posts:progress': z.object({
     postId: z.string(),
     sentBytes: z.number().nonnegative(),

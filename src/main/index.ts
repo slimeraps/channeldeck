@@ -11,6 +11,7 @@ import { registerAppHandlers } from './ipc/appHandlers'
 import { setIpcOrigin } from './ipc/handle'
 import { registerPostHandlers } from './ipc/postHandlers'
 import { registerAutopostHandlers } from './ipc/autopostHandlers'
+import { registerEditorHandlers } from './ipc/editorHandlers'
 import { registerTwitchHandlers } from './ipc/twitchHandlers'
 import { jobsPaused, kickJobs, setJobsPaused, startJobs, stopJobs } from './jobs'
 import { applyLoginItem, openedAtLogin } from './loginItem'
@@ -138,6 +139,7 @@ async function start(): Promise<void> {
   registerPostHandlers()
   registerTwitchHandlers()
   registerAutopostHandlers()
+  registerEditorHandlers()
 
   Menu.setApplicationMenu(
     buildAppMenu({

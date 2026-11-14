@@ -8,6 +8,7 @@ describe('sidebar pages', () => {
       'Calendar',
       'Analytics',
       'Clips',
+      'Editor',
       'Autopost',
       'Channels',
       'Templates',

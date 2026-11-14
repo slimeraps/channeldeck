@@ -207,6 +207,17 @@ A video editor that beats Eklipse's: trim, text, crop and zoom, join clips, swit
 
 **Acceptance:** unit tests for the graph builder and ASS writer; an integration test renders tiny generated clips with the bundled ffmpeg (trim, join two sources, vertical layout, text, zoom) and checks them with ffprobe; existing render and upload tests still pass.
 
-### E2–E8
+### E2 — Editor shell and timeline
 
-E2 editor shell and timeline · E3 text, crop and zoom · E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.
+- [x] Editor page in the sidebar: open a banked clip or a video file; the edit stays open across pages (saved projects come in E4)
+- [x] Live preview drawn with the render's own geometry; plays across pieces with sound
+- [x] Timeline: filmstrip and waveform per piece (made once, cached in userData/editor-cache), trim handles (ripple), split, delete, drag to reorder, zoom (buttons, Fit, ⌘ + scroll), snapping to the playhead and cuts
+- [x] Undo/redo over the whole edit (a drag is one step); shortcuts: Space/K, J/L, ←/→, I/O, S, ⌫, Home/End, ⌘Z/⇧⌘Z
+- [x] Canvas switch (9:16, 16:9, 1:1); Layout panel with the built-in layouts, the clip's channel's saved layouts, and New layout… drawn on the same clip
+- [x] Render now with progress and cancel, a player for the result, and Show in Finder (renders folder only)
+
+**Acceptance:** edit operations and the editor service are unit-tested; screenshot mode opens the editor on a demo clip, adds a second clip, plays across the join, splits with S, switches to 16:9 and renders.
+
+### E3–E8
+
+E3 text, crop and zoom · E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.

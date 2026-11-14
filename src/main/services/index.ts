@@ -12,10 +12,19 @@ import { probeVideo } from '../media/ffprobe'
 import { notify } from '../notify'
 import { secrets } from '../secrets'
 import { isSafeExternalUrl } from '../security'
-import { grabFrame, renderVertical } from '../media/ffmpeg'
+import {
+  filmstripFrames,
+  grabFrame,
+  makeFilmstrip,
+  makeWaveform,
+  renderEdit,
+  renderVertical
+} from '../media/ffmpeg'
+import { resourcePath } from '../paths'
 import { type AnalyticsService, createAnalyticsService } from './analytics'
 import { createAutopostService, type AutopostService } from './autopost'
 import { createClipsService, type ClipsService } from './clips'
+import { createEditorService, type EditorService } from './editor'
 import { createLayoutsService, type LayoutsService } from './layouts'
 import { type BackupService, createBackupService } from './backup'
 import { createStatusService, type StatusService } from './status'
@@ -37,6 +46,7 @@ let templates: TemplatesService | null = null
 let status: StatusService | null = null
 let backup: BackupService | null = null
 let analytics: AnalyticsService | null = null
+let editor: EditorService | null = null
 
 /** Lets the Twitch view show "syncing…" without importing the job runner. */
 export function setSyncingProbe(fn: (accountId: number) => boolean): void {
@@ -57,7 +67,7 @@ export function initServices(): void {
     // The clip bank (and renders inside it) is always previewable.
     roots: () => {
       const clipsRoot = repos.settings.getKey('clipsRoot')
-      return [clipsRoot, join(clipsRoot, '_renders')]
+      return [clipsRoot, join(clipsRoot, '_renders'), editorCacheDir()]
     },
     isReferenced: (path) => repos.posts.referencesFile(path)
   })
@@ -143,6 +153,20 @@ export function initServices(): void {
     emitChanged: () => emitToRenderer('templates:changed', undefined)
   })
 
+  editor = createEditorService({
+    repos,
+    media: mediaAccess,
+    probe: probeVideo,
+    cacheDir: editorCacheDir(),
+    fontsDir: resourcePath('fonts'),
+    makeFilmstrip,
+    filmstripFrames,
+    makeWaveform,
+    renderEdit,
+    emitProgress: (fraction) => emitToRenderer('editor:renderProgress', { fraction }),
+    showItemInFolder: (path) => shell.showItemInFolder(path)
+  })
+
   layouts = createLayoutsService({
     repos,
     media: mediaAccess,
@@ -156,6 +180,16 @@ export function initServices(): void {
         maxSeconds
       })
   })
+}
+
+/** Filmstrips and waveforms for the editor's timeline (rebuilt if deleted). */
+function editorCacheDir(): string {
+  return join(app.getPath('userData'), 'editor-cache')
+}
+
+export function getEditor(): EditorService {
+  if (!editor) throw new Error('Services not initialized')
+  return editor
 }
 
 export function getAnalytics(): AnalyticsService {
