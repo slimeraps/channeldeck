@@ -111,6 +111,7 @@ function withClip(input: PostInput, clip: ClipView, info: MediaInfo): PostInput 
     filePath: info.path,
     clipId: clip.id,
     render: null,
+    edit: null,
     title: fromBefore ? clip.title.replace(/[<>]/g, '').slice(0, TITLE_MAX_CHARS) : input.title,
     description: !input.description || input.clipId ? credit : input.description
   }
@@ -296,10 +297,11 @@ function PostEditorForm({
       const info = await fetcher()
       if (!info) return
       setMedia(info)
-      // A different video starts without a vertical render; the Format switch sets one.
+      // A different video starts without a vertical render or edit; the Format switch sets one.
       setInput((prev) => ({
         ...withVideo(prev, info),
         render: null,
+        edit: null,
         ...(keepClip ? {} : { clipId: null })
       }))
       if (!keepClip) setClipFiles(null)
@@ -402,7 +404,7 @@ function PostEditorForm({
                 onDropPath={(path) => void loadVideo(() => invoke('media:inspectVideo', { path }))}
                 onClear={() => {
                   setMedia(null)
-                  setInput((prev) => ({ ...prev, filePath: null, render: null }))
+                  setInput((prev) => ({ ...prev, filePath: null, render: null, edit: null }))
                 }}
               />
             </Field>
@@ -455,7 +457,8 @@ function PostEditorForm({
                   if (filePath && filePath !== input.filePath) {
                     await loadVideo(() => invoke('media:inspectVideo', { path: filePath }), true)
                   }
-                  setInput((prev) => ({ ...prev, render }))
+                  // A format choice replaces an edit (the editor opens from "Edit video…").
+                  setInput((prev) => ({ ...prev, render, edit: null }))
                 })()
               }}
             />

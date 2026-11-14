@@ -31,6 +31,43 @@ describe('parseProbeJson', () => {
     })
   })
 
+  it('reads the frame rate and whether there is audio', () => {
+    const ntsc = parseProbeJson(
+      {
+        streams: [
+          { codec_type: 'audio', codec_name: 'aac' },
+          {
+            codec_type: 'video',
+            width: 1920,
+            height: 1080,
+            avg_frame_rate: '30000/1001',
+            r_frame_rate: '30000/1001'
+          }
+        ],
+        format: { duration: '10' }
+      },
+      file
+    )
+    expect(ntsc).toMatchObject({ fps: 29.97, hasAudio: true })
+
+    const silent = parseProbeJson(
+      {
+        streams: [
+          {
+            codec_type: 'video',
+            width: 1280,
+            height: 720,
+            avg_frame_rate: '0/0',
+            r_frame_rate: '60/1'
+          }
+        ],
+        format: { duration: '5' }
+      },
+      file
+    )
+    expect(silent).toMatchObject({ fps: 60, hasAudio: false })
+  })
+
   it('applies phone rotation so portrait videos read as vertical Shorts', () => {
     const r = parseProbeJson(
       {

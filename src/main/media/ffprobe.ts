@@ -26,6 +26,10 @@ export interface ProbeResult {
   aspectRatio: string
   isShort: boolean
   isLong: boolean
+  /** Frames per second of the video track (absent when ffprobe didn't say). */
+  fps?: number
+  /** Whether the file has an audio track (absent = not checked). */
+  hasAudio?: boolean
 }
 
 interface FfprobeStream {
@@ -34,6 +38,8 @@ interface FfprobeStream {
   width?: number
   height?: number
   duration?: string
+  avg_frame_rate?: string
+  r_frame_rate?: string
   tags?: Record<string, string>
   side_data_list?: { rotation?: number | string }[]
 }
@@ -78,8 +84,21 @@ export function parseProbeJson(
     videoCodec: video.codec_name ?? null,
     aspectRatio: aspectRatioLabel(width, height),
     isShort: isShortCandidate({ width, height, durationSec }),
-    isLong: isLongVideo(durationSec)
+    isLong: isLongVideo(durationSec),
+    ...frameRate(video),
+    hasAudio: Boolean(json.streams?.some((s) => s.codec_type === 'audio'))
   }
+}
+
+/** "30000/1001" → 29.97. Prefers the average rate; ignores 0/0 and absurd values. */
+function frameRate(video: FfprobeStream): { fps?: number } {
+  for (const raw of [video.avg_frame_rate, video.r_frame_rate]) {
+    const [num, den] = (raw ?? '').split('/').map(Number)
+    const fps = den ? (num ?? 0) / den : Number(raw)
+    if (Number.isFinite(fps) && fps >= 1 && fps <= 240)
+      return { fps: Math.round(fps * 1000) / 1000 }
+  }
+  return {}
 }
 
 export async function probeVideo(path: string): Promise<ProbeResult> {

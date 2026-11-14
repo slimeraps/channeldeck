@@ -21,8 +21,8 @@ export interface CleanupPost {
   updatedAt: string
   filePath: string | null
   rendered: boolean
-  /** The video a vertical render is made from (`render_json.sourcePath`). */
-  renderSourcePath: string | null
+  /** The videos a render is made from (every segment source of an edit). */
+  renderSourcePaths: readonly string[]
 }
 
 const DONE: PostStatus[] = ['published', 'canceled']
@@ -47,9 +47,9 @@ export function filesToClean(args: {
   const renderSourcesInUse = new Set<string>()
   for (const p of unfinished) {
     if (p.filePath) inUse.add(p.filePath)
-    if (p.renderSourcePath) {
-      inUse.add(p.renderSourcePath)
-      renderSourcesInUse.add(p.renderSourcePath)
+    for (const source of p.renderSourcePaths) {
+      inUse.add(source)
+      renderSourcesInUse.add(source)
     }
   }
 
@@ -80,7 +80,7 @@ export function filesToClean(args: {
             p.status === 'published' &&
             publishedAt(p) <= cutoff &&
             !inUse.has(p.filePath) &&
-            !(p.renderSourcePath && renderSourcesInUse.has(p.renderSourcePath))
+            !p.renderSourcePaths.some((source) => renderSourcesInUse.has(source))
         )
         .map((p) => p.filePath as string)
     )

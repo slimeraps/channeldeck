@@ -1,6 +1,7 @@
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import type { PostStepName } from '@shared/constants/enums'
+import { isEditSpec, renderSources } from '@shared/schemas/edit'
 import type { Repos } from '../db/repos'
 import type { PostRow } from '../db/repos/posts'
 import { nextQuotaReset } from '../domain/quota'
@@ -31,7 +32,7 @@ export interface UploadJobDeps {
   clock?: () => Date
   backoff?: BackoffOptions
   sleep?: (ms: number, signal?: AbortSignal) => Promise<void>
-  /** Converts post.renderJson's source to post.filePath and reports the result. */
+  /** Renders post.renderJson (a vertical conversion or an edit) to post.filePath. */
   renderVideo?: (post: PostRow, signal: AbortSignal) => Promise<RenderedFile>
 }
 
@@ -122,19 +123,22 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
   }
 
   async function render(post: PostRow, signal: AbortSignal): Promise<PostRow> {
-    if (!deps.renderVideo) throw new RenderProblem('Vertical rendering is not available.')
-    const source = post.renderJson?.sourcePath
-    if (!source || !existsSync(source)) {
-      throw new FileProblem(`File missing: ${source ?? 'the clip file'} (needed for the render)`)
-    }
+    const what = isEditSpec(post.renderJson) ? 'Render' : 'Vertical render'
+    if (!deps.renderVideo) throw new RenderProblem(`${what} failed: rendering is not available.`)
+    const sources = renderSources(post.renderJson)
+    const missing = sources.length === 0 ? 'the clip file' : sources.find((f) => !existsSync(f))
+    if (missing) throw new FileProblem(`File missing: ${missing} (needed for the render)`)
     let out: RenderedFile
     try {
       out = await deps.renderVideo(post, signal)
     } catch (error) {
       if (signal.aborted) throw error
-      throw new RenderProblem(error instanceof Error ? error.message : String(error), {
-        cause: error
-      })
+      throw new RenderProblem(
+        `${what} failed: ${error instanceof Error ? error.message : String(error)}`,
+        {
+          cause: error
+        }
+      )
     }
     return repos.posts.update(post.id, {
       fileSize: out.sizeBytes,
@@ -283,7 +287,7 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
       return {
         kind: 'fatal',
         reason: 'render',
-        message: `Vertical render failed: ${error.message}`,
+        message: error.message,
         retryAfterMs: null
       }
     // withApi turns invalid_grant into a user-facing error but keeps the original as cause.

@@ -4,15 +4,17 @@ import { app } from 'electron'
 import { closeDatabase, initDatabase } from './db'
 import { createUploadJob } from './jobs/upload'
 import { logger } from './logger'
-import { ffmpegPath, renderVertical, runFfmpeg } from './media/ffmpeg'
+import { DEFAULT_TEXT_STYLE } from '@shared/schemas/edit'
+import { ffmpegPath, renderEdit, renderVertical, runFfmpeg } from './media/ffmpeg'
 import { ffprobePath, probeVideo } from './media/ffprobe'
+import { resourcePath } from './paths'
 import { getPosts, getYouTubeAccounts, initServices } from './services'
 
 /**
  * Build check (CHANNELDECK_SELF_TEST=<folder>). In a throwaway data folder: opens a new
  * database (runs every migration), makes a 2-second test video with the bundled ffmpeg, reads
- * it with ffprobe, renders a vertical version, then queues it on a fake channel and runs the
- * real upload job in Dry Run. Writes self-test.json and exits 0 only if all of it worked.
+ * it with ffprobe, renders a vertical version and an edit (join + text in a bundled font),
+ * then queues it on a fake channel and runs the real upload job in Dry Run. Writes self-test.json and exits 0 only if all of it worked.
  * No network: Dry Run never calls Google.
  */
 export async function runSelfTest(): Promise<number> {
@@ -76,6 +78,39 @@ export async function runSelfTest(): Promise<number> {
     const rendered = await probeVideo(vertical)
     report['render'] = `${rendered.width}x${rendered.height}`
 
+    // An editor render: two trimmed pieces joined, with text in a bundled font (this is what
+    // proves the fonts are reachable outside the app archive).
+    const edited = join(dir, 'self-test-edit.mp4')
+    const piece = { sourcePath: video, clipId: null, layout: null, frame: null }
+    await renderEdit({
+      spec: {
+        version: 2,
+        canvas: 'vertical',
+        segments: [
+          { ...piece, inSec: 0, outSec: 0.6 },
+          { ...piece, inSec: 1, outSec: 1.6 }
+        ],
+        texts: [
+          {
+            id: 'self-test',
+            text: 'ChannelDeck',
+            startSec: 0,
+            endSec: 1.2,
+            x: 0.5,
+            y: 0.2,
+            style: DEFAULT_TEXT_STYLE,
+            animation: 'pop'
+          }
+        ],
+        volume: 1
+      },
+      sources: [probe, probe],
+      output: edited,
+      fontsDir: resourcePath('fonts')
+    })
+    const edit = await probeVideo(edited)
+    report['edit'] = { size: `${edit.width}x${edit.height}`, durationSec: edit.durationSec }
+
     repos.settings.update({ dryRun: true })
     const account = repos.accounts.create({
       channelId: 'UC_CHANNELDECK_SELF_TEST',
@@ -118,6 +153,8 @@ export async function runSelfTest(): Promise<number> {
     ok =
       rendered.width === 1080 &&
       rendered.height === 1920 &&
+      edit.height === 1920 &&
+      Math.abs(edit.durationSec - 1.2) < 0.2 &&
       row.status === 'processing' &&
       Boolean(row.youtubeVideoId?.startsWith('DRYRUN-'))
   } catch (error) {

@@ -187,3 +187,26 @@ Requested by Cody on 2026-11-13.
 - [x] README: Google Cloud setup (APIs, OAuth Desktop client, consent screen In production), Twitch app setup (Confidential, redirect URL), where `client_secret.json` goes, `npm run dev`, building the dmg, opening an unsigned app (right-click → Open)
 
 **Acceptance:** `npm run dist` produces a dmg; the installed app launches, runs migrations, finds ffmpeg/ffprobe, and completes a Dry Run upload.
+
+---
+
+## Editor (E1–E8), planned 2026-11-14
+
+A video editor that beats Eklipse's: trim, text, crop and zoom, join clips, switch or make vertical layouts on the spot, branding and stickers, auto captions, and edit styles that autopost rules apply. It lives on an Editor page and opens from the post editor and the Clips page. Once it's polished here, it's ported to the web version. Later list: music, crossfades, new layout types.
+
+**Design:** one `EditSpec` (`src/shared/schemas/edit.ts`): canvas (vertical / horizontal / square), segments (source, in/out, layout or frame crop with zoom), texts, overlays, captions, volume. A pure graph builder (`src/main/domain/edit.ts`) turns it into ffmpeg arguments: per-segment trim + layout or crop/zoom, `concat`, text and captions through one ASS file (libass, bundled OFL fonts), stickers through `overlay`. `posts.render_json` holds either the old vertical spec or an `EditSpec` (`version: 2`), and the upload job's render step renders either.
+
+### E1 — Edit engine
+
+- [x] Bundled fonts (Archivo Black, Anton, Bebas Neue; OFL) in `resources/fonts`, unpacked in the packaged app
+- [x] Layout geometry moved to `src/shared/geometry.ts` so the editor preview uses the same math as the render
+- [x] `EditSpec` schema; legacy vertical specs read as a one-segment edit
+- [x] ASS writer for text layers (style, position, timing, fade/pop)
+- [x] Graph builder: trim, join, vertical layouts, crop + zoom ramp, text, silent audio for silent sources; output name hashed over the spec
+- [x] `render_json` accepts an `EditSpec`; the upload job's render step and "delete local files after posting" handle edits (every segment source is protected)
+
+**Acceptance:** unit tests for the graph builder and ASS writer; an integration test renders tiny generated clips with the bundled ffmpeg (trim, join two sources, vertical layout, text, zoom) and checks them with ffprobe; existing render and upload tests still pass.
+
+### E2–E8
+
+E2 editor shell and timeline · E3 text, crop and zoom · E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.

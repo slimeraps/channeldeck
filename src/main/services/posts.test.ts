@@ -498,6 +498,48 @@ describe('horizontal or vertical', () => {
     })
   })
 
+  it('saves an edit: uploads its render, keeps its length and canvas, and gives it back whole', async () => {
+    const second = join(dir, 'other.mp4')
+    writeFileSync(second, 'more bytes')
+    const posts = wideService()
+    const edit = {
+      version: 2 as const,
+      canvas: 'vertical' as const,
+      segments: [
+        { sourcePath: landscape, clipId: null, inSec: 2, outSec: 12, layout: null, frame: null },
+        { sourcePath: second, clipId: null, inSec: 0, outSec: 5, layout: null, frame: null }
+      ],
+      texts: [],
+      volume: 1
+    }
+    const saved = await posts.save({
+      input: input({ filePath: landscape, render: null, edit }),
+      mode: 'queue'
+    })
+    const row = t.repos.posts.require(saved.id)
+    expect(row).toMatchObject({
+      renderJson: edit,
+      durationSec: 15,
+      width: 1080,
+      height: 1920,
+      isShort: true,
+      fileSize: null
+    })
+    expect(row.filePath).toMatch(new RegExp(`^${dir}/_renders/clip_edit_[0-9a-f]{10}\\.mp4$`))
+    // The sources count as the post's files (the video player may show them).
+    expect(t.repos.posts.referencesFile(second)).toBe(true)
+    expect(t.repos.posts.referencesFile(join(dir, 'unrelated.mp4'))).toBe(false)
+
+    const detail = await posts.get(saved.id)
+    expect(detail.input).toMatchObject({ filePath: landscape, render: null, edit })
+
+    // A source that's gone can't be queued.
+    rmSync(second)
+    await expect(posts.save({ id: saved.id, input: detail.input, mode: 'queue' })).rejects.toThrow(
+      `File missing: ${second} (used in the edit)`
+    )
+  })
+
   it('renders on request into the file the upload will use', async () => {
     const renderVertical = vi.fn(async ({ output }: { output: string }) => {
       mkdirSync(join(dir, '_renders'), { recursive: true })
