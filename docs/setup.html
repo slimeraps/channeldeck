@@ -1,0 +1,165 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Setup · ChannelDeck</title>
+    <meta
+      name="description"
+      content="Connect your Google Cloud project, YouTube channels and Twitch app to ChannelDeck."
+    />
+    <meta name="theme-color" content="#10151d" />
+    <link rel="icon" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="install.html">Install</a></li>
+          <li><a href="setup.html" aria-current="page">Setup</a></li>
+          <li><a href="data.html">Your data</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="develop.html">Develop</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main>
+      <h1>Setup</h1>
+      <p class="lede">
+        ChannelDeck talks to YouTube and Twitch with your own free developer apps, so your quota and
+        your sign-ins belong to you. Each part takes a few minutes and you only do it once.
+      </p>
+
+      <div class="card toc">
+        <ul>
+          <li><a href="#google">Connect Google and your YouTube channels</a></li>
+          <li><a href="#twitch">Connect Twitch</a></li>
+          <li><a href="#checklist">The setup checklist</a></li>
+        </ul>
+      </div>
+
+      <h2 id="google">Connect Google and your YouTube channels</h2>
+      <ol>
+        <li>
+          In the <a href="https://console.cloud.google.com">Google Cloud Console</a>, create a
+          project and enable <strong>YouTube Data API v3</strong> and
+          <strong>YouTube Analytics API</strong> (the second is only for the Analytics page).
+        </li>
+        <li>
+          Under <strong>Google Auth Platform → Branding</strong>, fill in the app name and your
+          email for <strong>User support email</strong> and <strong>Developer contact</strong>.
+          Google won't let you publish without these links (leave the logo empty):
+          <ul>
+            <li>
+              <strong>Application home page:</strong>
+              <code>https://slimeraps.github.io/channeldeck/</code>
+            </li>
+            <li>
+              <strong>Application privacy policy link:</strong>
+              <code>https://slimeraps.github.io/channeldeck/privacy.html</code>
+            </li>
+            <li><strong>Authorized domains:</strong> <code>slimeraps.github.io</code></li>
+          </ul>
+        </li>
+        <li>
+          Under <strong>Audience</strong>, set the user type to <strong>External</strong> and click
+          <strong>Publish app</strong> so the status says <strong>In production</strong>.
+        </li>
+        <li>
+          Under <strong>Clients</strong>, create an OAuth client ID of type
+          <strong>Desktop app</strong> and download its JSON file.
+        </li>
+        <li>
+          In ChannelDeck, click <strong>Import…</strong> in the setup checklist (or
+          <strong>Settings → Google and Twitch apps</strong>) and pick the downloaded
+          <code>client_secret_….json</code>.
+        </li>
+        <li>
+          Click <strong>Add channel</strong>, once per channel. For a Brand Account channel, pick it
+          in Google's chooser.
+        </li>
+      </ol>
+
+      <div class="card note">
+        <p>
+          <strong>Why "In production"?</strong> In Testing mode, Google signs you out of every
+          channel after 7 days. You don't need Google's verification for personal use: on the
+          warning screen, click <strong>Advanced → Go to ChannelDeck</strong>.
+        </p>
+      </div>
+
+      <p>
+        Sign-in opens your browser and comes back to ChannelDeck on a temporary
+        <code>127.0.0.1</code> address, so there are no redirect URLs to set up. The client file is
+        copied into ChannelDeck's own folder with owner-only permissions.
+      </p>
+
+      <h2 id="twitch">Connect Twitch</h2>
+      <ol>
+        <li>
+          In the <a href="https://dev.twitch.tv/console/apps/create">Twitch developer console</a>,
+          click <strong>Register Your Application</strong>.
+        </li>
+        <li>
+          Add the OAuth Redirect URL <code>http://localhost:17563/twitch/callback</code>, set
+          <strong>Client Type</strong> to <strong>Confidential</strong>, and create it.
+        </li>
+        <li>
+          Open <strong>Manage</strong>, click <strong>New Secret</strong>, and paste the Client ID
+          and Client Secret into ChannelDeck (<strong>Channels → Twitch accounts</strong>).
+        </li>
+        <li>
+          Click <strong>Connect Twitch</strong>, choose whether you're the broadcaster or an editor
+          of the channel, and pick how far back to load clips.
+        </li>
+      </ol>
+      <p>
+        Without a secret, ChannelDeck uses Twitch's device-code sign-in instead, but those sign-ins
+        expire after 30 days.
+      </p>
+      <p>
+        Clips are saved to
+        <code>~/Movies/ChannelDeck/Clips/&lt;channel&gt;/&lt;year&gt;/&lt;year-month&gt;/</code>
+        (you can change the folder in Settings), named like
+        <code>2026-11-12_204512_&lt;clip id&gt;_&lt;title&gt;_landscape.mp4</code> so Finder sorts
+        them oldest to newest. A thumbnail and a <code>.json</code> file with the clip's details sit
+        next to each video.
+      </p>
+
+      <h2 id="checklist">The setup checklist</h2>
+      <p>
+        The <strong>Set up ChannelDeck</strong> card at the top of the Queue ticks off each step as
+        you finish it: Google client file, consent screen in production, a YouTube channel, the
+        Twitch app, a Twitch channel, and your clip folder. You can hide it and bring it back from
+        Settings.
+      </p>
+
+      <h2>Try it safely first</h2>
+      <p>
+        <strong>Dry Run</strong> is in <strong>Settings → Uploads</strong>. While it's on,
+        ChannelDeck shows exactly what it would send to YouTube and moves posts through their
+        statuses without uploading anything.
+      </p>
+
+      <footer>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

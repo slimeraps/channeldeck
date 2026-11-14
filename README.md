@@ -1,5 +1,7 @@
 # ChannelDeck
 
+**Website: [slimeraps.github.io/channeldeck](https://slimeraps.github.io/channeldeck/)**: features, install and setup guides, your data, the changelog and the privacy policy.
+
 A personal macOS app for running several YouTube channels from one place. It does two jobs:
 
 1. **Scheduler**: queue videos for any connected YouTube channel, choose when each goes public, and let the app upload them with thumbnails and playlists, then track their status.
@@ -233,7 +235,11 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 ## Changelog
 
-No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
+
+### Unreleased
+
+- Website (2026-11-14): the GitHub Pages site in `docs/` is now a full site in the app's colors: Home, Features, Install, Setup (Google and Twitch), Your data (folders, backups, quota, deleting everything), Changelog, Develop and the Privacy policy, with screenshots from the app's screenshot mode. The privacy policy now also lists the YouTube Analytics reports the Analytics page reads (kept in memory for an hour, never saved). The repository's Website link points to it.
 
 ### 1.7.0 (2026-11-14)
 

@@ -1,0 +1,111 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Install · ChannelDeck</title>
+    <meta name="description" content="Download and install ChannelDeck on an Apple Silicon Mac." />
+    <meta name="theme-color" content="#10151d" />
+    <link rel="icon" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="install.html" aria-current="page">Install</a></li>
+          <li><a href="setup.html">Setup</a></li>
+          <li><a href="data.html">Your data</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="develop.html">Develop</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main>
+      <h1>Install</h1>
+      <p class="lede">
+        ChannelDeck runs on Macs with Apple Silicon (M1 or newer) and a recent macOS.
+      </p>
+
+      <h2>1. Download</h2>
+      <p>
+        Get <code>ChannelDeck-&lt;version&gt;-arm64.dmg</code> from the
+        <a href="https://github.com/slimeraps/channeldeck/releases/latest">latest release</a> on
+        GitHub. Each release lists its SHA-256 if you want to check the download.
+      </p>
+
+      <h2>2. Install</h2>
+      <p>
+        Open the <code>.dmg</code> and drag <strong>ChannelDeck</strong> to
+        <strong>Applications</strong>.
+      </p>
+
+      <h2>3. Open it the first time</h2>
+      <p>
+        ChannelDeck is signed on the Mac that built it but isn't notarized by Apple, so macOS blocks
+        a downloaded copy the first time you open it:
+      </p>
+      <ol>
+        <li>Open ChannelDeck once and close the warning.</li>
+        <li>
+          Go to <strong>System Settings → Privacy &amp; Security</strong>, scroll down to the
+          ChannelDeck message, click <strong>Open Anyway</strong> and confirm.
+        </li>
+      </ol>
+      <p>
+        On macOS 15 and later, right-click → Open no longer skips this step. You only do it once per
+        version.
+      </p>
+      <p>
+        When macOS asks about <strong>"ChannelDeck Safe Storage"</strong> in your Keychain, click
+        <strong>Always Allow</strong>. That's where ChannelDeck keeps the key that encrypts your
+        sign-ins.
+      </p>
+
+      <h2>4. Set it up</h2>
+      <p>
+        The <strong>Set up ChannelDeck</strong> checklist at the top of the Queue takes you through
+        each step. The <a href="setup.html">setup guide</a> explains the Google and Twitch parts in
+        detail.
+      </p>
+
+      <h2>Updating</h2>
+      <p>
+        Quit ChannelDeck (from the menu bar icon or with <kbd>⌘</kbd><kbd>Q</kbd>), drag the new
+        version to Applications and replace the old one. Your channels, posts, clips and settings
+        stay as they are. Uploads that were interrupted continue on the next launch.
+      </p>
+
+      <h2>Uninstalling</h2>
+      <p>
+        Remove your channels in ChannelDeck first so their Google and Twitch access is revoked. Then
+        quit it, delete it from Applications, and delete the folders listed on
+        <a href="data.html#where">Your data</a>.
+      </p>
+
+      <h2>Build it yourself</h2>
+      <p>
+        You can also build the app from source with Node.js. See <a href="develop.html">Develop</a>.
+      </p>
+
+      <footer>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

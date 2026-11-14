@@ -3,63 +3,192 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>ChannelDeck</title>
+    <title>ChannelDeck: run several YouTube channels from one Mac app</title>
     <meta
       name="description"
-      content="ChannelDeck: a personal Mac app that schedules YouTube uploads for several channels and turns Twitch clips into scheduled posts."
+      content="ChannelDeck is a free Mac app that schedules YouTube uploads for several channels and turns your Twitch clips into scheduled YouTube posts."
     />
+    <meta name="theme-color" content="#10151d" />
     <link rel="icon" href="icon.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
-    <main>
-      <header>
-        <img src="icon.png" alt="" />
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="install.html">Install</a></li>
+          <li><a href="setup.html">Setup</a></li>
+          <li><a href="data.html">Your data</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="develop.html">Develop</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main class="wide">
+      <section class="hero">
+        <img class="mark" src="img/mark.svg" alt="" width="72" height="75" />
         <div>
-          <h1>ChannelDeck</h1>
-          <p>Run several YouTube channels from one Mac app.</p>
+          <h1>Run several YouTube channels from one Mac app.</h1>
+          <p class="lede">
+            ChannelDeck schedules uploads for every channel you run, and turns your Twitch clips
+            into scheduled YouTube posts on the days and times you choose.
+          </p>
+          <div class="buttons">
+            <a class="button" href="https://github.com/slimeraps/channeldeck/releases/latest"
+              >Download for Mac</a
+            >
+            <a class="button secondary" href="install.html">How to install</a>
+            <a class="button secondary" href="https://github.com/slimeraps/channeldeck"
+              >Source on GitHub</a
+            >
+          </div>
+          <p>Free · Apple Silicon Macs · version 1.7.0 · <a href="changelog.html">what's new</a></p>
         </div>
-      </header>
+      </section>
 
-      <p>
-        ChannelDeck is a personal macOS app (Apple Silicon). It schedules YouTube uploads for any
-        number of channels using YouTube's own scheduled publishing, and it keeps a bank of your
-        Twitch clips on disk and can post them to YouTube on daily time slots you choose.
-      </p>
+      <figure>
+        <img
+          src="img/queue.jpg"
+          alt="The ChannelDeck queue: posts for several channels with their publish times and upload status"
+          width="1280"
+          height="820"
+        />
+        <figcaption>
+          The queue: every post for every channel, with its publish time and where it stands.
+        </figcaption>
+      </figure>
+
+      <h2>Two jobs, one app</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>Upload scheduler</h3>
+          <p>
+            Queue videos for any connected YouTube channel and pick when each goes public.
+            ChannelDeck uploads them ahead of time with their thumbnail and playlist, then tracks
+            them until they're live.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Twitch clip bank and autoposter</h3>
+          <p>
+            Connect your Twitch channels and ChannelDeck pulls every new clip once a day, keeps them
+            sorted on disk, and posts them to YouTube as Shorts or regular videos in your daily time
+            slots.
+          </p>
+        </div>
+      </div>
 
       <div class="card">
         <p>
-          <strong>Everything runs on your Mac.</strong> There is no ChannelDeck server or account.
-          The app talks directly to YouTube and Twitch with your own Google Cloud project and Twitch
-          app, and your sign-ins are stored encrypted with the macOS Keychain.
+          <strong>Everything runs on your Mac.</strong> There's no ChannelDeck server and no account
+          to make. The app talks straight to YouTube and Twitch using your own Google Cloud project
+          and Twitch app, and your sign-ins are encrypted with the macOS Keychain.
         </p>
       </div>
 
-      <h2>What it does</h2>
-      <ul>
-        <li>
-          Queue and schedule videos for every connected YouTube channel, with thumbnails, playlists
-          and status tracking.
-        </li>
-        <li>Sync Twitch clips daily and keep them sorted on disk.</li>
-        <li>
-          Autopost clips as YouTube Shorts or regular videos, with optional review before anything
-          is queued.
-        </li>
-        <li>Calendar, templates, numbered series, quota meter and backups.</li>
-      </ul>
+      <h2>Highlights</h2>
+      <div class="grid">
+        <div class="card">
+          <h3>YouTube's own scheduling</h3>
+          <p>
+            Videos upload as private with a publish time, and YouTube makes them public on time.
+            Your Mac doesn't need to be awake at the moment they go live.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Never posted twice</h3>
+          <p>
+            A clip can only go to a channel once. The database itself enforces it, so no rule or
+            mistake can repost it.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Vertical Shorts</h3>
+          <p>
+            Turn a landscape clip into a Short with a blurred fill, a center crop, or a
+            facecam-on-top split you draw yourself.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Review or Auto</h3>
+          <p>
+            Approve each autopost before it's queued, or let a rule run on its own. Swap a clip with
+            one click before it uploads.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Calendar and analytics</h3>
+          <p>
+            See every channel's week or month at a glance, drag to reschedule, and check views,
+            watch time and subscribers per channel or all together.
+          </p>
+        </div>
+        <div class="card">
+          <h3>Safe with quota</h3>
+          <p>
+            A live quota meter, a warning before your rules go over, and uploads that wait for the
+            daily reset instead of failing.
+          </p>
+        </div>
+      </div>
 
-      <h2>Get it</h2>
-      <p>
-        Download the latest version from the
-        <a href="https://github.com/slimeraps/channeldeck/releases/latest">releases page</a>, or
-        build it from the <a href="https://github.com/slimeraps/channeldeck">source on GitHub</a>.
-      </p>
+      <figure>
+        <img
+          src="img/clips.jpg"
+          alt="The Clips page: Twitch clips from two channels with filters, views and posted status"
+          width="1280"
+          height="820"
+          loading="lazy"
+        />
+        <figcaption>
+          The clip bank: every Twitch clip, sorted, filtered and ready to post.
+        </figcaption>
+      </figure>
+
+      <figure>
+        <img
+          src="img/autopost.jpg"
+          alt="The Autopost page: rules that post clips daily to a YouTube channel"
+          width="1280"
+          height="820"
+          loading="lazy"
+        />
+        <figcaption>Autopost rules fill your daily time slots with clips.</figcaption>
+      </figure>
+
+      <h2>What you need</h2>
+      <ul>
+        <li>A Mac with Apple Silicon (M1 or newer) and a recent macOS.</li>
+        <li>
+          A free Google Cloud project with the YouTube Data API turned on. The
+          <a href="setup.html#google">setup guide</a> walks you through it in a few minutes.
+        </li>
+        <li>
+          For clips: a free Twitch developer app (<a href="setup.html#twitch">setup guide</a>).
+        </li>
+      </ul>
+      <div class="buttons">
+        <a class="button" href="install.html">Get started</a>
+        <a class="button secondary" href="features.html">See every feature</a>
+      </div>
 
       <footer>
-        <a href="privacy.html">Privacy policy</a> ·
-        <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
-        <a href="https://github.com/slimeraps/channeldeck/issues">Contact</a>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
       </footer>
     </main>
   </body>

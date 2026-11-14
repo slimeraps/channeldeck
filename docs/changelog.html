@@ -1,0 +1,246 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Changelog · ChannelDeck</title>
+    <meta name="description" content="What changed in each ChannelDeck release." />
+    <meta name="theme-color" content="#10151d" />
+    <link rel="icon" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="install.html">Install</a></li>
+          <li><a href="setup.html">Setup</a></li>
+          <li><a href="data.html">Your data</a></li>
+          <li><a href="changelog.html" aria-current="page">Changelog</a></li>
+          <li><a href="develop.html">Develop</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main>
+      <h1>Changelog</h1>
+      <p class="lede">
+        What changed in each release, newest first. Downloads are on the
+        <a href="https://github.com/slimeraps/channeldeck/releases">releases page</a>.
+      </p>
+
+      <section class="release">
+        <h2 id="v1.7.0">
+          1.7.0
+          <small
+            >November 14, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.7.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>
+            <strong>Sync an autopost rule.</strong> <strong>Sync…</strong> in a rule's ⋯ menu
+            re-queues its failed autoposts: their clips go back in the pool and upload in the next
+            empty slots. Clips you unscheduled or swapped out stay skipped.
+          </li>
+          <li>
+            <strong>Duplicate no longer reposts clips.</strong> A copied rule starts with the
+            original's skipped clips and the clips it already has queued, so duplicating a rule and
+            deleting the original doesn't bring them back.
+          </li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.6.0">
+          1.6.0
+          <small
+            >November 14, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.6.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>
+            <strong>Analytics page:</strong> views, watch time, average view duration, subscribers,
+            a views-per-day chart and your top 10 videos for 7, 28 or 90 days, per channel or all
+            channels together. Turn on <strong>YouTube Analytics API</strong> once in your Google
+            Cloud project.
+          </li>
+          <li>
+            Fixed: autoposts stuck on "Uploading" at 0% when their Short had already been rendered.
+          </li>
+          <li>Fixed: a backup can no longer put a bad Twitch name into your clip folder path.</li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.5.0">
+          1.5.0
+          <small
+            >November 13, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.5.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>
+            Queue: select several posts to <strong>Approve</strong>, <strong>Upload now</strong>,
+            <strong>Retry</strong>, <strong>Duplicate</strong>, <strong>Unschedule</strong> or
+            <strong>Delete drafts</strong> at once.
+          </li>
+          <li>
+            <strong>Select all</strong> appears in the selection bar once something is selected.
+          </li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.4.0">
+          1.4.0
+          <small
+            >November 13, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.4.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>New look: the pink ChannelDeck logo in the app, its icon and the menu bar.</li>
+          <li><strong>Duplicate…</strong> for autopost rules.</li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.3.1">
+          1.3.1
+          <small
+            >November 13, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.3.1"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>
+            Fixed: "Delete local files after posting" only deletes inside your clip folder, and
+            keeps any file an unfinished post still needs.
+          </li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.3.0">
+          1.3.0
+          <small
+            >November 13, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.3.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>Calendar: swipe sideways to change week or month.</li>
+          <li>The queue fits the window again, and every time uses the same 12-hour clock.</li>
+          <li><strong>Hide post titles</strong> for streaming.</li>
+          <li>
+            Fixed: a video now has to stay missing from YouTube for an hour before it counts as
+            deleted; importing a backup no longer changes Dry Run; the video player can't be pointed
+            outside your folders.
+          </li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.2.0">
+          1.2.0
+          <small
+            >November 13, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.2.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>
+            <strong>From clip library…</strong> in the post editor, and <strong>Post…</strong> on
+            every clip.
+          </li>
+          <li><strong>Select all</strong> on the Clips page.</li>
+          <li>Fixed: removing a Twitch channel after some of its clips were posted.</li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.1.0">
+          1.1.0
+          <small
+            >November 13, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.1.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <ul>
+          <li>
+            The post editor's <strong>Format</strong> switch: horizontal, Twitch's vertical version,
+            or a vertical render, with <strong>Render now</strong>.
+          </li>
+          <li>Autopost rules make Shorts from the landscape clip with their layout.</li>
+          <li>This website's home page and privacy policy.</li>
+        </ul>
+      </section>
+
+      <section class="release">
+        <h2 id="v1.0.0">
+          1.0.0
+          <small
+            >November 13, 2026 ·
+            <a href="https://github.com/slimeraps/channeldeck/releases/tag/v1.0.0"
+              >release</a
+            ></small
+          >
+        </h2>
+        <p>The first numbered version, with everything built in ten phases:</p>
+        <ul>
+          <li>Google sign-in for any number of YouTube channels, with encrypted sign-ins.</li>
+          <li>The post editor and the queue.</li>
+          <li>Resumable uploads with Dry Run, retries and quota handling.</li>
+          <li>Status sync, publish-time changes and "needs decision" for missed times.</li>
+          <li>Twitch sign-in and the clip bank with daily sync and backfill.</li>
+          <li>Autopost rules with vertical layouts, Review and Auto modes.</li>
+          <li>Calendar, templates and numbered series.</li>
+          <li>Menu bar icon, quota meter, disk cleanup and backups.</li>
+          <li>The <code>.dmg</code>, the setup checklist and a build self-test.</li>
+        </ul>
+      </section>
+
+      <p>
+        The full technical changelog is at the bottom of the
+        <a href="https://github.com/slimeraps/channeldeck#changelog">README</a>.
+      </p>
+
+      <footer>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

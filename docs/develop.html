@@ -1,0 +1,171 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Develop · ChannelDeck</title>
+    <meta
+      name="description"
+      content="Build ChannelDeck from source: commands, stack, layout and the self-test."
+    />
+    <meta name="theme-color" content="#10151d" />
+    <link rel="icon" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="install.html">Install</a></li>
+          <li><a href="setup.html">Setup</a></li>
+          <li><a href="data.html">Your data</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="develop.html" aria-current="page">Develop</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main>
+      <h1>Develop</h1>
+      <p class="lede">
+        ChannelDeck's source code is public on
+        <a href="https://github.com/slimeraps/channeldeck">GitHub</a>. You can run it from source,
+        build your own copy, and read how it's put together.
+      </p>
+
+      <h2>Run from source</h2>
+      <p>
+        You need a Mac with Apple Silicon, <a href="https://nodejs.org">Node.js</a> 22 or newer (LTS
+        recommended), and the Xcode Command Line Tools for git (<code>xcode-select --install</code
+        >).
+      </p>
+      <pre><code>git clone https://github.com/slimeraps/channeldeck.git
+cd channeldeck
+npm install
+npm run dev</code></pre>
+      <p>
+        Running from source and the installed app share the same database, so only one can be open
+        at a time.
+      </p>
+
+      <h2>Commands</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>Command</th>
+            <th>What it does</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td><code>npm run dev</code></td>
+            <td>Run the app with hot reload</td>
+          </tr>
+          <tr>
+            <td><code>npm run typecheck</code></td>
+            <td>TypeScript checks for every part of the app</td>
+          </tr>
+          <tr>
+            <td><code>npm run lint</code></td>
+            <td>ESLint</td>
+          </tr>
+          <tr>
+            <td><code>npm run format</code></td>
+            <td>Prettier (<code>format:check</code> to verify)</td>
+          </tr>
+          <tr>
+            <td><code>npm test</code></td>
+            <td>Vitest, run on Electron's own Node</td>
+          </tr>
+          <tr>
+            <td><code>npm run db:generate</code></td>
+            <td>Generate a SQL migration from the schema</td>
+          </tr>
+          <tr>
+            <td><code>npm run dist</code></td>
+            <td>Build the macOS <code>.dmg</code> into <code>release/</code></td>
+          </tr>
+        </tbody>
+      </table>
+
+      <h2>How it's built</h2>
+      <p>
+        <strong>Stack:</strong> Electron, TypeScript (strict), React, electron-vite, Tailwind CSS
+        with shadcn/ui, TanStack Query, Zustand, SQLite (better-sqlite3 with Drizzle), Google's
+        official YouTube client, Luxon, zod, and Vitest with msw for tests.
+      </p>
+      <ul>
+        <li>
+          <code>src/main</code>: the database, the Google and Twitch clients, the background job
+          runner, video tools (ffmpeg, ffprobe) and the app's API to the window.
+        </li>
+        <li>
+          <code>src/preload</code>: the only bridge between the window and the rest of the app.
+        </li>
+        <li><code>src/renderer</code>: the React interface.</li>
+        <li><code>src/shared</code>: types, validation and constants used by both sides.</li>
+      </ul>
+      <p>
+        Scheduling, time slots, clip picking, templates, quota and error handling are pure functions
+        with their own tests. The plan the app was built from is in
+        <a href="https://github.com/slimeraps/channeldeck/blob/main/PLAN.md">PLAN.md</a>, and the
+        working notes are in
+        <a href="https://github.com/slimeraps/channeldeck/blob/main/CLAUDE.md">CLAUDE.md</a>.
+      </p>
+
+      <h2>Security</h2>
+      <ul>
+        <li>
+          The window is sandboxed with no Node access. It can only call a fixed, typed set of
+          functions, and every call's input is validated.
+        </li>
+        <li>
+          Local videos reach the window only through a restricted <code>cdmedia://</code> address
+          that serves files from the clip and render folders or files your posts use.
+        </li>
+        <li>
+          Sign-in tokens and secrets are encrypted with the macOS Keychain, kept out of logs and
+          backups, and never committed.
+        </li>
+      </ul>
+
+      <h2>Build the app</h2>
+      <pre><code>npm run dist</code></pre>
+      <p>
+        This makes <code>release/ChannelDeck-&lt;version&gt;-arm64.dmg</code> (Apple Silicon, ad-hoc
+        signed, not notarized) and the app itself in <code>release/mac-arm64/</code>.
+      </p>
+      <p>
+        To check a build without touching your data, run its self-test. In a throwaway folder it
+        applies every database migration, makes a test video with the bundled ffmpeg, reads it with
+        ffprobe, renders a vertical version, and runs a Dry Run upload. It exits 0 when everything
+        works:
+      </p>
+      <pre><code>CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/MacOS/ChannelDeck</code></pre>
+
+      <h2>Questions and bugs</h2>
+      <p>
+        Questions, bug reports and ideas are welcome in
+        <a href="https://github.com/slimeraps/channeldeck/issues">GitHub Issues</a>.
+      </p>
+
+      <footer>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
