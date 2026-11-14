@@ -1,4 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it } from 'vitest'
+import type { Backup } from '@shared/schemas/backup'
 import { createTestDb, seedTwitchAccount, type TestDb } from '../../../tests/helpers/db'
 import { createSecretBox } from '../secrets/secretBox'
 import { createBackupService } from './backup'
@@ -188,5 +189,59 @@ describe('backup', () => {
     })
     expect(report.added.youtubeChannels).toBe(1)
     expect(target.repos.settings.get().setupDismissed).toBe(false)
+  })
+})
+
+describe('backup: Twitch login', () => {
+  const backupWithLogin = (login: string): Backup => {
+    const backup = structuredClone(createBackupService({ repos: source.repos }).exportBackup())
+    backup.twitchChannels[0]!.login = login
+    return backup
+  }
+
+  it.each([
+    ['a path climbing out of the clip folder', '../evil'],
+    ['a deeper climb', '../../evil'],
+    ['two dots', '..'],
+    ['a forward slash', 'a/b'],
+    ['a backslash', 'a\b'],
+    ['an empty name', ''],
+    ['a name over 25 characters', 'a'.repeat(26)],
+    ['a space', 'has space'],
+    ['a single dot', '.'],
+    ['a null byte', 'a\u0000b'],
+    ['non-ASCII letters', 'ünïcode']
+  ])('rejects the whole import when the login is %s', (_what, login) => {
+    const service = createBackupService({ repos: target.repos })
+    expect(() => service.importBackup(backupWithLogin(login))).toThrow(/isn't a ChannelDeck backup/)
+    // Nothing was imported, not even the parts that were fine.
+    expect(target.repos.twitchAccounts.list()).toHaveLength(0)
+    expect(target.repos.accounts.list({ includeRemoved: true })).toHaveLength(0)
+  })
+
+  it('still imports normal logins (letters, digits, underscore, 1 to 25 characters)', () => {
+    const backup = backupWithLogin('Helmsyy')
+    const [first] = backup.twitchChannels
+    backup.twitchChannels = ['Helmsyy', 'streamer_1', 'a', 'x'.repeat(25)].map((login, i) => ({
+      ...first!,
+      broadcasterId: `90${i}`,
+      login
+    }))
+    backup.layouts = []
+    backup.rules = []
+    const report = createBackupService({ repos: target.repos }).importBackup(backup)
+    expect(report.added.twitchChannels).toBe(4)
+    expect(target.repos.twitchAccounts.list().map((t) => t.login.toLowerCase())).toEqual([
+      'helmsyy',
+      'streamer_1',
+      'a',
+      'x'.repeat(25)
+    ])
+  })
+
+  it('stores the login in lowercase', () => {
+    const backup = backupWithLogin('HelmSyy_9')
+    createBackupService({ repos: target.repos }).importBackup(backup)
+    expect(target.repos.twitchAccounts.list()[0]?.login).toBe('helmsyy_9')
   })
 })
