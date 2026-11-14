@@ -3,6 +3,7 @@ import { invokeContract, type InvokeInput, type InvokeOutput } from '@shared/ipc
 import { ipcErr, ipcOk, type IpcIssue, type IpcResult } from '@shared/ipc/result'
 import type { z } from 'zod'
 import { isUserFacing } from '../errors'
+import { type AppOrigin, isAppUrl } from '../security'
 
 /**
  * Electron-free core of the IPC layer, so it can be unit-tested: validates the raw payload
@@ -56,6 +57,32 @@ export function createInvokeHandler<C extends InvokeChannel>(
       logger.error(`[ipc] ${channel}: handler failed`, error)
       return ipcErr('internal', `${channel} failed. Details are in the log.`)
     }
+  }
+}
+
+export interface GatedEvent {
+  senderFrame?: { url: string } | null
+}
+
+/**
+ * Adds the sender check in front of createInvokeHandler: calls from any frame that isn't
+ * our own renderer are refused before the payload is even looked at.
+ */
+export function createGatedHandler<C extends InvokeChannel>(
+  channel: C,
+  handler: InvokeHandler<C>,
+  logger: InvokeLogger,
+  getOrigin: () => AppOrigin | null
+): (event: GatedEvent, raw: unknown) => Promise<IpcResult<InvokeOutput<C>>> {
+  const run = createInvokeHandler(channel, handler, logger)
+  return async (event, raw) => {
+    const senderUrl = event.senderFrame?.url ?? ''
+    const origin = getOrigin()
+    if (!origin || !isAppUrl(senderUrl, origin)) {
+      logger.warn(`[ipc] ${channel}: blocked call from untrusted sender`, senderUrl)
+      return ipcErr('forbidden', 'This sender may not call ChannelDeck IPC.')
+    }
+    return run(raw)
   }
 }
 
