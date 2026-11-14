@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.4.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.5.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -226,10 +226,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
-### Unreleased
+### 1.5.0 (2026-11-13)
 
-- Queue: select several posts with the checkbox on each row (it shows on hover, and on every row once one is selected). The selection bar runs **Approve**, **Upload now**, **Retry**, **Duplicate**, **Unschedule…** and **Delete drafts…** on the selected posts each action applies to, with one summary message; the destructive ones ask first. Changing a filter clears the selection (2026-11-13).
-- Clips and Queue: **Select all** / **Select none** now sits in the selection bar and only shows once at least one item is selected (2026-11-13).
+- Queue: select several posts with the checkbox on each row (it shows on hover, and on every row once one is selected). The selection bar runs **Approve**, **Upload now**, **Retry**, **Duplicate**, **Unschedule…** and **Delete drafts…** on the selected posts each action applies to, with one summary message; the destructive ones ask first. Changing a filter clears the selection.
+- Clips and Queue: **Select all** / **Select none** now sits in the selection bar and only shows once at least one item is selected.
 
 ### 1.4.0 (2026-11-13)
 
