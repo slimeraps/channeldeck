@@ -68,6 +68,10 @@ export function nextOffsetFromRange(range: string | null): number {
 export async function uploadResumable(opts: ResumableUploadOptions): Promise<UploadedVideo> {
   const doFetch = opts.fetchImpl ?? fetch
   const total = opts.sizeBytes
+  // A wrong length makes YouTube wait for bytes that never come (or cut the video short).
+  if (!Number.isInteger(total) || total <= 0) {
+    throw new Error(`Upload size unknown for ${opts.filePath} (${total} bytes).`)
+  }
 
   const startSession = async (): Promise<string> => {
     const url = new URL(UPLOAD_URL)

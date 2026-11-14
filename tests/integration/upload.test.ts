@@ -209,6 +209,31 @@ describe('upload engine', () => {
     expect(await tick()).toEqual([])
   })
 
+  it('sends the real size when the post has none yet (vertical file rendered by an earlier post)', async () => {
+    const id = await queue()
+    t.repos.posts.update(id, { fileSize: null, fileMtime: null })
+    await tick()
+
+    expect(google.uploadStarts[0]!.size).toBe(VIDEO_BYTES)
+    expect(google.received.get('s1')).toBe(VIDEO_BYTES)
+    expect(t.repos.posts.require(id)).toMatchObject({
+      status: 'processing',
+      fileSize: VIDEO_BYTES,
+      uploadProgress: 1
+    })
+  })
+
+  it('fails instead of uploading an empty file', async () => {
+    const id = await queue()
+    t.repos.posts.update(id, { fileSize: null })
+    writeFileSync(videoPath, Buffer.alloc(0))
+    await tick()
+
+    expect(google.uploadStarts).toHaveLength(0)
+    expect(t.repos.posts.require(id)).toMatchObject({ status: 'failed' })
+    expect(t.repos.posts.require(id).lastError).toContain('File is empty')
+  })
+
   it('resumes after the connection drops mid-upload instead of starting over', async () => {
     google.dropPutsAfterBytes = { count: 1, bytes: 100_000 }
     const id = await queue()

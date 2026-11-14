@@ -226,6 +226,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
+### Unreleased
+
+- Fix (2026-11-14): an autopost whose vertical file was already rendered (by an earlier post of the same clip and layout) got stuck on "Uploading" at 0%. It skipped the render, so it never learned the file's size and told YouTube the video was 0 bytes. The upload now reads the real size from the file first, refuses an empty or unknown-size file, and fails with a clear message instead of hanging.
+
 ### 1.5.0 (2026-11-13)
 
 - Queue: select several posts with the checkbox on each row (it shows on hover, and on every row once one is selected). The selection bar runs **Approve**, **Upload now**, **Retry**, **Duplicate**, **Unschedule…** and **Delete drafts…** on the selected posts each action applies to, with one summary message; the destructive ones ask first. Changing a filter clears the selection.
