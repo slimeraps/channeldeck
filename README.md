@@ -227,6 +227,7 @@ No version numbers yet; the first version is tagged when all phases are complete
 
 ### Unreleased
 
+- Calendar: swipe sideways with two fingers on the trackpad (or Shift + mouse wheel) to move to the next or previous week or month. One swipe moves one step.
 - UI pass: the queue table fits the window again. At 1280 px wide its last columns (upload progress and the ⋯ menu) were cut off; progress and Approve now sit under the status, and narrow windows drop the thumbnail and show the channel as a colored dot. Publish times stay on one line.
 - UI pass: times use the same 12-hour clock everywhere (the calendar and the autopost slot lists used 24-hour). Time fields are wide enough for AM/PM. Long folder paths in Settings show their end instead of `/Users/…`. The queue's empty state fits under the setup card, Calendar and Autopost empty states get a button to the Channels page, the rule card's buttons line up, and a saved category that YouTube's list can't confirm shows its number instead of a blank box.
 - Added a screenshot mode for UI work (`CHANNELDECK_SCREENSHOTS`, from source only; see Building).
