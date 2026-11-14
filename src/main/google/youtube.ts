@@ -58,6 +58,8 @@ export interface YouTubeApi {
   addToPlaylist(playlistId: string, videoId: string): Promise<void>
   /** videos.list part=status,processingDetails for up to 50 ids (1 unit). Missing ids = not found. */
   videosStatus(ids: string[]): Promise<YouTubeVideoState[]>
+  /** videos.list part=snippet for up to 50 ids (1 unit): id → title. Missing ids are left out. */
+  videoTitles(ids: string[]): Promise<Map<string, string>>
   /** The current `status` part of one video, or null if it doesn't exist (1 unit). */
   videoStatusPart(videoId: string): Promise<Record<string, unknown> | null>
   /** videos.update part=status with the complete status part (50 units). */
@@ -192,6 +194,18 @@ export function createYouTubeApi({ auth, recordCall }: YouTubeApiDeps): YouTubeA
         }))
     },
 
+    async videoTitles(ids) {
+      const titles = new Map<string, string>()
+      if (ids.length === 0) return titles
+      if (ids.length > 50) throw new Error('videos.list takes at most 50 ids')
+      recordCall('videos.list')
+      const res = await yt.videos.list({ part: ['snippet'], id: ids, maxResults: 50 })
+      for (const v of res.data.items ?? []) {
+        if (v.id && v.snippet?.title) titles.set(v.id, v.snippet.title)
+      }
+      return titles
+    },
+
     async videoStatusPart(videoId) {
       recordCall('videos.list')
       const res = await yt.videos.list({ part: ['status'], id: [videoId] })
@@ -220,7 +234,12 @@ export function createYouTubeApi({ auth, recordCall }: YouTubeApiDeps): YouTubeA
 export function createDryRunYouTubeApi(deps: {
   reads: Pick<
     YouTubeApi,
-    'channelsMine' | 'videoCategories' | 'playlistsMine' | 'videosStatus' | 'videoStatusPart'
+    | 'channelsMine'
+    | 'videoCategories'
+    | 'playlistsMine'
+    | 'videosStatus'
+    | 'videoTitles'
+    | 'videoStatusPart'
   >
   recordCall: (method: YouTubeMethod) => void
   log: (message: string, payload: Record<string, unknown>) => void
@@ -270,6 +289,7 @@ export function createDryRunYouTubeApi(deps: {
     },
 
     videosStatus: (ids) => deps.reads.videosStatus(ids),
+    videoTitles: (ids) => deps.reads.videoTitles(ids),
 
     // Dry Run videos don't exist on YouTube; pretend their status is what we asked for.
     async videoStatusPart(videoId) {

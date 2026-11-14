@@ -1,4 +1,5 @@
 import {
+  BarChart3,
   CalendarDays,
   Clapperboard,
   FileText,
@@ -12,6 +13,7 @@ import {
 export const PAGE_IDS = [
   'queue',
   'calendar',
+  'analytics',
   'clips',
   'autopost',
   'channels',
@@ -53,6 +55,16 @@ export const PAGES: readonly PageDef[] = [
       'Scheduled posts and autoposts appear on a week or month calendar, colored by channel. Drag to reschedule.',
     phase: 8,
     offersNewPost: true
+  },
+  {
+    id: 'analytics',
+    label: 'Analytics',
+    icon: BarChart3,
+    emptyTitle: 'No analytics yet',
+    emptyBody:
+      'Views, watch time, subscribers and top videos for each connected channel, from YouTube Analytics.',
+    phase: 10,
+    offersNewPost: false
   },
   {
     id: 'clips',

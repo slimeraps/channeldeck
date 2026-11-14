@@ -1,6 +1,8 @@
 import { mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
+import { DateTime } from 'luxon'
+import type { AnalyticsApi } from './google/analytics'
 import type { PostEvent } from './domain/postState'
 import { quotaDayFor } from './domain/quota'
 import { emitToRenderer } from './appWindow'
@@ -21,6 +23,72 @@ const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms))
 // ---------------------------------------------------------------------------------------
 // Demo data
 // ---------------------------------------------------------------------------------------
+
+/** Made-up YouTube Analytics tables (screenshot mode makes no Google calls). */
+export function demoAnalyticsApi(): AnalyticsApi {
+  return {
+    async query(q) {
+      const start = DateTime.fromISO(q.startDate, { zone: 'UTC' })
+      // Like the real thing, the last two days aren't processed yet.
+      const end = DateTime.fromISO(q.endDate, { zone: 'UTC' }).minus({ days: 2 })
+      const days: string[] = []
+      for (let d = start; d <= end; d = d.plus({ days: 1 })) days.push(d.toISODate() as string)
+      const views = days.map((_, i) => Math.round(900 + 600 * Math.sin(i / 3) + ((i * 137) % 400)))
+      const total = views.reduce((a, b) => a + b, 0)
+      const dim = q.dimensions?.[0]
+      if (dim === 'day') {
+        return {
+          columnHeaders: [
+            { name: 'day' },
+            { name: 'views' },
+            { name: 'estimatedMinutesWatched' },
+            { name: 'subscribersGained' },
+            { name: 'subscribersLost' }
+          ],
+          rows: days.map((day, i) => [
+            day,
+            views[i] ?? 0,
+            (views[i] ?? 0) * 0.6,
+            8 + (i % 5),
+            i % 3
+          ])
+        }
+      }
+      if (dim === 'video') {
+        return {
+          columnHeaders: [
+            { name: 'video' },
+            { name: 'views' },
+            { name: 'estimatedMinutesWatched' },
+            { name: 'averageViewDuration' },
+            { name: 'likes' },
+            { name: 'subscribersGained' }
+          ],
+          rows: TITLES.slice(0, 8).map((_, i) => {
+            const v = Math.round(total / (2 + i * 1.6))
+            return [`DEMO-video-${i}`, v, v * 0.55, 38 - i * 2, Math.round(v / 22), 12 - i]
+          })
+        }
+      }
+      return {
+        columnHeaders: [
+          { name: 'views' },
+          { name: 'estimatedMinutesWatched' },
+          { name: 'averageViewDuration' },
+          { name: 'subscribersGained' },
+          { name: 'subscribersLost' },
+          { name: 'likes' }
+        ],
+        rows: [[total, total * 0.6, 36, days.length * 10, days.length, Math.round(total / 25)]]
+      }
+    }
+  }
+}
+
+/** Titles for the demo videos above. */
+export function demoVideoTitles(ids: string[]): Map<string, string> {
+  return new Map(ids.map((id) => [id, TITLES[Number(id.split('-').at(-1)) % TITLES.length] ?? id]))
+}
 
 const TITLES = [
   'INSANE 1v4 clutch on Dust',
@@ -345,7 +413,16 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
 // Capturing
 // ---------------------------------------------------------------------------------------
 
-const PAGES = ['Queue', 'Calendar', 'Clips', 'Autopost', 'Channels', 'Templates', 'Settings']
+const PAGES = [
+  'Queue',
+  'Calendar',
+  'Analytics',
+  'Clips',
+  'Autopost',
+  'Channels',
+  'Templates',
+  'Settings'
+]
 
 export async function captureScreens(
   window: BrowserWindow,

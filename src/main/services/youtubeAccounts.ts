@@ -212,14 +212,46 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
     }
   }
 
-  /** Runs `fn` with an API client for the channel; turns invalid_grant into "needs re-auth". */
-  async function withApi<T>(accountId: number, fn: (api: YouTubeApi) => Promise<T>): Promise<T> {
+  function requireSignedIn(accountId: number): AccountRow {
     const account = requireActiveAccount(accountId)
     if (account.tokenStatus === 'needs_reauth') {
       throw new UserFacingError(
         `${account.channelTitle} needs you to sign in again. Click Reconnect.`
       )
     }
+    return account
+  }
+
+  /** invalid_grant → mark the channel "needs re-auth" and explain; anything else is returned. */
+  function reauthError(account: AccountRow, error: unknown): unknown {
+    if (!isInvalidGrant(error)) return error
+    markNeedsReauth(account)
+    return new UserFacingError(
+      `${account.channelTitle}'s Google sign-in has expired or was revoked. Click Reconnect to sign in again.`,
+      { cause: error }
+    )
+  }
+
+  /**
+   * Runs `fn` with the channel's raw OAuth client, for Google APIs other than the Data API
+   * (YouTube Analytics). invalid_grant still marks the channel; other errors pass through.
+   */
+  async function withAuth<T>(
+    accountId: number,
+    fn: (auth: OAuth2Client) => Promise<T>
+  ): Promise<T> {
+    const account = requireSignedIn(accountId)
+    const auth = await authClientFor(account)
+    try {
+      return await fn(auth)
+    } catch (error) {
+      throw reauthError(account, error)
+    }
+  }
+
+  /** Runs `fn` with an API client for the channel; turns invalid_grant into "needs re-auth". */
+  async function withApi<T>(accountId: number, fn: (api: YouTubeApi) => Promise<T>): Promise<T> {
+    const account = requireSignedIn(accountId)
     const realApi = async (): Promise<YouTubeApi> =>
       createYouTubeApi({
         auth: await authClientFor(account),
@@ -233,6 +265,7 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
             videoCategories: async (r, hl) => (await realApi()).videoCategories(r, hl),
             playlistsMine: async () => (await realApi()).playlistsMine(),
             videosStatus: async (ids) => (await realApi()).videosStatus(ids),
+            videoTitles: async (ids) => (await realApi()).videoTitles(ids),
             videoStatusPart: async (id) => (await realApi()).videoStatusPart(id)
           },
           recordCall: (method) => recordCall(method, account.id, true),
@@ -251,13 +284,8 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
     try {
       return await fn(api)
     } catch (error) {
-      if (isInvalidGrant(error)) {
-        markNeedsReauth(account)
-        throw new UserFacingError(
-          `${account.channelTitle}'s Google sign-in has expired or was revoked. Click Reconnect to sign in again.`,
-          { cause: error }
-        )
-      }
+      const reauth = reauthError(account, error)
+      if (reauth !== error) throw reauth
       explainSetupError(error)
     }
   }
@@ -583,7 +611,8 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
     },
 
     /** For later phases (uploads): an authorized client, with invalid_grant handling. */
-    withApi
+    withApi,
+    withAuth
   }
   return service
 }

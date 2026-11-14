@@ -82,7 +82,8 @@ export const INVOKE_CHANNELS = [
   'app:storage',
   'backup:export',
   'backup:import',
-  'posts:renderVertical'
+  'posts:renderVertical',
+  'analytics:report'
 ] as const
 export type InvokeChannel = (typeof INVOKE_CHANNELS)[number]
 

@@ -1,8 +1,11 @@
 import { join } from 'node:path'
 import { app, shell } from 'electron'
+import type { OAuth2Client } from 'google-auth-library'
 import { emitToRenderer } from '../appWindow'
 import { getRepos } from '../db'
 import { createClientConfigStore } from '../google/clientConfig'
+import type { YouTubeApi } from '../google/youtube'
+import { demoAnalyticsApi, demoVideoTitles } from '../screenshots'
 import { logger } from '../logger'
 import { createMediaAccess, type MediaAccess } from '../media/access'
 import { probeVideo } from '../media/ffprobe'
@@ -10,6 +13,7 @@ import { notify } from '../notify'
 import { secrets } from '../secrets'
 import { isSafeExternalUrl } from '../security'
 import { grabFrame, renderVertical } from '../media/ffmpeg'
+import { type AnalyticsService, createAnalyticsService } from './analytics'
 import { createAutopostService, type AutopostService } from './autopost'
 import { createClipsService, type ClipsService } from './clips'
 import { createLayoutsService, type LayoutsService } from './layouts'
@@ -32,6 +36,7 @@ let layouts: LayoutsService | null = null
 let templates: TemplatesService | null = null
 let status: StatusService | null = null
 let backup: BackupService | null = null
+let analytics: AnalyticsService | null = null
 
 /** Lets the Twitch view show "syncing…" without importing the job runner. */
 export function setSyncingProbe(fn: (accountId: number) => boolean): void {
@@ -46,6 +51,7 @@ export function setKickJobs(fn: () => void): void {
 /** Creates the app's services. Call once, after initDatabase(). */
 export function initServices(): void {
   const repos = getRepos()
+  const demo = !app.isPackaged && Boolean(process.env['CHANNELDECK_SCREENSHOTS'])
 
   mediaAccess = createMediaAccess({
     // The clip bank (and renders inside it) is always previewable.
@@ -115,6 +121,22 @@ export function initServices(): void {
 
   status = createStatusService({ repos })
   backup = createBackupService({ repos })
+  analytics = demo
+    ? createAnalyticsService({
+        // Screenshot mode: made-up numbers, no Google calls.
+        repos,
+        withAuth: (_id, fn) => fn({} as OAuth2Client),
+        withApi: (_id, fn) =>
+          fn({ videoTitles: async (ids: string[]) => demoVideoTitles(ids) } as YouTubeApi),
+        createApi: demoAnalyticsApi,
+        logger
+      })
+    : createAnalyticsService({
+        repos,
+        withAuth: (accountId, fn) => getYouTubeAccounts().withAuth(accountId, fn),
+        withApi: (accountId, fn) => getYouTubeAccounts().withApi(accountId, fn),
+        logger
+      })
 
   templates = createTemplatesService({
     repos,
@@ -134,6 +156,11 @@ export function initServices(): void {
         maxSeconds
       })
   })
+}
+
+export function getAnalytics(): AnalyticsService {
+  if (!analytics) throw new Error('Services not initialized')
+  return analytics
 }
 
 export function getBackup(): BackupService {
