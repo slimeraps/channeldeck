@@ -1,4 +1,5 @@
 import { DateTime } from 'luxon'
+import { isValidTwitchLogin } from '@shared/twitchLogin'
 import type { BackfillCursor } from '@shared/types/json'
 
 /**
@@ -135,8 +136,14 @@ export interface ClipNaming {
   createdAtUtc: string
 }
 
-/** "<login>/<YYYY>/<YYYY-MM>" (UTC), relative to the clip folder. */
+/**
+ * "<login>/<YYYY>/<YYYY-MM>" (UTC), relative to the clip folder. The login becomes a folder
+ * name, so anything that isn't a Twitch login (e.g. "../x") is refused instead of used.
+ */
 export function clipFolder(login: string, createdAtUtc: string): string {
+  if (!isValidTwitchLogin(login)) {
+    throw new Error(`"${login}" isn't a valid Twitch login, so its clip folder can't be created.`)
+  }
   const d = DateTime.fromISO(createdAtUtc, { zone: 'utc' })
   return `${login.toLowerCase()}/${d.toFormat('yyyy')}/${d.toFormat('yyyy-MM')}`
 }

@@ -8,6 +8,7 @@ import {
   PICK_ORDERS,
   VISIBILITY_MODES
 } from '../constants/enums'
+import { TWITCH_LOGIN_MESSAGE, TWITCH_LOGIN_RE } from '../twitchLogin'
 import { accountDefaultsSchema } from './account'
 import { autopostFiltersSchema, layoutCropsSchema } from './autopost'
 import { settingsPatchSchema } from './settings'
@@ -34,7 +35,11 @@ const backupChannel = z.object({
 
 const backupTwitch = z.object({
   broadcasterId: z.string().min(1),
-  login: z.string(),
+  /** Becomes a folder name in the clip bank, so only a real Twitch login is accepted. */
+  login: z
+    .string()
+    .regex(TWITCH_LOGIN_RE, TWITCH_LOGIN_MESSAGE)
+    .transform((login) => login.toLowerCase()),
   displayName: z.string(),
   avatarUrl: z.string().nullable(),
   color: z.string(),
