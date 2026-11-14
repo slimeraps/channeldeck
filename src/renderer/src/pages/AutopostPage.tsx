@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   CheckCheck,
   Clock,
+  Copy,
   LayoutTemplate,
   MoreHorizontal,
   Pencil,
@@ -65,10 +66,12 @@ function weekdaySummary(days: number[]): string {
 function RuleCard({
   rule,
   onEdit,
+  onDuplicate,
   onDelete
 }: {
   rule: RuleView
   onEdit: () => void
+  onDuplicate: () => void
   onDelete: () => void
 }): React.JSX.Element {
   const toggle = useAutopostAction((enabled: boolean) =>
@@ -153,6 +156,9 @@ function RuleCard({
               <DropdownMenuItem onSelect={onEdit}>
                 <Pencil aria-hidden /> Edit…
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onDuplicate}>
+                <Copy aria-hidden /> Duplicate…
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={onDelete}>
                 <Trash2 aria-hidden /> Delete…
@@ -193,6 +199,7 @@ export function AutopostPage(): React.JSX.Element {
   const twitch = useTwitchAccounts()
   const setPage = useUiStore((s) => s.setPage)
   const [editing, setEditing] = useState<RuleView | 'new' | null>(null)
+  const [duplicating, setDuplicating] = useState<RuleView | null>(null)
   const [deleting, setDeleting] = useState<RuleView | null>(null)
   const [cancelUpcoming, setCancelUpcoming] = useState(true)
   const [editingLayout, setEditingLayout] = useState<LayoutView | 'new' | null>(null)
@@ -259,6 +266,7 @@ export function AutopostPage(): React.JSX.Element {
               key={rule.id}
               rule={rule}
               onEdit={() => setEditing(rule)}
+              onDuplicate={() => setDuplicating(rule)}
               onDelete={() => {
                 setCancelUpcoming(true)
                 setDeleting(rule)
@@ -312,6 +320,9 @@ export function AutopostPage(): React.JSX.Element {
 
       {editing ? (
         <RuleEditor rule={editing === 'new' ? null : editing} onClose={() => setEditing(null)} />
+      ) : null}
+      {duplicating ? (
+        <RuleEditor rule={null} copyOf={duplicating} onClose={() => setDuplicating(null)} />
       ) : null}
       {editingLayout ? (
         <LayoutEditor

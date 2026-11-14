@@ -1,7 +1,13 @@
-// Draws build/icon.png (app icon) and resources/trayTemplate(@2x).png with CoreGraphics.
+// Draws the app icon and the menu bar template images from the traced logo
+// (resources/brand/mark.svg, made by scripts/trace-logo.swift) with CoreGraphics.
 // Usage: swift scripts/draw-icons.swift <outdir>, then build the .icns with iconutil (see README).
 import AppKit
 import CoreGraphics
+
+/// Brand colors (design/logo/brand-sheet.webp, with the mark recolored pink).
+let BRAND_BG: UInt32 = 0x10151d
+let BRAND_BG_LIGHT: UInt32 = 0x1a2230
+let BRAND_MARK: UInt32 = 0xffa6c9
 
 func color(_ hex: UInt32, _ a: CGFloat = 1) -> CGColor {
   CGColor(red: CGFloat((hex >> 16) & 0xff) / 255, green: CGFloat((hex >> 8) & 0xff) / 255,
@@ -23,29 +29,49 @@ func makeContext(_ size: Int) -> CGContext {
   return ctx
 }
 
-/// A card: rounded rect rotated around its center.
-func card(_ ctx: CGContext, center: CGPoint, w: CGFloat, h: CGFloat, r: CGFloat, angle: CGFloat,
-          fill: (CGContext, CGRect) -> Void) {
-  ctx.saveGState()
-  ctx.translateBy(x: center.x, y: center.y)
-  ctx.rotate(by: angle * .pi / 180)
-  let rect = CGRect(x: -w / 2, y: -h / 2, width: w, height: h)
-  ctx.addPath(CGPath(roundedRect: rect, cornerWidth: r, cornerHeight: r, transform: nil))
-  ctx.clip()
-  fill(ctx, rect)
-  ctx.restoreGState()
+/// The mark's outline from mark.svg: viewBox size and a path in SVG coordinates (y down).
+/// The traced file only uses M, L and Z.
+func loadMark() -> (size: CGSize, path: CGPath) {
+  let svg = try! String(contentsOfFile: "resources/brand/mark.svg", encoding: .utf8)
+  func attr(_ name: String) -> String {
+    let start = svg.range(of: "\(name)=\"")!.upperBound
+    return String(svg[start..<svg[start...].firstIndex(of: "\"")!])
+  }
+  let box = attr("viewBox").split(separator: " ").map { Double($0)! }
+  let path = CGMutablePath()
+  var command: Character = "M"
+  var numbers: [Double] = []
+  func flush() {
+    guard numbers.count >= 2 else { return }
+    let p = CGPoint(x: numbers[0], y: numbers[1])
+    if command == "M" { path.move(to: p) } else { path.addLine(to: p) }
+    numbers = []
+  }
+  var token = ""
+  for ch in attr("d") + " " {
+    if ch == "M" || ch == "L" || ch == "Z" || ch == " " {
+      if !token.isEmpty { numbers.append(Double(token)!); token = "" }
+      if ch != " " { flush(); if ch == "Z" { path.closeSubpath() } else { command = ch } }
+    } else {
+      token.append(ch)
+    }
+  }
+  return (CGSize(width: box[2], height: box[3]), path)
 }
 
-func triangle(_ ctx: CGContext, center: CGPoint, size: CGFloat) {
-  // Play symbol, optically centered (shifted right a little).
-  let h = size, w = size * 0.9
-  let cx = center.x + w * 0.08
-  ctx.beginPath()
-  ctx.move(to: CGPoint(x: cx - w / 2, y: center.y - h / 2))
-  ctx.addLine(to: CGPoint(x: cx + w / 2, y: center.y))
-  ctx.addLine(to: CGPoint(x: cx - w / 2, y: center.y + h / 2))
-  ctx.closePath()
-  ctx.fillPath()
+let mark = loadMark()
+
+/// Fills the mark so it fits `box` (centered), in the current fill color.
+func drawMark(_ ctx: CGContext, in box: CGRect) {
+  let scale = min(box.width / mark.size.width, box.height / mark.size.height)
+  let w = mark.size.width * scale, h = mark.size.height * scale
+  ctx.saveGState()
+  // SVG is y-down; CoreGraphics is y-up.
+  ctx.translateBy(x: box.midX - w / 2, y: box.midY + h / 2)
+  ctx.scaleBy(x: scale, y: -scale)
+  ctx.addPath(mark.path)
+  ctx.fillPath(using: .evenOdd)
+  ctx.restoreGState()
 }
 
 // ---- App icon (1024, macOS grid: 824 body, 100 inset) ------------------------------------
@@ -55,46 +81,22 @@ func appIcon(_ path: String) {
   let body = CGRect(x: 100, y: 100, width: 824, height: 824)
   let bodyPath = CGPath(roundedRect: body, cornerWidth: 185, cornerHeight: 185, transform: nil)
 
-  // Soft drop shadow, then the dark body with a gentle vertical gradient.
+  // Soft drop shadow, then the dark body with a faint top-to-bottom gradient.
   ctx.saveGState()
   ctx.setShadow(offset: CGSize(width: 0, height: -12), blur: 28, color: color(0x000000, 0.45))
-  ctx.addPath(bodyPath); ctx.setFillColor(color(0x111118)); ctx.fillPath()
+  ctx.addPath(bodyPath); ctx.setFillColor(color(BRAND_BG)); ctx.fillPath()
   ctx.restoreGState()
   ctx.saveGState()
   ctx.addPath(bodyPath); ctx.clip()
-  let bg = CGGradient(colorsSpace: nil, colors: [color(0x23233a), color(0x0b0b12)] as CFArray,
+  let bg = CGGradient(colorsSpace: nil, colors: [color(BRAND_BG_LIGHT), color(BRAND_BG)] as CFArray,
                       locations: [0, 1])!
   ctx.drawLinearGradient(bg, start: CGPoint(x: 512, y: 924), end: CGPoint(x: 512, y: 100), options: [])
   ctx.restoreGState()
   ctx.addPath(bodyPath); ctx.setStrokeColor(color(0xffffff, 0.08)); ctx.setLineWidth(4); ctx.strokePath()
 
-  // The deck: three cards in channel colors, fanned.
-  let c = CGPoint(x: 530, y: 452)
-  let w: CGFloat = 470, h: CGFloat = 330, r: CGFloat = 56
-  let back: [(UInt32, CGFloat, CGPoint)] = [
-    (0xf97316, -14, CGPoint(x: c.x - 34, y: c.y + 92)),
-    (0xec4899, -7, CGPoint(x: c.x - 14, y: c.y + 48))
-  ]
-  for (hex, angle, p) in back {
-    ctx.saveGState()
-    ctx.setShadow(offset: CGSize(width: 0, height: -8), blur: 18, color: color(0x000000, 0.35))
-    card(ctx, center: p, w: w, h: h, r: r, angle: angle) { g, rect in
-      g.setFillColor(color(hex)); g.fill(rect)
-    }
-    ctx.restoreGState()
-  }
-  // Front card: indigo → violet, with the play symbol.
-  ctx.saveGState()
-  ctx.setShadow(offset: CGSize(width: 0, height: -10), blur: 24, color: color(0x000000, 0.45))
-  card(ctx, center: CGPoint(x: c.x + 10, y: c.y - 6), w: w, h: h, r: r, angle: 0) { g, rect in
-    let grad = CGGradient(colorsSpace: nil, colors: [color(0x818cf8), color(0x6366f1), color(0x8b5cf6)] as CFArray,
-                          locations: [0, 0.5, 1])!
-    g.drawLinearGradient(grad, start: CGPoint(x: rect.minX, y: rect.maxY),
-                         end: CGPoint(x: rect.maxX, y: rect.minY), options: [])
-  }
-  ctx.restoreGState()
-  ctx.setFillColor(color(0xffffff))
-  triangle(ctx, center: CGPoint(x: c.x + 10, y: c.y - 6), size: 150)
+  // The mark, about 56% of the body, like the brand sheet's app icon.
+  ctx.setFillColor(color(BRAND_MARK))
+  drawMark(ctx, in: CGRect(x: 512 - 240, y: 512 - 240, width: 480, height: 480))
   save(ctx, path)
 }
 
@@ -102,17 +104,10 @@ func appIcon(_ path: String) {
 func trayIcon(_ path: String, px: Int) {
   let S = CGFloat(px)
   let ctx = makeContext(px)
-  ctx.scaleBy(x: S / 18, y: S / 18)  // draw in an 18-point grid
-  ctx.setStrokeColor(color(0x000000)); ctx.setFillColor(color(0x000000))
-  ctx.setLineWidth(1.4)
-  // Back card outline (top), then the front card filled, with the play symbol knocked out.
-  ctx.addPath(CGPath(roundedRect: CGRect(x: 5.0, y: 6.6, width: 11.8, height: 8.2), cornerWidth: 1.8, cornerHeight: 1.8, transform: nil))
-  ctx.strokePath()
-  let front = CGRect(x: 1.2, y: 2.6, width: 12.4, height: 8.6)
-  ctx.addPath(CGPath(roundedRect: front, cornerWidth: 2, cornerHeight: 2, transform: nil))
-  ctx.fillPath()
-  ctx.setBlendMode(.clear)
-  triangle(ctx, center: CGPoint(x: front.midX, y: front.midY), size: 4.6)
+  ctx.setFillColor(color(0x000000))
+  // 16 of 18 points tall, centered: the mark's notch still reads at menu bar size.
+  let inset = S / 18
+  drawMark(ctx, in: CGRect(x: inset, y: inset, width: S - inset * 2, height: S - inset * 2))
   save(ctx, path)
 }
 

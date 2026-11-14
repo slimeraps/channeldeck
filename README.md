@@ -215,7 +215,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 **Screenshots for UI work:** from source, `npx electron-vite build && CHANNELDECK_SCREENSHOTS="$(mktemp -d)" ./node_modules/.bin/electron .` opens the app on a throwaway folder with Dry Run on, captures every page empty, fills it with demo channels, clips, rules and posts in every status, captures every page again (plus the editors and the smallest window size), and quits. The PNGs are in `<folder>/shots`. It starts no jobs and calls neither Google nor Twitch.
 
-**Icons:** `swift scripts/draw-icons.swift <dir>` draws the app icon and the menu bar template images with CoreGraphics; `build/icon.icns` is made from the PNG with `sips` + `iconutil`.
+**Logo and icons:** the logo artwork lives in `design/logo/`. `swift scripts/trace-logo.swift design/logo/mark.webp design/logo/logo-light.webp` traces it into vector outlines with Apple's Vision framework: `resources/brand/mark.svg`, `resources/brand/wordmark.svg` and `src/renderer/src/components/brand/paths.ts` (used by the sidebar logo). `swift scripts/draw-icons.swift <dir>` then draws the app icon and the menu bar template images from `mark.svg` with CoreGraphics; copy them to `build/icon.png`, `resources/icon.png` and `resources/trayTemplate(@2x).png`, and make `build/icon.icns` from the PNG with `sips` + `iconutil`.
 
 **Security:** the window is sandboxed with no Node access; it can only call a typed, validated set of functions. Local videos are previewed through a restricted `cdmedia://` protocol. Secrets are never committed or logged.
 
@@ -224,6 +224,11 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### Unreleased
+
+- New look: the ChannelDeck logo (the two cards with the play notch) in pink `#ffa6c9`, in the sidebar, the app icon and the menu bar icon. The dark theme uses the brand colors: ink `#10151d`, slate `#263241`, mist `#f5f7fa`, with a slightly darker pink (`#f292b8`) for main buttons and the current page, so the logo stands out.
+- Autopost: **Duplicate…** in a rule's ⋯ menu opens the rule editor with a copy of its settings, named "… (copy)", to save as a new rule.
 
 ### 1.3.1 (2026-11-13)
 

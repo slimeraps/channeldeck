@@ -1,4 +1,5 @@
 import { PAGES } from '@renderer/app/nav'
+import { BrandLogo } from '@renderer/components/brand/BrandLogo'
 import { NewPostButton } from '@renderer/components/NewPostButton'
 import { QuotaMeter } from '@renderer/components/QuotaMeter'
 import { useAppInfo } from '@renderer/hooks/useAppInfo'
@@ -18,7 +19,9 @@ export function AppSidebar(): React.JSX.Element {
       <div className="app-drag h-12 shrink-0" />
 
       <div className="px-3 pb-3">
-        <div className="mb-3 px-2 text-sm font-semibold tracking-tight">ChannelDeck</div>
+        <div className="mb-4 px-2">
+          <BrandLogo className="h-8 text-sidebar-foreground" />
+        </div>
         <NewPostButton className="app-no-drag w-full" />
       </div>
 
@@ -38,7 +41,7 @@ export function AppSidebar(): React.JSX.Element {
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
               )}
             >
-              <Icon className="size-4" aria-hidden />
+              <Icon className={cn('size-4', active && 'text-primary')} aria-hidden />
               {label}
             </button>
           )

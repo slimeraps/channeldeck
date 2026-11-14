@@ -100,9 +100,12 @@ function numberOrUndefined(value: string): number | undefined {
 
 export function RuleEditor({
   rule,
+  copyOf,
   onClose
 }: {
   rule: RuleView | null
+  /** Start a new rule from this one's settings (Duplicate). Ignored when `rule` is set. */
+  copyOf?: RuleView
   onClose: () => void
 }): React.JSX.Element {
   const accounts = useAccounts()
@@ -114,7 +117,8 @@ export function RuleEditor({
   const channels = accounts.data ?? []
   const [draft, setInput] = useState<RuleInput>(
     () =>
-      rule?.input ?? {
+      rule?.input ??
+      (copyOf ? { ...copyOf.input, name: `${copyOf.input.name} (copy)`.slice(0, 80) } : null) ?? {
         name: '',
         youtubeAccountId: channels[0]?.id ?? 0,
         twitchAccountIds: twitch.data?.length === 1 && twitch.data[0] ? [twitch.data[0].id] : [],
@@ -215,7 +219,13 @@ export function RuleEditor({
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="flex max-h-[92vh] flex-col overflow-hidden sm:max-w-5xl">
         <DialogHeader>
-          <DialogTitle>{rule ? `Edit “${rule.input.name}”` : 'New autopost rule'}</DialogTitle>
+          <DialogTitle>
+            {rule
+              ? `Edit “${rule.input.name}”`
+              : copyOf
+                ? `Duplicate “${copyOf.input.name}”`
+                : 'New autopost rule'}
+          </DialogTitle>
           <DialogDescription>
             Fills your chosen time slots with clips from the bank, as scheduled YouTube posts.
           </DialogDescription>
