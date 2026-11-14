@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.6.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.7.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -235,7 +235,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
-### Unreleased
+### 1.7.0 (2026-11-14)
 
 - Autopost: new **Sync…** item in a rule's ⋯ menu (2026-11-14). It cancels the rule's failed autoposts that have nothing on YouTube yet, puts their clips back in the pool and refills the empty slots, so those clips get re-uploaded on schedule. Clips you unscheduled or swapped out stay skipped; a failed autopost that already has a video is left for **Retry** in the queue. The menu shows how many failed autoposts the rule has.
 - Autopost: **Duplicate…** no longer re-posts clips by accident. The copy starts with the original's skip list and, on the same channel, the clips of its autoposts that aren't on YouTube yet, so duplicating a rule and deleting the original no longer brings those clips back. Use **Sync…** to retry failed ones. The editor's preview shows the clips the copy will really pick.
