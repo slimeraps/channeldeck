@@ -4,18 +4,32 @@
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Privacy policy · ChannelDeck</title>
+    <meta name="description" content="ChannelDeck's privacy policy." />
+    <meta name="theme-color" content="#10151d" />
     <link rel="icon" href="icon.png" />
     <link rel="stylesheet" href="style.css" />
   </head>
   <body>
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="install.html">Install</a></li>
+          <li><a href="setup.html">Setup</a></li>
+          <li><a href="data.html">Your data</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="develop.html">Develop</a></li>
+          <li><a href="privacy.html" aria-current="page">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
     <main>
-      <header>
-        <img src="icon.png" alt="" />
-        <div>
-          <h1>Privacy policy</h1>
-          <p>ChannelDeck · last updated November 13, 2026</p>
-        </div>
-      </header>
+      <h1>Privacy policy</h1>
+      <p class="lede">ChannelDeck · last updated November 14, 2026</p>
 
       <p>
         ChannelDeck is a desktop app that runs entirely on your own Mac. This policy explains what
@@ -26,8 +40,8 @@
       <h2>Use of YouTube API Services</h2>
       <p>
         ChannelDeck uses the YouTube API Services to upload videos, schedule them, add them to
-        playlists, set thumbnails and read their status for the channels you connect. By using
-        ChannelDeck with YouTube you agree to the
+        playlists, set thumbnails, read their status, and show your channels' analytics for the
+        channels you connect. By using ChannelDeck with YouTube you agree to the
         <a href="https://www.youtube.com/t/terms">YouTube Terms of Service</a>. Google's handling of
         your information is described in the
         <a href="https://policies.google.com/privacy">Google Privacy Policy</a>.
@@ -39,6 +53,12 @@
           <strong>Your YouTube channels</strong>, when you sign in with Google: channel name, handle
           and picture, your categories and playlists, and the videos ChannelDeck uploads for you,
           including their status.
+        </li>
+        <li>
+          <strong>Your channels' YouTube Analytics reports</strong>, when you open the Analytics
+          page: views, watch time, average view duration, likes, subscribers gained and lost, and
+          your top videos. They are kept in the app's memory for up to an hour and are not saved to
+          disk.
         </li>
         <li>
           <strong>Your Twitch channels</strong>, when you sign in with Twitch: channel name and
@@ -88,7 +108,18 @@
         <a href="https://github.com/slimeraps/channeldeck/issues">GitHub</a>.
       </p>
 
-      <footer><a href="index.html">ChannelDeck home</a></footer>
+      <footer>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
+      </footer>
     </main>
   </body>
 </html>

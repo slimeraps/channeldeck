@@ -1,0 +1,177 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Your data · ChannelDeck</title>
+    <meta
+      name="description"
+      content="Where ChannelDeck keeps your data, how backups work, and how YouTube quota works."
+    />
+    <meta name="theme-color" content="#10151d" />
+    <link rel="icon" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html">Features</a></li>
+          <li><a href="install.html">Install</a></li>
+          <li><a href="setup.html">Setup</a></li>
+          <li><a href="data.html" aria-current="page">Your data</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="develop.html">Develop</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main>
+      <h1>Your data</h1>
+      <p class="lede">
+        Everything ChannelDeck keeps is on your Mac. Here's where it lives, how to back it up, and
+        how YouTube's quota works.
+      </p>
+
+      <h2 id="where">Where it lives</h2>
+      <table>
+        <thead>
+          <tr>
+            <th>What</th>
+            <th>Where</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Database</td>
+            <td><code>~/Library/Application Support/ChannelDeck/channeldeck.db</code></td>
+          </tr>
+          <tr>
+            <td>Google client file</td>
+            <td><code>~/Library/Application Support/ChannelDeck/google-client.json</code></td>
+          </tr>
+          <tr>
+            <td>Sign-in tokens</td>
+            <td>Inside the database, encrypted with the macOS Keychain</td>
+          </tr>
+          <tr>
+            <td>Twitch clips</td>
+            <td><code>~/Movies/ChannelDeck/Clips</code> (you can change it in Settings)</td>
+          </tr>
+          <tr>
+            <td>Logs</td>
+            <td><code>~/Library/Logs/ChannelDeck/main.log</code></td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        Logs record what the app did, such as which YouTube or Twitch call ran and whether it
+        worked. Tokens, secrets and sign-in codes are scrubbed before anything is written.
+      </p>
+
+      <h2 id="backups">Backups</h2>
+      <p>
+        <strong>Settings → Backup → Export backup…</strong> saves a JSON file with your settings,
+        YouTube and Twitch channels, templates, series, layouts, autopost rules and posts not yet on
+        YouTube. It never contains sign-in tokens or secrets.
+      </p>
+      <p>To restore it, for example on a new Mac:</p>
+      <ol>
+        <li>Choose <strong>Settings → Backup → Import backup…</strong>.</li>
+        <li>Click <strong>Reconnect</strong> on each channel, since backups carry no sign-ins.</li>
+        <li>
+          Turn your autopost rules back on. They arrive switched off so nothing posts before you've
+          checked them.
+        </li>
+      </ol>
+      <p>
+        Import adds what's missing and leaves Dry Run and "delete local files after posting" as they
+        are on that Mac. Clips come back from Twitch on the next sync.
+      </p>
+
+      <h2 id="quota">YouTube quota</h2>
+      <p>
+        Quota belongs to your Google Cloud project and is shared by all your channels. Both limits
+        reset at midnight Pacific time, and it's free: going over just pauses uploads until the
+        reset.
+      </p>
+      <table>
+        <thead>
+          <tr>
+            <th>Limit</th>
+            <th>Per day</th>
+            <th>What uses it</th>
+          </tr>
+        </thead>
+        <tbody>
+          <tr>
+            <td>Uploads</td>
+            <td>100</td>
+            <td>Each video upload</td>
+          </tr>
+          <tr>
+            <td>Quota units</td>
+            <td>10,000</td>
+            <td>
+              Thumbnail, playlist add, video update or delete: 50 each. Reading lists and statuses:
+              1 each.
+            </td>
+          </tr>
+        </tbody>
+      </table>
+      <p>
+        The sidebar's meter shows today's use. The Autopost page warns you when your rules plus your
+        queue would go over a limit on any day of the coming week.
+      </p>
+      <p>
+        The Analytics page uses the separate YouTube Analytics API, which has its own quota and
+        doesn't count against these numbers. Its reports are kept for an hour unless you click
+        Refresh.
+      </p>
+
+      <h2 id="disk">Disk space</h2>
+      <p>
+        Settings shows how much space each Twitch channel's clips use. Turn on
+        <strong>Delete local files after posting</strong> to remove clip videos a number of days
+        after every post that uses them is published. ChannelDeck only deletes inside your clip
+        folder and never a file a post still needs.
+      </p>
+
+      <h2 id="delete">Deleting everything</h2>
+      <ol>
+        <li>
+          Remove your channels in ChannelDeck. That revokes its access to your Google and Twitch
+          accounts.
+        </li>
+        <li>Quit ChannelDeck.</li>
+        <li>
+          Delete <code>~/Library/Application Support/ChannelDeck</code>, your clip folder and
+          <code>~/Library/Logs/ChannelDeck</code>.
+        </li>
+      </ol>
+      <p>
+        You can also remove access any time from your
+        <a href="https://myaccount.google.com/permissions">Google Account permissions</a> or
+        <a href="https://www.twitch.tv/settings/connections">Twitch connections</a>. See the
+        <a href="privacy.html">privacy policy</a> for the full details.
+      </p>
+
+      <footer>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>

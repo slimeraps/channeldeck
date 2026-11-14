@@ -1,0 +1,334 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Features · ChannelDeck</title>
+    <meta
+      name="description"
+      content="Everything ChannelDeck does: scheduling, queue, uploads, calendar, analytics, Twitch clip bank and autoposting."
+    />
+    <meta name="theme-color" content="#10151d" />
+    <link rel="icon" href="icon.png" />
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <nav class="site-nav" aria-label="Site">
+      <div class="inner">
+        <a class="logo" href="index.html" aria-label="ChannelDeck home">
+          <img src="img/mark.svg" alt="" width="29" height="30" />
+          <img src="img/wordmark.svg" alt="ChannelDeck" width="125" height="17" />
+        </a>
+        <ul>
+          <li><a href="features.html" aria-current="page">Features</a></li>
+          <li><a href="install.html">Install</a></li>
+          <li><a href="setup.html">Setup</a></li>
+          <li><a href="data.html">Your data</a></li>
+          <li><a href="changelog.html">Changelog</a></li>
+          <li><a href="develop.html">Develop</a></li>
+          <li><a href="privacy.html">Privacy</a></li>
+        </ul>
+      </div>
+    </nav>
+    <main class="wide">
+      <h1>Features</h1>
+      <p class="lede">
+        Everything ChannelDeck does, by area. All of it is built and in the current version.
+      </p>
+
+      <div class="card toc">
+        <ul>
+          <li><a href="#channels">YouTube channels</a></li>
+          <li><a href="#editor">Post editor</a></li>
+          <li><a href="#queue">Queue</a></li>
+          <li><a href="#uploading">Uploading</a></li>
+          <li><a href="#calendar">Calendar</a></li>
+          <li><a href="#analytics">Analytics</a></li>
+          <li><a href="#clips">Twitch clip bank</a></li>
+          <li><a href="#autopost">Autoposting</a></li>
+          <li><a href="#mac">Mac app</a></li>
+        </ul>
+      </div>
+
+      <h2 id="channels">YouTube channels</h2>
+      <ul>
+        <li>Connect any number of channels with Google sign-in in your browser.</li>
+        <li>
+          Brand-account channels: click <strong>Add channel</strong> again and pick the other
+          channel in Google's picker.
+        </li>
+        <li>
+          One row per channel with its picture, handle, status, pending and scheduled counts, and
+          next publish time.
+        </li>
+        <li>
+          A calendar color, an on/off switch and defaults for new posts per channel: category, tags,
+          playlist, made for kids, languages, license and a description footer.
+        </li>
+        <li>
+          An expired or revoked sign-in shows a banner and a notification, and that channel's
+          uploads pause until you click <strong>Reconnect</strong>.
+        </li>
+        <li>
+          Removing a channel revokes its Google access and asks what to do with posts not yet
+          uploaded: cancel them, keep them as drafts, or move them to another channel.
+        </li>
+        <li>
+          Plain error messages, like when the YouTube Data API isn't turned on in your Cloud
+          project.
+        </li>
+      </ul>
+
+      <h2 id="editor">Post editor</h2>
+      <ul>
+        <li>
+          Start a post with <strong>New post</strong>, <kbd>⌘</kbd><kbd>N</kbd>, or by dropping a
+          video anywhere on the window.
+        </li>
+        <li>
+          <strong>From clip library</strong>: use any banked Twitch clip as the video. The post
+          stays linked to the clip, so it's never posted twice to a channel.
+        </li>
+        <li>
+          Reads each video's length, resolution, size and shape, detects Shorts (vertical or square,
+          3 minutes or less) and warns about videos over 15 minutes.
+        </li>
+        <li>
+          Title, description and tags with live counters measured the way YouTube measures them (100
+          characters, 5,000 bytes, 500 characters).
+        </li>
+        <li>
+          Category and playlist pickers loaded from your channel; custom thumbnail with preview.
+        </li>
+        <li>
+          Made for kids, notify subscribers, license, embedding, languages, and altered or synthetic
+          media.
+        </li>
+        <li>
+          Four ways to publish: <strong>Schedule</strong> (public at a time you pick),
+          <strong>Public now</strong>, <strong>Unlisted now</strong> or <strong>Private</strong>.
+        </li>
+        <li>
+          Publish time in your own time zone, with "in 3h 20m" underneath. If the time passes before
+          the upload finishes: <strong>Ask me</strong> or <strong>Publish now</strong>.
+        </li>
+        <li>
+          Templates with <code>{{n}}</code>, <code>{{date}}</code> and <code>{{channel}}</code>, and
+          numbered series like "MW4 Day {{n}}". A number is only used when a post is queued, never
+          by a draft, and never twice.
+        </li>
+        <li>
+          A <strong>Format</strong> switch for clips: horizontal, Twitch's vertical version, or a
+          vertical render with one of your layouts. <strong>Render now</strong> previews the Short.
+        </li>
+        <li>Duplicate a post to another channel, with that channel's playlist.</li>
+      </ul>
+
+      <h2 id="queue">Queue</h2>
+      <ul>
+        <li>
+          Every post for every channel in one table: preview, title, channel color, source, publish
+          time, status and upload progress.
+        </li>
+        <li>Filter by channel, status and source; sort by publish time.</li>
+        <li>
+          Edit, Duplicate, Reveal in Finder, Unschedule, Upload now, Retry, Open in YouTube Studio,
+          and the reason a post failed.
+        </li>
+        <li>
+          Select several posts for bulk <strong>Approve</strong>, <strong>Upload now</strong>,
+          <strong>Retry</strong>, <strong>Duplicate</strong>, <strong>Unschedule</strong> and
+          <strong>Delete drafts</strong>.
+        </li>
+        <li>
+          <strong>Approve</strong> autoposts one at a time or all at once, and
+          <strong>Swap clip</strong> before upload.
+        </li>
+        <li><strong>Check status</strong> asks YouTube for the latest state right away.</li>
+      </ul>
+
+      <h2 id="uploading">Uploading</h2>
+      <ul>
+        <li>
+          A background job runner checks every 30 seconds, at launch and when the Mac wakes, and
+          keeps the Mac awake while it uploads.
+        </li>
+        <li>
+          Scheduled posts upload ahead of time (24 hours before by default, adjustable); "now" posts
+          upload right away. Up to 3 uploads at once.
+        </li>
+        <li>
+          Resumable uploads: a dropped connection picks up where it stopped. Video, thumbnail and
+          playlist are separate steps, each retried on its own, and a video is never uploaded twice.
+        </li>
+        <li>
+          Network errors and YouTube server errors retry with backoff. Out of quota or over the
+          daily upload limit, a post waits until midnight Pacific instead of failing.
+        </li>
+        <li>
+          <strong>Dry Run</strong> shows exactly what would be sent to YouTube without uploading
+          anything.
+        </li>
+        <li>
+          Status tracking from Processing to Scheduled to Published; rejected, failed and deleted
+          videos are reported with the reason.
+        </li>
+        <li>
+          Change an uploaded video's publish time (YouTube is updated too), keep it private, or
+          delete it from YouTube.
+        </li>
+      </ul>
+
+      <h2 id="calendar">Calendar</h2>
+      <figure>
+        <img
+          src="img/calendar.jpg"
+          alt="The calendar's week view with posts colored by channel"
+          width="1280"
+          height="820"
+          loading="lazy"
+        />
+      </figure>
+      <ul>
+        <li>Week and month views colored by channel, with a clip icon on Twitch posts.</li>
+        <li>
+          Drag a post to reschedule it (YouTube is updated if it's already uploaded), or click an
+          empty slot to start a post at that time.
+        </li>
+        <li>Swipe sideways on the trackpad to move a week or month.</li>
+      </ul>
+
+      <h2 id="analytics">Analytics</h2>
+      <figure>
+        <img
+          src="img/analytics.jpg"
+          alt="The Analytics page with views, watch time and a views-per-day chart"
+          width="1280"
+          height="820"
+          loading="lazy"
+        />
+      </figure>
+      <ul>
+        <li>
+          Views, watch time, average view duration and subscribers gained and lost for the last 7,
+          28 or 90 days, per channel or <strong>All channels</strong> added together.
+        </li>
+        <li>A views-per-day chart and your top 10 videos, marked when ChannelDeck posted them.</li>
+        <li>
+          Uses the YouTube Analytics API, which has its own quota, so it doesn't use your 10,000
+          daily units.
+        </li>
+      </ul>
+
+      <h2 id="clips">Twitch clip bank</h2>
+      <ul>
+        <li>Connect Twitch channels as the broadcaster or as an editor.</li>
+        <li>
+          A daily clip sync at a time you choose, a catch-up on launch or wake, and
+          <strong>Sync now</strong>. A full backfill from a start date, resumed after a quit.
+        </li>
+        <li>
+          Downloads landscape and portrait files with a thumbnail and details, named so Finder sorts
+          them oldest to newest.
+        </li>
+        <li>
+          The Clips page: sort, filter by game, length, views, featured, posted or not, dates and
+          title; preview; bulk actions; disk usage.
+        </li>
+        <li>
+          A color for each Twitch channel, and an <strong>All channels</strong> view to work across
+          every channel at once.
+        </li>
+        <li>
+          <strong>Post…</strong> on any clip opens the editor with it. A clip can never be added
+          twice to the same channel.
+        </li>
+      </ul>
+
+      <h2 id="autopost">Autoposting</h2>
+      <figure>
+        <img
+          src="img/rule-menu.jpg"
+          alt="The Autopost page with a rule's menu open: Edit, Duplicate, Sync and Delete"
+          width="1280"
+          height="820"
+          loading="lazy"
+        />
+      </figure>
+      <ul>
+        <li>
+          Rules send clips from your Twitch channels to a YouTube channel on daily time slots and
+          weekdays, planned up to 14 days ahead. Daylight-saving changes are handled.
+        </li>
+        <li>
+          Pick order (oldest, newest, most viewed) and filters (games, length, views, featured).
+        </li>
+        <li>
+          Shorts made from the landscape clip with a layout (blurred fill, center crop, or a
+          facecam-on-top split drawn on a real frame, with an 8-second test render), or from
+          Twitch's own vertical version.
+        </li>
+        <li>
+          Title and description templates with <code>{{clip_title}}</code>, <code>{{game}}</code>,
+          <code>{{broadcaster}}</code>, <code>{{clipper}}</code>, <code>{{clip_date}}</code>,
+          <code>{{clip_url}}</code>, <code>{{views}}</code>, <code>{{n}}</code> and more; titles
+          trimmed safely to 100 characters.
+        </li>
+        <li>
+          <strong>Review</strong> mode (approve first) or <strong>Auto</strong>. An autopost that
+          isn't approved by its publish time is dropped and its clip goes back to the bank.
+        </li>
+        <li>
+          Unscheduling an autopost refills its slot with the next clip, and that rule never picks
+          the skipped clip again.
+        </li>
+        <li>
+          <strong>Sync…</strong> re-queues a rule's failed autoposts so their clips upload on
+          schedule. <strong>Duplicate…</strong> copies a rule, skipped clips included.
+        </li>
+        <li>
+          An "out of clips" notification, and a warning when your rules would go over YouTube's
+          daily limits.
+        </li>
+      </ul>
+
+      <h2 id="mac">Mac app</h2>
+      <ul>
+        <li>
+          Native dark interface and macOS notifications for uploads, failures, quota pauses and
+          sign-in problems.
+        </li>
+        <li>
+          A menu bar icon with the pending count, the next publish time, Sync clips now, Pause jobs
+          and Quit. Closing the window keeps uploads and syncs running. Launch at login.
+        </li>
+        <li>
+          <strong>Hide post titles</strong> for streaming: notifications and the menu bar say "a
+          video" instead of the title.
+        </li>
+        <li>
+          A quota meter (uploads out of 100 and units out of 10,000, reset at midnight Pacific) and
+          disk usage per Twitch channel.
+        </li>
+        <li>Optionally delete local clip files a number of days after they're posted.</li>
+        <li>
+          Backups as a JSON file, never with sign-in tokens or secrets. See
+          <a href="data.html#backups">Your data</a>.
+        </li>
+      </ul>
+
+      <footer>
+        <p>
+          <a href="privacy.html">Privacy policy</a> ·
+          <a href="https://github.com/slimeraps/channeldeck">GitHub</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/releases">Releases</a> ·
+          <a href="https://github.com/slimeraps/channeldeck/issues">Questions and bugs</a>
+        </p>
+        <p>
+          ChannelDeck is a personal project. It isn't made by or affiliated with YouTube, Google or
+          Twitch.
+        </p>
+      </footer>
+    </main>
+  </body>
+</html>
