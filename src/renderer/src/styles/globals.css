@@ -35,8 +35,10 @@
   --sidebar-ring: oklch(0.705 0.015 286.067);
 }
 
-/* Brand palette (design/logo/brand-sheet.webp): ink #10151d, slate #263241, mist #f5f7fa,
-   and the mark recolored pink #ffa6c9 (also BRAND_MARK in scripts/draw-icons.swift). */
+/* Brand palette (design/logo/brand-sheet.webp): ink #10151d, slate #263241, mist #f5f7fa.
+   --brand is the logo pink #ffa6c9 (also BRAND_MARK in scripts/draw-icons.swift); the UI's
+   pink (--primary: buttons, focus rings, current page) is a step darker, #f292b8, so the
+   logo stands out from the controls around it. */
 .dark {
   --brand: #ffa6c9;
   --background: #10151d;
@@ -45,7 +47,7 @@
   --card-foreground: #f5f7fa;
   --popover: #161d28;
   --popover-foreground: #f5f7fa;
-  --primary: #ffa6c9;
+  --primary: #f292b8;
   --primary-foreground: #10151d;
   --secondary: #263241;
   --secondary-foreground: #f5f7fa;
@@ -56,15 +58,15 @@
   --destructive: oklch(0.704 0.191 22.216);
   --border: rgb(245 247 250 / 9%);
   --input: rgb(245 247 250 / 14%);
-  --ring: rgb(255 166 201 / 60%);
+  --ring: rgb(242 146 184 / 60%);
   --sidebar: #0c1017;
   --sidebar-foreground: #f5f7fa;
-  --sidebar-primary: #ffa6c9;
+  --sidebar-primary: #f292b8;
   --sidebar-primary-foreground: #10151d;
   --sidebar-accent: #1c2532;
   --sidebar-accent-foreground: #f5f7fa;
   --sidebar-border: rgb(245 247 250 / 7%);
-  --sidebar-ring: rgb(255 166 201 / 60%);
+  --sidebar-ring: rgb(242 146 184 / 60%);
 }
 
 @theme inline {

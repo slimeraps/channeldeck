@@ -41,7 +41,7 @@ export function AppSidebar(): React.JSX.Element {
                   : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
               )}
             >
-              <Icon className={cn('size-4', active && 'text-brand')} aria-hidden />
+              <Icon className={cn('size-4', active && 'text-primary')} aria-hidden />
               {label}
             </button>
           )

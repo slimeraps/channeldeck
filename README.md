@@ -227,7 +227,7 @@ No version numbers yet; the first version is tagged when all phases are complete
 
 ### Unreleased
 
-- New look: the ChannelDeck logo (the two cards with the play notch) in pink `#ffa6c9`, in the sidebar, the app icon and the menu bar icon. The dark theme uses the brand colors: ink `#10151d`, slate `#263241`, mist `#f5f7fa`, with pink for main buttons and the current page.
+- New look: the ChannelDeck logo (the two cards with the play notch) in pink `#ffa6c9`, in the sidebar, the app icon and the menu bar icon. The dark theme uses the brand colors: ink `#10151d`, slate `#263241`, mist `#f5f7fa`, with a slightly darker pink (`#f292b8`) for main buttons and the current page, so the logo stands out.
 - Autopost: **Duplicate…** in a rule's ⋯ menu opens the rule editor with a copy of its settings, named "… (copy)", to save as a new rule.
 
 ### 1.3.1 (2026-11-13)
