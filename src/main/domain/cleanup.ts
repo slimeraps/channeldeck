@@ -1,3 +1,4 @@
+import { isAbsolute, relative } from 'node:path'
 import type { PostStatus } from '@shared/constants/enums'
 
 /**
@@ -20,6 +21,8 @@ export interface CleanupPost {
   updatedAt: string
   filePath: string | null
   rendered: boolean
+  /** The video a vertical render is made from (`render_json.sourcePath`). */
+  renderSourcePath: string | null
 }
 
 const DONE: PostStatus[] = ['published', 'canceled']
@@ -38,10 +41,24 @@ export function filesToClean(args: {
     if (p.clipId) byClip.set(p.clipId, [...(byClip.get(p.clipId) ?? []), p])
   }
 
+  // Files an unfinished post still needs: its own video, and the video it renders from.
+  const unfinished = args.posts.filter((p) => !DONE.includes(p.status))
+  const inUse = new Set<string>()
+  const renderSourcesInUse = new Set<string>()
+  for (const p of unfinished) {
+    if (p.filePath) inUse.add(p.filePath)
+    if (p.renderSourcePath) {
+      inUse.add(p.renderSourcePath)
+      renderSourcesInUse.add(p.renderSourcePath)
+    }
+  }
+
   const clipIds = args.clips
     .filter((clip) => {
       if (clip.downloadStatus !== 'downloaded') return false
       if (!clip.landscapePath && !clip.portraitPath) return false
+      if ([clip.landscapePath, clip.portraitPath].some((path) => path && inUse.has(path)))
+        return false
       const posts = byClip.get(clip.id) ?? []
       const published = posts.filter((p) => p.status === 'published')
       if (published.length === 0) return false
@@ -51,10 +68,8 @@ export function filesToClean(args: {
     })
     .map((c) => c.id)
 
-  // A render can go once its post is published long enough, unless an unfinished post uses it.
-  const inUse = new Set(
-    args.posts.filter((p) => !DONE.includes(p.status) && p.filePath).map((p) => p.filePath)
-  )
+  // A render can go once its post is published long enough, unless an unfinished post uses it
+  // or renders from the same source video.
   const renderPaths = [
     ...new Set(
       args.posts
@@ -64,10 +79,17 @@ export function filesToClean(args: {
             p.filePath &&
             p.status === 'published' &&
             publishedAt(p) <= cutoff &&
-            !inUse.has(p.filePath)
+            !inUse.has(p.filePath) &&
+            !(p.renderSourcePath && renderSourcesInUse.has(p.renderSourcePath))
         )
         .map((p) => p.filePath as string)
     )
   ]
   return { clipIds, renderPaths }
+}
+
+/** True when `dir` is `root` or a folder below it. Both must already be real (resolved) paths. */
+export function isInside(root: string, dir: string): boolean {
+  const rel = relative(root, dir)
+  return rel === '' || (!rel.startsWith('..') && !isAbsolute(rel))
 }

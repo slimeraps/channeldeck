@@ -235,6 +235,8 @@ No version numbers yet; the first version is tagged when all phases are complete
 - Fixed: status sync marked a post "deleted on YouTube" (and freed its clip to be posted again) the first time YouTube's answer left the video out. A video now has to stay missing for an hour, across two checks, before it counts as deleted. A video YouTube reports as deleted still counts at once.
 - Fixed: importing a backup replaced every setting, so an old backup could turn Dry Run off or switch on deleting local files. Import now leaves Dry Run and "delete local files after posting" as they are on this Mac.
 - Fixed: a symlink inside the clip or render folder could make the app's video player serve a file outside those folders. It now follows links and refuses any that lead outside (from the other developer's `harden-media-protocol` branch, which also adds tests for the video player and the IPC sender check).
+- Fixed: "Delete local files after posting" now only deletes inside your clips folder and its `_renders` folder, and can't be pointed somewhere else by a linked folder.
+- It also keeps any file an unfinished post (draft, queued, failed, waiting for quota…) still uses, including the clip a vertical render is made from.
 
 ### 1.2.0 (2026-11-13)
 
