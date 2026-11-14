@@ -7,6 +7,7 @@ import { nextQuotaReset } from '../domain/quota'
 import { AUDIT_LOCK_MESSAGE, buildVideoResource, looksLockedPrivate } from '../domain/videoResource'
 import { classifyGoogleError, type ClassifiedError } from '../google/errors'
 import type { YouTubeApi } from '../google/youtube'
+import { postLabel, sentence } from '@shared/lib/postLabel'
 import { contentTypeFor } from '../media/mediaUrl'
 import { type BackoffOptions, DEFAULT_BACKOFF, withRetry } from './retry'
 import type { JobType } from './runner'
@@ -58,6 +59,9 @@ class RenderProblem extends Error {}
 
 export function createUploadJob(deps: UploadJobDeps): UploadJob {
   const { repos, logger } = deps
+  /** The post's name in notifications ("a video" while titles are hidden for streaming). */
+  const label = (post: { title: string }): string =>
+    postLabel(post.title, repos.settings.getKey('hidePostTitles'))
   const clock = deps.clock ?? (() => new Date())
   let quotaPausedUntil: Date | null = null
 
@@ -193,7 +197,7 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
               })
               deps.notify(
                 'Uploaded as private',
-                `"${post.title}" was locked private by YouTube. See the queue for why.`
+                sentence(`${label(post)} was locked private by YouTube. See the queue for why.`)
               )
             }
           } else if (post.status === 'uploading') {
@@ -325,7 +329,7 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
         patch: { lastError: c.message },
         reason: c.reason ?? 'error'
       })
-      deps.notify('Upload failed', `"${post.title || 'Untitled'}": ${c.message}`)
+      deps.notify('Upload failed', sentence(`${label(post)}: ${c.message}`))
     }
     logger.warn(`[upload] ${post.id} stopped: ${c.kind} ${c.reason ?? ''} ${c.message}`)
   }
@@ -386,7 +390,9 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
             })
             deps.notify(
               'Publish time passed',
-              `"${post.title}" wasn't uploaded in time. Open the queue to decide what to do.`
+              sentence(
+                `${label(post)} wasn't uploaded in time. Open the queue to decide what to do.`
+              )
             )
             deps.emitChanged()
             return
@@ -426,7 +432,11 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
             ? `Goes public ${new Date(post.publishAtUtc).toLocaleString()}.`
             : `Visibility: ${post.visibilityMode}.`
         const dry = post.youtubeVideoId?.startsWith('DRYRUN-') ? ' (Dry Run)' : ''
-        deps.notify(`Uploaded${dry}: ${post.title}`, `${account?.channelTitle ?? ''}. ${when}`)
+        const hide = repos.settings.getKey('hidePostTitles')
+        deps.notify(
+          hide ? `Uploaded${dry}` : `Uploaded${dry}: ${post.title}`,
+          `${account?.channelTitle ?? ''}. ${when}`
+        )
       } catch (error) {
         handleFailure(postId, error, signal)
       } finally {

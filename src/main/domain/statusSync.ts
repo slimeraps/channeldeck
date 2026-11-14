@@ -1,4 +1,5 @@
 import type { PostStatus, VisibilityMode } from '@shared/constants/enums'
+import { postLabel, sentence } from '@shared/lib/postLabel'
 import { toYouTubePublishAt } from '@shared/lib/time'
 import type { PostEvent } from './postState'
 
@@ -28,7 +29,18 @@ export interface PostForSync {
   visibilityMode: VisibilityMode
   publishAtUtc: string | null
   title: string
+  /** When videos.list first stopped returning this video (null while it's found). */
+  missingSinceUtc: string | null
+  /** "Hide post titles" is on: notices say "a video" instead of the title. */
+  hideTitle?: boolean
 }
+
+/**
+ * A video must be missing from videos.list this long (on two checks) before the post counts
+ * as deleted on YouTube. One empty answer isn't proof, and marking a post deleted cancels
+ * it, which frees its clip to be posted again.
+ */
+export const MISSING_CONFIRM_MS = 60 * 60_000
 
 export interface SyncNotice {
   title: string
@@ -37,8 +49,8 @@ export interface SyncNotice {
 
 export type SyncDecision =
   | { kind: 'none' }
-  /** Only keep our copy of publishAt in step with YouTube (e.g. changed in Studio). */
-  | { kind: 'patch'; patch: { publishAtUtc: string | null } }
+  /** Keep our copy in step with YouTube (publishAt changed in Studio) or note a missing video. */
+  | { kind: 'patch'; patch: { publishAtUtc?: string | null; missingSinceUtc?: string | null } }
   | {
       kind: 'transition'
       event: PostEvent
@@ -47,6 +59,7 @@ export type SyncDecision =
         lastError?: string | null
         publishAtUtc?: string | null
         visibilityMode?: VisibilityMode
+        missingSinceUtc?: string | null
       }
       notice?: SyncNotice
     }
@@ -87,9 +100,37 @@ function isoOrNull(value: string | null | undefined): string | null {
   return Number.isNaN(t) ? null : new Date(t).toISOString()
 }
 
-/** Decides what one post should do given what YouTube reports. `null` = video not found. */
-export function decideSync(post: PostForSync, video: YouTubeVideoState | null): SyncDecision {
-  const label = post.title || 'Untitled'
+/**
+ * Decides what one post should do given what YouTube reports. `null` = video not found.
+ * A video YouTube reports as deleted counts at once; one that is merely missing from the
+ * answer counts only once it has stayed missing for MISSING_CONFIRM_MS.
+ */
+export function decideSync(
+  post: PostForSync,
+  video: YouTubeVideoState | null,
+  nowUtc: string
+): SyncDecision {
+  if (!video && !post.missingSinceUtc) {
+    return { kind: 'patch', patch: { missingSinceUtc: nowUtc } }
+  }
+  if (
+    !video &&
+    post.missingSinceUtc &&
+    Date.parse(nowUtc) - Date.parse(post.missingSinceUtc) < MISSING_CONFIRM_MS
+  ) {
+    return { kind: 'none' }
+  }
+  const decision = decideFound(post, video)
+  // The video is back: forget that it went missing.
+  if (video && post.missingSinceUtc) {
+    if (decision.kind === 'none') return { kind: 'patch', patch: { missingSinceUtc: null } }
+    return { ...decision, patch: { ...decision.patch, missingSinceUtc: null } } as SyncDecision
+  }
+  return decision
+}
+
+function decideFound(post: PostForSync, video: YouTubeVideoState | null): SyncDecision {
+  const label = postLabel(post.title, post.hideTitle ?? false)
 
   if (!video || video.status?.uploadStatus === 'deleted') {
     return {
@@ -102,7 +143,7 @@ export function decideSync(post: PostForSync, video: YouTubeVideoState | null): 
       },
       notice: {
         title: 'Video removed from YouTube',
-        body: `"${label}" no longer exists on YouTube.`
+        body: sentence(`${label} no longer exists on YouTube.`)
       }
     }
   }
@@ -119,7 +160,7 @@ export function decideSync(post: PostForSync, video: YouTubeVideoState | null): 
       event: 'fail',
       reason: `rejected: ${s.rejectionReason ?? 'unknown'}`,
       patch: { lastError: `YouTube rejected this video because of ${why}.` },
-      notice: { title: 'Video rejected', body: `YouTube rejected "${label}" because of ${why}.` }
+      notice: { title: 'Video rejected', body: `YouTube rejected ${label} because of ${why}.` }
     }
   }
 
@@ -131,7 +172,10 @@ export function decideSync(post: PostForSync, video: YouTubeVideoState | null): 
       event: 'fail',
       reason: `processing failed: ${code ?? 'unknown'}`,
       patch: { lastError: `YouTube couldn't process this video because of ${why}.` },
-      notice: { title: 'YouTube processing failed', body: `"${label}" failed on YouTube: ${why}.` }
+      notice: {
+        title: 'YouTube processing failed',
+        body: sentence(`${label} failed on YouTube: ${why}.`)
+      }
     }
   }
 
@@ -146,8 +190,8 @@ export function decideSync(post: PostForSync, video: YouTubeVideoState | null): 
       reason: `now ${privacy}`,
       notice:
         privacy === 'public'
-          ? { title: 'Published', body: `"${label}" is now public.` }
-          : { title: 'Live (unlisted)', body: `"${label}" is now unlisted.` }
+          ? { title: 'Published', body: sentence(`${label} is now public.`) }
+          : { title: 'Live (unlisted)', body: sentence(`${label} is now unlisted.`) }
     }
   }
 

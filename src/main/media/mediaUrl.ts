@@ -33,15 +33,42 @@ export interface MediaPolicy {
   isAllowedFile: (path: string) => boolean
 }
 
+/** True when path is strictly inside root (matches on a folder boundary: root + separator). */
+function isInsideRoot(path: string, root: string): boolean {
+  const r = normalize(root).replace(/[/\\]+$/, '')
+  return path.startsWith(r + sep)
+}
+
 /** Only video/image files, only inside allowed roots or explicitly allowed. */
 export function isServable(path: string, policy: MediaPolicy): boolean {
   if (!isAbsolute(path) || normalize(path) !== path) return false
   if (!isVideoPath(path) && !isThumbnailPath(path)) return false
   if (policy.isAllowedFile(path)) return true
-  return policy.roots.some((root) => {
-    const r = normalize(root).replace(/[/\\]+$/, '')
-    return path.startsWith(r + sep)
-  })
+  return policy.roots.some((root) => isInsideRoot(path, root))
+}
+
+/**
+ * isServable() plus a symlink check: a file that is only allowed because it sits in a root
+ * must still be inside a root after symlinks are resolved. Returns the real path to read,
+ * or null if the file may not be served. Explicitly allowed files are returned as given.
+ */
+export async function resolveServable(
+  path: string,
+  policy: MediaPolicy,
+  realpath: (path: string) => Promise<string>
+): Promise<string | null> {
+  if (!isServable(path, policy)) return null
+  if (policy.isAllowedFile(path)) return path
+  try {
+    const real = await realpath(path)
+    const realRoots = await Promise.all(
+      policy.roots.map((root) => realpath(root).catch(() => null))
+    )
+    const inside = realRoots.some((root) => root !== null && isInsideRoot(real, root))
+    return inside ? real : null
+  } catch {
+    return null
+  }
 }
 
 const CONTENT_TYPES: Record<string, string> = {

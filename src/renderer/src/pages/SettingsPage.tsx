@@ -349,6 +349,17 @@ export function SettingsPage(): React.JSX.Element {
           />
         </SettingRow>
         <SettingRow
+          title="Hide post titles"
+          hint="For streaming: notifications and the menu bar say “a video” instead of the post’s title, so private titles never show up on stream. The app window still shows them."
+        >
+          <Switch
+            checked={s?.hidePostTitles ?? false}
+            disabled={!s}
+            onCheckedChange={(hidePostTitles) => update.mutate({ hidePostTitles })}
+            aria-label="Hide post titles"
+          />
+        </SettingRow>
+        <SettingRow
           title="Launch at login"
           hint={
             info.data && !info.data.isPackaged
@@ -434,10 +445,11 @@ export function SettingsPage(): React.JSX.Element {
           <AlertDialogHeader>
             <AlertDialogTitle>Import a backup?</AlertDialogTitle>
             <AlertDialogDescription>
-              Settings are replaced by the backup’s. Channels, Twitch channels, templates, series,
-              layouts and rules that aren’t here yet are added (anything with the same name or
-              channel stays as it is). Channels come back signed out, so you’ll click Reconnect on
-              each; rules come back switched off; unposted posts come back as drafts.
+              Settings are replaced by the backup’s, except Dry Run and “delete local files after
+              posting”, which stay as they are on this Mac. Channels, Twitch channels, templates,
+              series, layouts and rules that aren’t here yet are added (anything with the same name
+              or channel stays as it is). Channels come back signed out, so you’ll click Reconnect
+              on each; rules come back switched off; unposted posts come back as drafts.
             </AlertDialogDescription>
           </AlertDialogHeader>
           <AlertDialogFooter>

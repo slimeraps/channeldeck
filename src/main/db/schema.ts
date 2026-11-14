@@ -297,6 +297,8 @@ export const posts = sqliteTable(
     lastError: text('last_error'),
     /** Don't pick the post up before this (e.g. waiting_quota until midnight Pacific). */
     retryAfterUtc: text('retry_after_utc'),
+    /** When status sync first stopped finding the video on YouTube (domain/statusSync). */
+    missingSinceUtc: text('missing_since_utc'),
     createdAt: createdAt(),
     updatedAt: updatedAt()
   },

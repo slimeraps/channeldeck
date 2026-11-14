@@ -1,0 +1,1 @@
+ALTER TABLE `posts` ADD `missing_since_utc` text;
