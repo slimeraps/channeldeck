@@ -6,6 +6,7 @@ import {
   ListVideo,
   type LucideIcon,
   MonitorPlay,
+  Scissors,
   Settings,
   Zap
 } from 'lucide-react'
@@ -15,6 +16,7 @@ export const PAGE_IDS = [
   'calendar',
   'analytics',
   'clips',
+  'editor',
   'autopost',
   'channels',
   'templates',
@@ -74,6 +76,15 @@ export const PAGES: readonly PageDef[] = [
     emptyBody:
       'Connect a Twitch account and ChannelDeck saves every clip to disk, sorted oldest to newest, and keeps it in sync daily.',
     phase: 6,
+    offersNewPost: false
+  },
+  {
+    id: 'editor',
+    label: 'Editor',
+    icon: Scissors,
+    emptyTitle: 'Edit a video',
+    emptyBody: 'Trim, cut and join clips, switch layouts, and render the result.',
+    phase: 11,
     offersNewPost: false
   },
   {

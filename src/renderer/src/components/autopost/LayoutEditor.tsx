@@ -264,11 +264,14 @@ function CropCanvas({
 export function LayoutEditor({
   layout,
   defaultTwitchAccountId,
+  initialClipId,
   onClose,
   onSaved
 }: {
   layout: LayoutView | null
   defaultTwitchAccountId?: number
+  /** Draw on this clip's frame first (the video editor opens it on the clip being edited). */
+  initialClipId?: string
   onClose: () => void
   onSaved?: (layout: LayoutView) => void
 }): React.JSX.Element {
@@ -281,7 +284,9 @@ export function LayoutEditor({
   const [kind, setKind] = useState<LayoutKind>(layout?.kind ?? 'facecam_split')
   const [drawn, setCrops] = useState<LayoutCrops>(layout?.crops ?? {})
   const [active, setActive] = useState<Region>('facecam')
-  const [frameAt, setFrameAt] = useState<{ clipId?: string; atSec?: number }>({})
+  const [frameAt, setFrameAt] = useState<{ clipId?: string; atSec?: number }>(
+    initialClipId ? { clipId: initialClipId } : {}
+  )
   const [rendering, setRendering] = useState(false)
   const [testUrl, setTestUrl] = useState<string | null>(null)
 

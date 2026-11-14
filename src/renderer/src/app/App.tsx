@@ -21,6 +21,7 @@ import { CalendarPage } from '@renderer/pages/CalendarPage'
 import { TemplatesPage } from '@renderer/pages/TemplatesPage'
 import { ChannelsPage } from '@renderer/pages/ChannelsPage'
 import { ClipsPage } from '@renderer/pages/ClipsPage'
+import { EditorPage } from '@renderer/pages/EditorPage'
 import { PlaceholderPage } from '@renderer/pages/PlaceholderPage'
 import { QueuePage } from '@renderer/pages/QueuePage'
 import { SettingsPage } from '@renderer/pages/SettingsPage'
@@ -44,6 +45,8 @@ function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JS
       return <ChannelsPage />
     case 'clips':
       return <ClipsPage />
+    case 'editor':
+      return <EditorPage />
     case 'autopost':
       return <AutopostPage />
     case 'templates':

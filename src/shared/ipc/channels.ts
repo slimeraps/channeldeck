@@ -66,6 +66,11 @@ export const INVOKE_CHANNELS = [
   'autopost:approveAll',
   'autopost:forecast',
   'autopost:sync',
+  'editor:source',
+  'editor:strips',
+  'editor:render',
+  'editor:cancelRender',
+  'editor:reveal',
   'layouts:list',
   'layouts:save',
   'layouts:delete',
@@ -96,7 +101,8 @@ export const EVENT_CHANNELS = [
   'posts:progress',
   'twitch:changed',
   'twitch:deviceCode',
-  'templates:changed'
+  'templates:changed',
+  'editor:renderProgress'
 ] as const
 export type EventChannel = (typeof EVENT_CHANNELS)[number]
 

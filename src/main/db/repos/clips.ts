@@ -87,6 +87,8 @@ export interface ClipsRepo {
   /** Insert new clips, refresh Twitch fields (views, vod offset...) on existing ones. */
   upsertMany(items: ClipFromTwitch[]): UpsertResult
   get(id: string): ClipRow | undefined
+  /** The clip whose landscape or portrait file is at `path` (the editor opens files by path). */
+  findByPath(path: string): ClipRow | undefined
   listForAccount(twitchAccountId: number, order?: PickOrder): ClipRow[]
   updateLocal(id: string, patch: ClipLocalPatch): void
   setHidden(ids: string[], hidden: boolean): void
@@ -178,6 +180,13 @@ export function createClipsRepo(db: Db, clock: Clock): ClipsRepo {
     },
 
     get: (id) => db.select().from(clips).where(eq(clips.id, id)).get(),
+
+    findByPath: (path) =>
+      db
+        .select()
+        .from(clips)
+        .where(or(eq(clips.landscapePath, path), eq(clips.portraitPath, path)))
+        .get(),
 
     listForAccount(twitchAccountId, order = 'oldest') {
       const orderBy =

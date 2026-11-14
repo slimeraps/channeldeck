@@ -418,6 +418,7 @@ const PAGES = [
   'Calendar',
   'Analytics',
   'Clips',
+  'Editor',
   'Autopost',
   'Channels',
   'Templates',
@@ -432,11 +433,17 @@ export async function captureScreens(
   const out = join(dir, 'shots')
   mkdirSync(out, { recursive: true })
   const wc = window.webContents
+  // macOS treats a window behind other apps as hidden and Chromium stops painting it, so
+  // captures came out one step behind. Keep it painting while we take screenshots.
+  wc.setBackgroundThrottling(false)
   let n = 0
 
   const js = <T>(code: string): Promise<T> => wc.executeJavaScript(code, true) as Promise<T>
   const settle = (ms = 900) => sleep(ms)
   const shot = async (name: string) => {
+    // Make sure the capture shows the current state, not the last frame drawn in the
+    // background: ask for a fresh paint and give it a moment.
+    wc.invalidate()
     await settle(350)
     // capturePage can fail while the compositor is busy (after a reload); try a few times.
     let image: Electron.NativeImage | null = null
@@ -482,6 +489,12 @@ export async function captureScreens(
     wc.sendInputEvent({ type: 'mouseUp', x: at.x, y: at.y, button: 'left', clickCount: 1 })
     await settle()
     return true
+  }
+  const key = async (keyCode: string, ms = 300) => {
+    wc.sendInputEvent({ type: 'keyDown', keyCode })
+    if (keyCode.length === 1) wc.sendInputEvent({ type: 'char', keyCode })
+    wc.sendInputEvent({ type: 'keyUp', keyCode })
+    await settle(ms)
   }
   const escape = async () => {
     wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
@@ -565,6 +578,39 @@ export async function captureScreens(
   if (await click('New template')) {
     await shot('data-new-template')
     await escape()
+  }
+
+  // The video editor on a demo clip: one piece, two pieces, 16:9, and a finished render.
+  await go('Editor')
+  if (await click('Open a clip…')) {
+    await mouseClick('[role="dialog"] .grid button')
+    await settle(2500)
+    await shot('data-editor')
+    if ((await mouseClick('[aria-label="Add a piece"]')) && (await click('Clip from your bank…'))) {
+      await mouseClick('[role="dialog"] .grid button')
+      await settle(2500)
+      await shot('data-editor-two-pieces')
+      // Playback across the join: from 2 s, play for about 1.5 s (into the second piece).
+      await key('Home')
+      await key('l')
+      await key('l')
+      await key('Space', 1500)
+      await shot('data-editor-playing')
+      await key('Space')
+      // Split at the playhead with S.
+      await key('s')
+      await shot('data-editor-split')
+    }
+    if (await click('16:9')) {
+      await settle(1500)
+      await shot('data-editor-horizontal')
+      await click('9:16')
+    }
+    if (await click('Render now')) {
+      await settle(6000)
+      await shot('data-editor-rendered')
+      await escape()
+    }
   }
 
   // 3. The smallest window the app allows.
