@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.3.1. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.4.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -225,7 +225,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
-### Unreleased
+### 1.4.0 (2026-11-13)
 
 - New look: the ChannelDeck logo (the two cards with the play notch) in pink `#ffa6c9`, in the sidebar, the app icon and the menu bar icon. The dark theme uses the brand colors: ink `#10151d`, slate `#263241`, mist `#f5f7fa`, with a slightly darker pink (`#f292b8`) for main buttons and the current page, so the logo stands out.
 - Autopost: **Duplicate…** in a rule's ⋯ menu opens the rule editor with a copy of its settings, named "… (copy)", to save as a new rule.
