@@ -1,5 +1,5 @@
 import { randomUUID } from 'node:crypto'
-import { and, asc, eq, inArray, isNotNull, ne, or, type SQL } from 'drizzle-orm'
+import { and, asc, eq, inArray, isNotNull, ne, or, type SQL, sql } from 'drizzle-orm'
 import type { InitialPostStatus, PostSource, PostStatus } from '@shared/constants/enums'
 import { nextPostStatus, type PostEvent } from '../../domain/postState'
 import { UserFacingError } from '../../errors'
@@ -187,7 +187,15 @@ export function createPostsRepo(db: Db, clock: Clock): PostsRepo {
         db
           .select({ id: posts.id })
           .from(posts)
-          .where(or(eq(posts.filePath, path), eq(posts.thumbnailPath, path)))
+          .where(
+            or(
+              eq(posts.filePath, path),
+              eq(posts.thumbnailPath, path),
+              // A render's source: the older vertical spec, or any segment of an edit.
+              sql`json_extract(${posts.renderJson}, '$.sourcePath') = ${path}`,
+              sql`EXISTS (SELECT 1 FROM json_each(${posts.renderJson}, '$.segments') WHERE json_extract(value, '$.sourcePath') = ${path})`
+            )
+          )
           .limit(1)
           .get() !== undefined
       )

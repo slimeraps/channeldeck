@@ -19,12 +19,12 @@ import {
   TWITCH_AUTH_FLOWS,
   VISIBILITY_MODES
 } from '../../shared/constants/enums'
+import type { RenderJson } from '../../shared/schemas/edit'
 import type {
   AccountDefaults,
   AutopostFilters,
   BackfillCursor,
   LayoutCrops,
-  RenderSpecJson,
   SlotTimes,
   Weekdays
 } from '../../shared/types/json'
@@ -277,7 +277,7 @@ export const posts = sqliteTable(
     playlistId: text('playlist_id'),
     thumbnailPath: text('thumbnail_path'),
     /** Set when the video must be converted to vertical before upload (render step). */
-    renderJson: text('render_json', { mode: 'json' }).$type<RenderSpecJson>(),
+    renderJson: text('render_json', { mode: 'json' }).$type<RenderJson>(),
     /** null until chosen; required (true/false) before a post can be queued. */
     madeForKids: integer('made_for_kids', { mode: 'boolean' }),
     notifySubscribers: integer('notify_subscribers', { mode: 'boolean' }).notNull().default(true),

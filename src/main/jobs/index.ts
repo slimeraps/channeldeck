@@ -1,10 +1,12 @@
 import { powerMonitor, powerSaveBlocker } from 'electron'
+import { isEditSpec } from '@shared/schemas/edit'
 import { emitToRenderer } from '../appWindow'
 import { getRepos } from '../db'
 import { logger } from '../logger'
 import { notify } from '../notify'
+import { resourcePath } from '../paths'
 import { createPowerGuard } from '../power'
-import { renderVertical } from '../media/ffmpeg'
+import { renderEdit, renderVertical } from '../media/ffmpeg'
 import { probeVideo } from '../media/ffprobe'
 import { getAutopost, getTwitchAccounts, getYouTubeAccounts, setSyncingProbe } from '../services'
 import { createClipDownloadJob } from './clipDownload'
@@ -35,12 +37,23 @@ export function startJobs(): void {
     emitProgress: (postId, sentBytes, totalBytes) =>
       emitToRenderer('posts:progress', { postId, sentBytes, totalBytes }),
     logger,
-    // Autoposts without a portrait file: convert to 1080×1920 before uploading.
+    // Edits, and autoposts without a portrait file: render just before uploading.
     renderVideo: async (post, signal) => {
       const spec = post.renderJson
       if (!spec || !post.filePath) throw new Error('Nothing to render')
-      const source = await probeVideo(spec.sourcePath)
-      await renderVertical({ spec, video: source, output: post.filePath, signal })
+      if (isEditSpec(spec)) {
+        const sources = await Promise.all(spec.segments.map((s) => probeVideo(s.sourcePath)))
+        await renderEdit({
+          spec,
+          sources,
+          output: post.filePath,
+          fontsDir: resourcePath('fonts'),
+          signal
+        })
+      } else {
+        const source = await probeVideo(spec.sourcePath)
+        await renderVertical({ spec, video: source, output: post.filePath, signal })
+      }
       return probeVideo(post.filePath)
     }
   })

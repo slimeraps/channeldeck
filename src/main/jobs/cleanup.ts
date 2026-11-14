@@ -1,5 +1,6 @@
 import { lstat, realpath, rm } from 'node:fs/promises'
 import { basename, dirname, join } from 'node:path'
+import { renderSources } from '@shared/schemas/edit'
 import type { Repos } from '../db/repos'
 import { filesToClean, isInside } from '../domain/cleanup'
 import type { JobType } from './runner'
@@ -94,7 +95,7 @@ export function createCleanupJob(deps: {
         updatedAt: p.updatedAt,
         filePath: p.filePath,
         rendered: Boolean(p.renderJson),
-        renderSourcePath: p.renderJson?.sourcePath ?? null
+        renderSourcePaths: renderSources(p.renderJson)
       })),
       now: clock(),
       days

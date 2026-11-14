@@ -1,6 +1,10 @@
 import { createHash } from 'node:crypto'
 import type { LayoutKind } from '@shared/constants/enums'
-import type { CropRect, LayoutCrops } from '@shared/types/json'
+import { even, facecamBandHeight, OUT_H, OUT_W, scaleRect } from '@shared/geometry'
+import type { LayoutCrops } from '@shared/types/json'
+
+// The geometry lives in @shared/geometry so the editor's preview uses the same math.
+export { facecamBandHeight, OUT_H, OUT_W, scaleRect } from '@shared/geometry'
 
 /**
  * Vertical (1080×1920) conversion of a landscape clip, as pure ffmpeg arguments. Three
@@ -8,43 +12,10 @@ import type { CropRect, LayoutCrops } from '@shared/types/json'
  * facecam split (the facecam rectangle on top, the gameplay rectangle below).
  */
 
-export const OUT_W = 1080
-export const OUT_H = 1920
-/** Facecam band height limits in the split layout. */
-const FACECAM_MIN_H = 480
-const FACECAM_MAX_H = 960
-
 export interface RenderSpec {
   sourcePath: string
   kind: LayoutKind
   crops: LayoutCrops
-}
-
-const even = (n: number): number => Math.max(2, 2 * Math.round(n / 2))
-
-/** Scales a rectangle drawn on the sample frame to the real video size, clamped and even. */
-export function scaleRect(
-  rect: CropRect,
-  crops: LayoutCrops,
-  video: { width: number; height: number }
-): CropRect {
-  const sx = crops.sourceWidth ? video.width / crops.sourceWidth : 1
-  const sy = crops.sourceHeight ? video.height / crops.sourceHeight : 1
-  let x = Math.max(0, Math.round(rect.x * sx))
-  let y = Math.max(0, Math.round(rect.y * sy))
-  let width = even(Math.min(rect.width * sx, video.width))
-  let height = even(Math.min(rect.height * sy, video.height))
-  if (x + width > video.width) x = Math.max(0, video.width - width)
-  if (y + height > video.height) y = Math.max(0, video.height - height)
-  width = Math.min(width, video.width - (video.width % 2))
-  height = Math.min(height, video.height - (video.height % 2))
-  return { x: x - (x % 2), y: y - (y % 2), width, height }
-}
-
-/** Height of the facecam band: the facecam's own shape at full width, within limits. */
-export function facecamBandHeight(facecam: CropRect): number {
-  const natural = (OUT_W * facecam.height) / Math.max(1, facecam.width)
-  return even(Math.min(FACECAM_MAX_H, Math.max(FACECAM_MIN_H, natural)))
 }
 
 /** Crop to fill: scale up until the box is covered, then cut the overflow. */
@@ -53,36 +24,51 @@ const fill = (w: number, h: number): string =>
 
 const finish = 'setsar=1,format=yuv420p'
 
-/** The -filter_complex graph; its output is labeled [v]. */
+/** Where a layout graph reads from and writes to, so several can share one filter_complex. */
+export interface FilterLabels {
+  /** Input pad, e.g. "0:v". */
+  input: string
+  /** Output pad, e.g. "v". */
+  output: string
+  /** Suffix for the graph's internal pads (unique per segment when joining clips). */
+  tag: string
+}
+
+const DEFAULT_LABELS: FilterLabels = { input: '0:v', output: 'v', tag: '' }
+
+/** The -filter_complex graph; by default it reads [0:v] and its output is labeled [v]. */
 export function renderFilter(
   kind: LayoutKind,
   crops: LayoutCrops,
-  video: { width: number; height: number }
+  video: { width: number; height: number },
+  labels: FilterLabels = DEFAULT_LABELS
 ): string {
+  const { input, output, tag } = labels
+  const pad = (name: string) => `[${name}${tag}]`
   if (kind === 'facecam_split' && crops.facecam && crops.gameplay) {
     const fc = scaleRect(crops.facecam, crops, video)
     const gp = scaleRect(crops.gameplay, crops, video)
     const top = facecamBandHeight(fc)
     const bottom = OUT_H - top
     return [
-      '[0:v]split=2[fc][gp]',
-      `[fc]crop=${fc.width}:${fc.height}:${fc.x}:${fc.y},${fill(OUT_W, top)}[top]`,
-      `[gp]crop=${gp.width}:${gp.height}:${gp.x}:${gp.y},${fill(OUT_W, bottom)}[bot]`,
-      `[top][bot]vstack=inputs=2,${finish}[v]`
+      `[${input}]split=2${pad('fc')}${pad('gp')}`,
+      `${pad('fc')}crop=${fc.width}:${fc.height}:${fc.x}:${fc.y},${fill(OUT_W, top)}${pad('top')}`,
+      `${pad('gp')}crop=${gp.width}:${gp.height}:${gp.x}:${gp.y},${fill(OUT_W, bottom)}${pad('bot')}`,
+      `${pad('top')}${pad('bot')}vstack=inputs=2,${finish}[${output}]`
     ].join(';')
   }
   if (kind === 'center_crop') {
     const width = even(Math.min(video.width, (video.height * 9) / 16))
     const x = even((video.width - width) / 2)
-    return `[0:v]crop=${width}:${video.height - (video.height % 2)}:${x}:0,scale=${OUT_W}:${OUT_H},${finish}[v]`
+    return `[${input}]crop=${width}:${video.height - (video.height % 2)}:${x}:0,scale=${OUT_W}:${OUT_H},${finish}[${output}]`
   }
   // Blurred fill (also the fallback when a split layout has no rectangles yet). The
   // background is blurred at quarter size, which is much faster and looks the same.
   return [
-    '[0:v]split=2[bg][fg]',
-    `[bg]${fill(OUT_W / 4, OUT_H / 4)},boxblur=10:2,scale=${OUT_W}:${OUT_H},eq=brightness=-0.06[bgb]`,
-    `[fg]scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=decrease[fgs]`,
-    `[bgb][fgs]overlay=(W-w)/2:(H-h)/2,${finish}[v]`
+    `[${input}]split=2${pad('bg')}${pad('fg')}`,
+    `${pad('bg')}${fill(OUT_W / 4, OUT_H / 4)},boxblur=10:2,scale=${OUT_W}:${OUT_H},eq=brightness=-0.06${pad('bgb')}`,
+    `${pad('fg')}scale=${OUT_W}:${OUT_H}:force_original_aspect_ratio=decrease${pad('fgs')}`,
+    `${pad('bgb')}${pad('fgs')}overlay=(W-w)/2:(H-h)/2,${finish}[${output}]`
   ].join(';')
 }
 

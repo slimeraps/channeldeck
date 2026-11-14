@@ -602,6 +602,72 @@ describe('render then upload', () => {
     ])
   })
 
+  it('renders an edit before uploading, after checking every source it joins', async () => {
+    const first = bankClip(0)
+    bankClip(1)
+    const { id } = autopost.save(rule({ mode: 'auto', slots: ['18:00'], lookaheadDays: 1 }))
+    await autopost.planRule(id)
+    const post = rulePosts(id)[0]!
+    const missing = join(dir, 'gone.mp4')
+    const sourceOf = (clipId: string) => join(dir, `${clipId}_landscape.mp4`)
+    const edit = (second: string) => ({
+      version: 2 as const,
+      canvas: 'vertical' as const,
+      segments: [
+        {
+          sourcePath: sourceOf(first),
+          clipId: first,
+          inSec: 0,
+          outSec: 10,
+          layout: null,
+          frame: null
+        },
+        { sourcePath: second, clipId: null, inSec: 0, outSec: 5, layout: null, frame: null }
+      ],
+      texts: [],
+      volume: 1
+    })
+    const renderVideo = vi.fn(async (p: { filePath: string | null }) => {
+      mkdirSync(join(dir, '_renders'), { recursive: true })
+      writeFileSync(p.filePath as string, Buffer.alloc(4096))
+      return {
+        sizeBytes: 4096,
+        mtimeMs: 3,
+        durationSec: 15,
+        width: 1080,
+        height: 1920,
+        isShort: true
+      }
+    })
+    const job = () =>
+      createUploadJob({
+        repos: t.repos,
+        withApi: () => Promise.reject(new Error('stop after the render')),
+        notify: vi.fn(),
+        emitChanged: vi.fn(),
+        emitProgress: vi.fn(),
+        logger,
+        clock: t.clock,
+        renderVideo
+      })
+
+    // A joined file that's gone: fails before rendering, naming the file.
+    t.repos.posts.update(post.id, { renderJson: edit(missing) })
+    await job().run(post.id, new AbortController().signal)
+    expect(renderVideo).not.toHaveBeenCalled()
+    expect(t.repos.posts.require(post.id)).toMatchObject({
+      status: 'failed',
+      lastError: `File missing: ${missing} (needed for the render)`
+    })
+
+    // With every source there, the edit renders (then the upload step takes over).
+    t.repos.posts.update(post.id, { renderJson: edit(sourceOf('clip01')) })
+    t.repos.posts.transition(post.id, 'retry', { reason: 'test' })
+    await job().run(post.id, new AbortController().signal)
+    expect(renderVideo).toHaveBeenCalledTimes(1)
+    expect(t.repos.posts.require(post.id)).toMatchObject({ fileSize: 4096, durationSec: 15 })
+  })
+
   it('fails with a clear message when the render fails', async () => {
     bankClip(0)
     const { id } = autopost.save(rule({ mode: 'auto', slots: ['18:00'], lookaheadDays: 1 }))

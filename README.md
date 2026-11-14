@@ -239,6 +239,7 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 
 ### Unreleased
 
+- Editor, phase E1 (2026-11-14): the engine behind the coming video editor, with no editor screen yet. An edit is a list of pieces cut from one or more videos and played in order, each framed for a vertical, horizontal or square canvas (a vertical layout, or a crop with an optional slow zoom), plus text layers. ffmpeg renders it in one pass: text is drawn by libass in three bundled fonts (Archivo Black, Anton, Bebas Neue, all under the SIL Open Font License, in `resources/fonts`). A post can now carry an edit instead of a vertical layout; the upload job renders it just before uploading, checks that every video it uses still exists, and "delete local files after posting" keeps every one of them until the post is done. ffprobe now also reports the frame rate and whether a file has sound. The build self-test renders an edit with text too, which proves the installed app can find the fonts.
 - Website (2026-11-14): the GitHub Pages site in `docs/` is now a full site in the app's colors: Home, Features, Install, Setup (Google and Twitch), Your data (folders, backups, quota, deleting everything), Changelog, Develop and the Privacy policy, with screenshots from the app's screenshot mode. The privacy policy now also lists the YouTube Analytics reports the Analytics page reads (kept in memory for an hour, never saved). The repository's Website link points to it.
 
 ### 1.7.0 (2026-11-14)

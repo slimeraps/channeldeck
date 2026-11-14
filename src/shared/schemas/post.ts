@@ -1,4 +1,5 @@
 import { z } from 'zod'
+import { editSpecSchema } from './edit'
 import {
   LAYOUT_KINDS,
   LICENSES,
@@ -56,7 +57,12 @@ export const postInputSchema = z
         presetId: z.number().int().positive().nullable()
       })
       .nullable()
-      .optional()
+      .optional(),
+    /**
+     * An edit from the editor (trim, join, layout or crop, text). When set, the post uploads
+     * the edit's render and `filePath`/`render` are ignored for the upload.
+     */
+    edit: editSpecSchema.nullable().optional()
   })
   .strict()
 export type PostInput = z.infer<typeof postInputSchema>

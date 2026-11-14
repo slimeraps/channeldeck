@@ -44,7 +44,10 @@ export interface LayoutCrops {
   sourceHeight?: number
 }
 
-/** What to render for a post that needs a vertical conversion (posts.render_json). */
+/**
+ * The older posts.render_json shape (a vertical conversion). posts.render_json is now
+ * `RenderJson` (shared/schemas/edit.ts): this shape or an EditSpec.
+ */
 export interface RenderSpecJson {
   /** The landscape clip file to convert. */
   sourcePath: string

@@ -1,7 +1,11 @@
 import { spawn } from 'node:child_process'
-import { mkdir, rename, rm } from 'node:fs/promises'
-import { dirname } from 'node:path'
+import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
+import { tmpdir } from 'node:os'
+import { dirname, join } from 'node:path'
 import ffmpegStatic from 'ffmpeg-static'
+import { type EditSpec, editDuration } from '@shared/schemas/edit'
+import { buildAss } from '../domain/ass'
+import { editArgs, editFilter, type SourceInfo } from '../domain/edit'
 import { renderArgs, renderFilter, type RenderSpec } from '../domain/render'
 import { UserFacingError } from '../errors'
 
@@ -96,6 +100,49 @@ export async function renderVertical(args: {
       `Couldn't convert the clip to vertical: ${error instanceof Error ? error.message : String(error)}`,
       { cause: error }
     )
+  }
+}
+
+/**
+ * Renders an edit (trim, join, layout or crop and zoom, text) to `output`, through a .part
+ * file. `sources` holds each segment's probe, in segment order. Text layers go through a
+ * temporary .ass file that is removed afterwards.
+ */
+export async function renderEdit(args: {
+  spec: EditSpec
+  sources: readonly SourceInfo[]
+  output: string
+  fontsDir: string
+  signal?: AbortSignal
+  onProgress?: (fraction: number) => void
+  binary?: string
+}): Promise<void> {
+  await mkdir(dirname(args.output), { recursive: true })
+  const part = `${args.output}.part`
+  const work = await mkdtemp(join(tmpdir(), 'channeldeck-edit-'))
+  try {
+    let assPath: string | null = null
+    if (args.spec.texts.length > 0) {
+      assPath = join(work, 'text.ass')
+      await writeFile(assPath, buildAss(args.spec.canvas, args.spec.texts), 'utf8')
+    }
+    const filter = editFilter(args.spec, args.sources, { assPath, fontsDir: args.fontsDir })
+    await runFfmpeg(editArgs({ spec: args.spec, filter, output: part }), {
+      durationSec: editDuration(args.spec),
+      ...(args.signal ? { signal: args.signal } : {}),
+      ...(args.onProgress ? { onProgress: args.onProgress } : {}),
+      ...(args.binary ? { binary: args.binary } : {})
+    })
+    await rename(part, args.output)
+  } catch (error) {
+    await rm(part, { force: true })
+    if (args.signal?.aborted) throw error
+    throw new UserFacingError(
+      `Couldn't render the edit: ${error instanceof Error ? error.message : String(error)}`,
+      { cause: error }
+    )
+  } finally {
+    await rm(work, { recursive: true, force: true })
   }
 }
 

@@ -9,6 +9,14 @@ import {
 } from '@shared/constants/limits'
 import type { LayoutKind, PostStatus } from '@shared/constants/enums'
 import type { RenderSpecJson } from '@shared/types/json'
+import {
+  editDuration,
+  isEditSpec,
+  type RenderJson,
+  renderPreviewSource,
+  renderSources
+} from '@shared/schemas/edit'
+import { CANVAS_SIZES } from '@shared/geometry'
 import { accountDefaultsSchema } from '@shared/schemas/account'
 import {
   hasErrors,
@@ -31,6 +39,7 @@ import {
 import { type Clock, systemClock } from '../db/repos/common'
 import type { Repos } from '../db/repos'
 import type { PostRow, PostFields } from '../db/repos/posts'
+import { editFileName } from '../domain/edit'
 import { renderFileName } from '../domain/render'
 import { buildStatusUpdate, type StatusChange } from '../domain/statusSync'
 import { UserFacingError } from '../errors'
@@ -126,7 +135,8 @@ export function createPostsService(deps: PostsServiceDeps) {
     const account = accounts.get(post.accountId)
     // An autopost waiting for its vertical render has no file yet: check its source instead.
     const rendered = post.filePath ? existsSync(post.filePath) : false
-    const previewPath = !rendered && post.renderJson ? post.renderJson.sourcePath : post.filePath
+    const previewPath =
+      !rendered && post.renderJson ? renderPreviewSource(post.renderJson) : post.filePath
     const fileExists = rendered || (previewPath ? existsSync(previewPath) : false)
     return {
       id: post.id,
@@ -193,13 +203,17 @@ export function createPostsService(deps: PostsServiceDeps) {
       templateId: post.templateId,
       seriesId: post.seriesId,
       clipId: post.clipId,
-      // A vertical render is edited as its horizontal source plus the layout.
-      ...(post.renderJson
-        ? {
-            filePath: post.renderJson.sourcePath,
-            render: { kind: post.renderJson.kind, presetId: post.renderJson.presetId }
-          }
-        : { render: null })
+      // An edit comes back whole (its first source stands in as the post's video); a
+      // vertical render is edited as its horizontal source plus the layout.
+      ...(isEditSpec(post.renderJson)
+        ? { filePath: renderPreviewSource(post.renderJson), render: null, edit: post.renderJson }
+        : post.renderJson
+          ? {
+              filePath: post.renderJson.sourcePath,
+              render: { kind: post.renderJson.kind, presetId: post.renderJson.presetId },
+              edit: null
+            }
+          : { render: null, edit: null })
     }
   }
 
@@ -278,7 +292,7 @@ export function createPostsService(deps: PostsServiceDeps) {
     let file: Pick<
       PostFields,
       'filePath' | 'fileSize' | 'fileMtime' | 'durationSec' | 'width' | 'height' | 'isShort'
-    > & { renderJson: RenderSpecJson | null } = {
+    > & { renderJson: RenderJson | null } = {
       filePath: clean.filePath,
       fileSize: probe?.sizeBytes ?? null,
       fileMtime: probe?.mtimeMs ?? null,
@@ -288,7 +302,30 @@ export function createPostsService(deps: PostsServiceDeps) {
       isShort: probe?.isShort ?? false,
       renderJson: null
     }
-    if (clean.render && clean.filePath) {
+    if (clean.edit) {
+      // An edit: the post uploads its render, made in the renders folder just before upload.
+      const edit = clean.edit
+      if (mode === 'queue') {
+        const missing = renderSources(edit).find((f) => !existsSync(f))
+        if (missing) throw new UserFacingError(`File missing: ${missing} (used in the edit)`)
+      }
+      const outputPath = join(repos.settings.getKey('clipsRoot'), '_renders', editFileName(edit))
+      const rendered = existsSync(outputPath)
+        ? await deps.probe(outputPath).catch(() => null)
+        : null
+      const durationSec = rendered?.durationSec ?? editDuration(edit)
+      const size = CANVAS_SIZES[edit.canvas]
+      file = {
+        filePath: outputPath,
+        fileSize: rendered?.sizeBytes ?? null,
+        fileMtime: rendered?.mtimeMs ?? null,
+        durationSec,
+        width: size.width,
+        height: size.height,
+        isShort: edit.canvas !== 'horizontal' && durationSec <= SHORT_MAX_SECONDS,
+        renderJson: edit
+      }
+    } else if (clean.render && clean.filePath) {
       const { outputPath, spec } = planRender(clean.filePath, clean.render)
       // Already rendered (Render now)? Use its real details; otherwise it renders at upload.
       const rendered = existsSync(outputPath)
@@ -308,7 +345,11 @@ export function createPostsService(deps: PostsServiceDeps) {
     }
     if (clean.thumbnailPath) await inspectThumbnail(clean.thumbnailPath)
 
-    const issues = validatePost(clean, { mode, now, durationSec: probe?.durationSec ?? null })
+    const issues = validatePost(clean, {
+      mode,
+      now,
+      durationSec: clean.edit ? file.durationSec : (probe?.durationSec ?? null)
+    })
     if (hasErrors(issues)) {
       throw new UserFacingError(
         issues
