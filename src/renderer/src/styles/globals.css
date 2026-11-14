@@ -6,6 +6,7 @@
 /* shadcn/ui theme tokens (zinc). ChannelDeck runs dark by default: <html class="dark">. */
 :root {
   --radius: 0.625rem;
+  --brand: #e46f9d;
   --background: oklch(1 0 0);
   --foreground: oklch(0.141 0.005 285.823);
   --card: oklch(1 0 0);
@@ -34,33 +35,36 @@
   --sidebar-ring: oklch(0.705 0.015 286.067);
 }
 
+/* Brand palette (design/logo/brand-sheet.webp): ink #10151d, slate #263241, mist #f5f7fa,
+   and the mark recolored pink #ffa6c9 (also BRAND_MARK in scripts/draw-icons.swift). */
 .dark {
-  --background: oklch(0.141 0.005 285.823);
-  --foreground: oklch(0.985 0 0);
-  --card: oklch(0.21 0.006 285.885);
-  --card-foreground: oklch(0.985 0 0);
-  --popover: oklch(0.21 0.006 285.885);
-  --popover-foreground: oklch(0.985 0 0);
-  --primary: oklch(0.92 0.004 286.32);
-  --primary-foreground: oklch(0.21 0.006 285.885);
-  --secondary: oklch(0.274 0.006 286.033);
-  --secondary-foreground: oklch(0.985 0 0);
-  --muted: oklch(0.274 0.006 286.033);
-  --muted-foreground: oklch(0.705 0.015 286.067);
-  --accent: oklch(0.274 0.006 286.033);
-  --accent-foreground: oklch(0.985 0 0);
+  --brand: #ffa6c9;
+  --background: #10151d;
+  --foreground: #f5f7fa;
+  --card: #161d28;
+  --card-foreground: #f5f7fa;
+  --popover: #161d28;
+  --popover-foreground: #f5f7fa;
+  --primary: #ffa6c9;
+  --primary-foreground: #10151d;
+  --secondary: #263241;
+  --secondary-foreground: #f5f7fa;
+  --muted: #263241;
+  --muted-foreground: #95a1b3;
+  --accent: #263241;
+  --accent-foreground: #f5f7fa;
   --destructive: oklch(0.704 0.191 22.216);
-  --border: oklch(1 0 0 / 10%);
-  --input: oklch(1 0 0 / 15%);
-  --ring: oklch(0.552 0.016 285.938);
-  --sidebar: oklch(0.21 0.006 285.885);
-  --sidebar-foreground: oklch(0.985 0 0);
-  --sidebar-primary: oklch(0.488 0.243 264.376);
-  --sidebar-primary-foreground: oklch(0.985 0 0);
-  --sidebar-accent: oklch(0.274 0.006 286.033);
-  --sidebar-accent-foreground: oklch(0.985 0 0);
-  --sidebar-border: oklch(1 0 0 / 10%);
-  --sidebar-ring: oklch(0.552 0.016 285.938);
+  --border: rgb(245 247 250 / 9%);
+  --input: rgb(245 247 250 / 14%);
+  --ring: rgb(255 166 201 / 60%);
+  --sidebar: #0c1017;
+  --sidebar-foreground: #f5f7fa;
+  --sidebar-primary: #ffa6c9;
+  --sidebar-primary-foreground: #10151d;
+  --sidebar-accent: #1c2532;
+  --sidebar-accent-foreground: #f5f7fa;
+  --sidebar-border: rgb(245 247 250 / 7%);
+  --sidebar-ring: rgb(255 166 201 / 60%);
 }
 
 @theme inline {
@@ -68,6 +72,7 @@
   --radius-md: calc(var(--radius) - 2px);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) + 4px);
+  --color-brand: var(--brand);
   --color-background: var(--background);
   --color-foreground: var(--foreground);
   --color-card: var(--card);

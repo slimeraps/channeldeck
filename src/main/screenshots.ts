@@ -198,8 +198,8 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
     filtersJson: { minViews: 50 },
     format: 'short',
     layoutPresetId: preset.id,
-    titleTpl: '{{title}} #shorts',
-    descriptionTpl: 'Clipped by {{clipper}} on {{channel}}',
+    titleTpl: '{{clip_title}} #shorts',
+    descriptionTpl: 'Clipped by {{clipper}}\nWatch {{broadcaster}} live: {{twitch_url}}',
     tagsJson: ['shorts'],
     mode: 'review',
     lookaheadDays: 3,
@@ -213,7 +213,7 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
     weekdaysJson: [6, 7],
     pickOrder: 'oldest',
     format: 'regular',
-    titleTpl: 'Best of: {{title}}',
+    titleTpl: 'Best of: {{clip_title}}',
     descriptionTpl: '',
     mode: 'auto',
     enabled: false
@@ -392,6 +392,20 @@ export async function captureScreens(
     await settle()
     return found
   }
+  const mouseClick = async (selector: string) => {
+    const at = await js<{ x: number; y: number } | null>(`(() => {
+      const el = document.querySelector(${JSON.stringify(selector)}); if (!el) return null
+      const r = el.getBoundingClientRect(); return { x: Math.round(r.x + r.width / 2), y: Math.round(r.y + r.height / 2) }
+    })()`)
+    if (!at) {
+      logger.warn('[screenshots] nothing to click:', selector)
+      return false
+    }
+    wc.sendInputEvent({ type: 'mouseDown', x: at.x, y: at.y, button: 'left', clickCount: 1 })
+    wc.sendInputEvent({ type: 'mouseUp', x: at.x, y: at.y, button: 'left', clickCount: 1 })
+    await settle()
+    return true
+  }
   const escape = async () => {
     wc.sendInputEvent({ type: 'keyDown', keyCode: 'Escape' })
     wc.sendInputEvent({ type: 'keyUp', keyCode: 'Escape' })
@@ -460,6 +474,14 @@ export async function captureScreens(
   if (await click('New rule')) {
     await shot('data-new-rule')
     await escape()
+  }
+
+  if (await mouseClick('[aria-label="More for Daily Shorts"]')) {
+    await shot('data-rule-menu')
+    if (await click('Duplicate…')) {
+      await shot('data-rule-duplicate')
+      await escape()
+    }
   }
 
   await go('Templates')
