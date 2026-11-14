@@ -103,6 +103,28 @@ describe('filesToClean: files an unfinished post still needs', () => {
     ).toEqual([])
   })
 
+  it('keeps a posted clip that a failed or waiting_quota post still points at, since it can be retried', () => {
+    const c = clip('a')
+    for (const status of ['failed', 'waiting_quota'] as const) {
+      // Directly by file path.
+      const byPath = post({ status, filePath: c.landscapePath, publishAtUtc: null })
+      expect(
+        filesToClean({ clips: [c], posts: [...posted, byPath], now, days: 7 }).clipIds
+      ).toEqual([])
+      // As the source of a vertical render.
+      const bySource = post({
+        status,
+        rendered: true,
+        filePath: '/r/a_blur_fill_1234abcd.mp4',
+        renderSourcePath: c.landscapePath,
+        publishAtUtc: null
+      })
+      expect(
+        filesToClean({ clips: [c], posts: [...posted, bySource], now, days: 7 }).clipIds
+      ).toEqual([])
+    }
+  })
+
   it('still cleans the clip once that post is finished', () => {
     const c = clip('a')
     const done = post({
