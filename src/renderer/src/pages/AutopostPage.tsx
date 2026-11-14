@@ -27,6 +27,7 @@ import {
 } from '@renderer/components/ui/alert-dialog'
 import { Badge } from '@renderer/components/ui/badge'
 import { Button } from '@renderer/components/ui/button'
+import { useUiStore } from '@renderer/stores/ui'
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -44,7 +45,7 @@ import {
 } from '@renderer/hooks/useAutopost'
 import { useTwitchAccounts } from '@renderer/hooks/useTwitch'
 import { invoke } from '@renderer/lib/ipc'
-import { formatLocal, formatRelative } from '@renderer/lib/time'
+import { formatLocal, formatRelative, formatSlot } from '@renderer/lib/time'
 import { cn } from '@renderer/lib/utils'
 
 const DAY_NAMES = ['', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun']
@@ -108,7 +109,7 @@ function RuleCard({
           <div className="mt-1 flex flex-wrap gap-x-4 gap-y-1 text-xs text-muted-foreground">
             <span className="flex items-center gap-1">
               <Clock className="size-3" aria-hidden />
-              {r.slots.join(', ')} · {weekdaySummary(r.weekdays)}
+              {r.slots.map(formatSlot).join(', ')} · {weekdaySummary(r.weekdays)}
             </span>
             {rule.nextSlotUtc ? (
               <span>
@@ -127,36 +128,38 @@ function RuleCard({
             </p>
           ) : null}
         </div>
-        {rule.pendingApproval > 0 ? (
-          <Button
-            size="sm"
-            onClick={() => approveAll.mutate(undefined)}
-            disabled={approveAll.isPending}
-          >
-            <CheckCheck aria-hidden /> Approve all ({rule.pendingApproval})
-          </Button>
-        ) : null}
-        <Switch
-          checked={r.enabled}
-          onCheckedChange={(on) => toggle.mutate(on)}
-          aria-label={`Turn ${r.name} ${r.enabled ? 'off' : 'on'}`}
-        />
-        <DropdownMenu>
-          <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={`More for ${r.name}`}>
-              <MoreHorizontal aria-hidden />
+        <div className="flex shrink-0 items-center gap-2">
+          {rule.pendingApproval > 0 ? (
+            <Button
+              size="sm"
+              onClick={() => approveAll.mutate(undefined)}
+              disabled={approveAll.isPending}
+            >
+              <CheckCheck aria-hidden /> Approve all ({rule.pendingApproval})
             </Button>
-          </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onEdit}>
-              <Pencil aria-hidden /> Edit…
-            </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem variant="destructive" onSelect={onDelete}>
-              <Trash2 aria-hidden /> Delete…
-            </DropdownMenuItem>
-          </DropdownMenuContent>
-        </DropdownMenu>
+          ) : null}
+          <Switch
+            checked={r.enabled}
+            onCheckedChange={(on) => toggle.mutate(on)}
+            aria-label={`Turn ${r.name} ${r.enabled ? 'off' : 'on'}`}
+          />
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="ghost" size="icon" aria-label={`More for ${r.name}`}>
+                <MoreHorizontal aria-hidden />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="end">
+              <DropdownMenuItem onSelect={onEdit}>
+                <Pencil aria-hidden /> Edit…
+              </DropdownMenuItem>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem variant="destructive" onSelect={onDelete}>
+                <Trash2 aria-hidden /> Delete…
+              </DropdownMenuItem>
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
       </div>
     </div>
   )
@@ -188,6 +191,7 @@ export function AutopostPage(): React.JSX.Element {
   const layouts = useLayouts()
   const accounts = useAccounts()
   const twitch = useTwitchAccounts()
+  const setPage = useUiStore((s) => s.setPage)
   const [editing, setEditing] = useState<RuleView | 'new' | null>(null)
   const [deleting, setDeleting] = useState<RuleView | null>(null)
   const [cancelUpcoming, setCancelUpcoming] = useState(true)
@@ -208,7 +212,11 @@ export function AutopostPage(): React.JSX.Element {
 
   if (rules.isSuccess && list.length === 0 && (!hasYouTube || !hasTwitch)) {
     return (
-      <EmptyState icon={Wand2} title="Autopost your Twitch clips">
+      <EmptyState
+        icon={Wand2}
+        title="Autopost your Twitch clips"
+        action={<Button onClick={() => setPage('channels')}>Open Channels</Button>}
+      >
         Connect {!hasYouTube ? 'a YouTube channel' : ''}
         {!hasYouTube && !hasTwitch ? ' and ' : ''}
         {!hasTwitch ? 'a Twitch channel' : ''} on the Channels page first. Then make a rule: which

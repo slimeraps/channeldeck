@@ -94,7 +94,9 @@ function PostChip({ post, onOpen }: { post: PostListItem; onOpen: () => void }):
         backgroundColor: `${post.channelColor}26`
       }}
     >
-      <span className="shrink-0 tabular-nums text-muted-foreground">{at.toFormat('HH:mm')}</span>
+      <span className="shrink-0 tabular-nums text-muted-foreground">
+        {at.toFormat('h:mma').toLowerCase()}
+      </span>
       {post.source === 'twitch_clip' ? (
         <Clapperboard className="size-3 shrink-0" aria-label="Twitch clip" />
       ) : null}
@@ -112,6 +114,7 @@ export function CalendarPage(): React.JSX.Element {
   const reschedule = useReschedule()
   const openNewPost = useUiStore((s) => s.openNewPost)
   const openEditPost = useUiStore((s) => s.openEditPost)
+  const setPage = useUiStore((s) => s.setPage)
   const now = useNow()
 
   const [mode, setMode] = useState<Mode>('week')
@@ -149,7 +152,11 @@ export function CalendarPage(): React.JSX.Element {
 
   if (accounts.isSuccess && (accounts.data ?? []).length === 0) {
     return (
-      <EmptyState icon={CalendarDays} title="Nothing to plan yet">
+      <EmptyState
+        icon={CalendarDays}
+        title="Nothing to plan yet"
+        action={<Button onClick={() => setPage('channels')}>Add a channel</Button>}
+      >
         Connect a YouTube channel on the Channels page. Scheduled posts for every channel show up
         here, colored by channel.
       </EmptyState>
@@ -290,7 +297,7 @@ export function CalendarPage(): React.JSX.Element {
           {HOURS.map((h) => (
             <div key={h} className="grid grid-cols-[3.5rem_repeat(7,minmax(0,1fr))]">
               <div className="border-b px-2 pt-1 text-right text-[10px] text-muted-foreground tabular-nums">
-                {String(h).padStart(2, '0')}:00
+                {DateTime.fromObject({ hour: h }).toFormat('h a')}
               </div>
               {days.map((d) => {
                 const slot = d.set({ hour: h, minute: 0 })
@@ -302,7 +309,7 @@ export function CalendarPage(): React.JSX.Element {
                     key={key}
                     role="button"
                     tabIndex={-1}
-                    aria-label={`New post ${slot.toFormat('ccc d HH:mm')}`}
+                    aria-label={`New post ${slot.toFormat('ccc d, h:mm a')}`}
                     onClick={() => newAt(slot)}
                     {...dropProps(key, slot, false)}
                     className={cn(
@@ -390,7 +397,7 @@ export function CalendarPage(): React.JSX.Element {
           <AlertDialogHeader>
             <AlertDialogTitle>Move “{pending?.post.title || 'Untitled'}”?</AlertDialogTitle>
             <AlertDialogDescription>
-              New publish time: {pending?.at.toFormat('cccc, MMM d, yyyy · HH:mm')}.
+              New publish time: {pending?.at.toFormat('cccc, MMM d, yyyy · h:mm a')}.
               {pending?.post.youtubeVideoId
                 ? ' It’s already on YouTube, so this also changes the publish time there (50 quota units).'
                 : ''}

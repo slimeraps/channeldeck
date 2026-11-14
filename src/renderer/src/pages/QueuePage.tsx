@@ -149,7 +149,7 @@ function Preview({ post }: { post: PostListItem }): React.JSX.Element {
 function PublishCell({ post }: { post: PostListItem }): React.JSX.Element {
   if (post.visibilityMode === 'schedule' && post.publishAtUtc) {
     return (
-      <div>
+      <div className="whitespace-nowrap">
         <div>{formatLocal(post.publishAtUtc)}</div>
         <div className="text-xs text-muted-foreground">{formatRelative(post.publishAtUtc)}</div>
       </div>
@@ -165,27 +165,29 @@ function PublishCell({ post }: { post: PostListItem }): React.JSX.Element {
   )
 }
 
-function ProgressCell({ post }: { post: PostListItem }): React.JSX.Element {
+function UploadProgress({ post }: { post: PostListItem }): React.JSX.Element {
   const live = useProgressStore((s) => s.byPost[post.id])
-  if (post.status === 'uploading' || post.status === 'rendering') {
-    const fraction = live && live.total > 0 ? live.sent / live.total : post.uploadProgress
-    const pct = Math.round(fraction * 100)
-    return (
-      <div className="space-y-1">
-        <div className="h-1.5 overflow-hidden rounded bg-muted">
-          <div className="h-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
-        </div>
-        <div className="text-[11px] text-muted-foreground tabular-nums">{pct}%</div>
+  const fraction = live && live.total > 0 ? live.sent / live.total : post.uploadProgress
+  const pct = Math.round(fraction * 100)
+  return (
+    <div className="flex items-center gap-2">
+      <div className="h-1.5 flex-1 overflow-hidden rounded bg-muted">
+        <div className="h-full bg-primary transition-[width]" style={{ width: `${pct}%` }} />
       </div>
-    )
-  }
-  if (post.status === 'processing') {
-    return <span className="text-xs text-muted-foreground">On YouTube, processing</span>
-  }
-  return <span className="text-xs text-muted-foreground">—</span>
+      <span className="text-[11px] text-muted-foreground tabular-nums">{pct}%</span>
+    </div>
+  )
 }
 
-function StatusCell({ post }: { post: PostListItem }): React.JSX.Element {
+function StatusCell({
+  post,
+  onApprove,
+  approving
+}: {
+  post: PostListItem
+  onApprove: () => void
+  approving: boolean
+}): React.JSX.Element {
   const detail =
     post.status === 'waiting_quota' && post.retryAfterUtc
       ? `Retries ${formatRelative(post.retryAfterUtc)}`
@@ -193,10 +195,24 @@ function StatusCell({ post }: { post: PostListItem }): React.JSX.Element {
         ? 'The publish time passed before it uploaded. Open ⋯ to publish now, pick a new time, or unschedule.'
         : post.lastError
   return (
-    <div className="max-w-56 space-y-1">
+    <div className="space-y-1">
       <Badge variant="outline" className={STATUS_TONES[post.status]}>
         {STATUS_LABELS[post.status]}
       </Badge>
+      {post.status === 'uploading' || post.status === 'rendering' ? (
+        <UploadProgress post={post} />
+      ) : null}
+      {post.status === 'needs_approval' ? (
+        <Button
+          size="sm"
+          variant="outline"
+          className="flex h-7"
+          disabled={approving}
+          onClick={onApprove}
+        >
+          <Check aria-hidden /> Approve
+        </Button>
+      ) : null}
       {detail ? (
         <p
           className={cn(
@@ -363,18 +379,18 @@ export function QueuePage(): React.JSX.Element {
         </div>
       ) : null}
 
-      <div className="overflow-hidden rounded-lg border">
-        <table className="w-full text-sm">
+      <div className="overflow-x-auto rounded-lg border">
+        <table className="w-full min-w-[640px] table-fixed text-sm">
           <thead className="bg-muted/40 text-left text-xs text-muted-foreground">
             <tr>
-              <th className="w-24 px-3 py-2 font-medium" />
+              <th className="hidden w-[6.5rem] px-3 py-2 font-medium xl:table-cell" />
               <th className="px-3 py-2 font-medium">Title</th>
-              <th className="px-3 py-2 font-medium">Channel</th>
-              <th className="w-10 px-3 py-2 font-medium" aria-label="Source" />
-              <th className="px-3 py-2 font-medium">
+              <th className="hidden w-44 px-3 py-2 font-medium lg:table-cell">Channel</th>
+              <th className="hidden w-10 px-3 py-2 font-medium lg:table-cell" aria-label="Source" />
+              <th className="w-44 px-3 py-2 font-medium">
                 <button
                   type="button"
-                  className="flex items-center gap-1 hover:text-foreground"
+                  className="flex items-center gap-1 whitespace-nowrap hover:text-foreground"
                   onClick={() => setNewestFirst((v) => !v)}
                 >
                   Publish time
@@ -385,9 +401,8 @@ export function QueuePage(): React.JSX.Element {
                   )}
                 </button>
               </th>
-              <th className="px-3 py-2 font-medium">Status</th>
-              <th className="w-32 px-3 py-2 font-medium">Progress</th>
-              <th className="w-10 px-3 py-2" />
+              <th className="w-40 px-3 py-2 font-medium">Status</th>
+              <th className="w-14 px-3 py-2" />
             </tr>
           </thead>
           <tbody>
@@ -399,14 +414,20 @@ export function QueuePage(): React.JSX.Element {
                   className="cursor-default border-t hover:bg-muted/30"
                   onDoubleClick={() => editable && openEditPost(post.id)}
                 >
-                  <td className="px-3 py-2">
+                  <td className="hidden px-3 py-2 xl:table-cell">
                     <Preview post={post} />
                   </td>
-                  <td className="max-w-72 px-3 py-2">
+                  <td className="px-3 py-2">
                     <div className="truncate font-medium">
                       {post.title || <span className="text-muted-foreground">Untitled</span>}
                     </div>
-                    <div className="flex items-center gap-1.5 text-xs text-muted-foreground">
+                    <div className="flex min-w-0 items-center gap-1.5 text-xs text-muted-foreground">
+                      <span
+                        className="size-2 shrink-0 rounded-full lg:hidden"
+                        style={{ backgroundColor: post.channelColor }}
+                        title={post.channelTitle}
+                        aria-label={post.channelTitle}
+                      />
                       {post.durationSec ? formatDuration(post.durationSec) : null}
                       {post.isShort ? (
                         <Badge className="h-4 bg-red-600 px-1 text-[10px] text-white">Short</Badge>
@@ -434,8 +455,8 @@ export function QueuePage(): React.JSX.Element {
                       ) : null}
                     </div>
                   </td>
-                  <td className="px-3 py-2">
-                    <span className="flex items-center gap-2">
+                  <td className="hidden px-3 py-2 lg:table-cell">
+                    <span className="flex min-w-0 items-center gap-2" title={post.channelTitle}>
                       <span
                         className="size-2.5 shrink-0 rounded-full"
                         style={{ backgroundColor: post.channelColor }}
@@ -444,7 +465,7 @@ export function QueuePage(): React.JSX.Element {
                       <span className="truncate">{post.channelTitle}</span>
                     </span>
                   </td>
-                  <td className="px-3 py-2 text-muted-foreground">
+                  <td className="hidden px-3 py-2 text-muted-foreground lg:table-cell">
                     {post.source === 'twitch_clip' ? (
                       <Clapperboard className="size-4" aria-label="Twitch clip" />
                     ) : (
@@ -455,22 +476,11 @@ export function QueuePage(): React.JSX.Element {
                     <PublishCell post={post} />
                   </td>
                   <td className="px-3 py-2">
-                    <StatusCell post={post} />
-                  </td>
-                  <td className="px-3 py-2">
-                    {post.status === 'needs_approval' ? (
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        className="h-7"
-                        disabled={approve.isPending}
-                        onClick={() => approve.mutate(post.id)}
-                      >
-                        <Check aria-hidden /> Approve
-                      </Button>
-                    ) : (
-                      <ProgressCell post={post} />
-                    )}
+                    <StatusCell
+                      post={post}
+                      approving={approve.isPending}
+                      onApprove={() => approve.mutate(post.id)}
+                    />
                   </td>
                   <td className="px-3 py-2">
                     <DropdownMenu>
@@ -617,7 +627,7 @@ export function QueuePage(): React.JSX.Element {
             })}
             {rows.length === 0 ? (
               <tr>
-                <td colSpan={8} className="px-3 py-10 text-center text-sm text-muted-foreground">
+                <td colSpan={7} className="px-3 py-10 text-center text-sm text-muted-foreground">
                   No posts match these filters.
                 </td>
               </tr>

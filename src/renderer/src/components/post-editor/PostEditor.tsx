@@ -575,7 +575,14 @@ function PostEditorForm({
                     className="w-full"
                     aria-invalid={Boolean(errorFor('categoryId'))}
                   >
-                    <SelectValue placeholder={categories.isLoading ? 'Loading…' : 'Choose'} />
+                    <SelectValue placeholder={categories.isLoading ? 'Loading…' : 'Choose'}>
+                      {/* A saved category the list doesn't have (it failed to load) would
+                          otherwise show as a blank box. */}
+                      {input.categoryId &&
+                      !(categories.data ?? []).some((c) => c.id === input.categoryId)
+                        ? `Category ${input.categoryId}`
+                        : undefined}
+                    </SelectValue>
                   </SelectTrigger>
                   <SelectContent>
                     {(categories.data ?? []).map((c) => (
