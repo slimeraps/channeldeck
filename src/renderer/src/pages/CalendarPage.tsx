@@ -19,6 +19,7 @@ import { Button } from '@renderer/components/ui/button'
 import { useAccounts } from '@renderer/hooks/useAccounts'
 import { usePosts, useReschedule } from '@renderer/hooks/usePosts'
 import { STATUS_LABELS } from '@renderer/lib/status'
+import { createSwipeTracker } from '@renderer/lib/swipe'
 import { cn } from '@renderer/lib/utils'
 import { useUiStore } from '@renderer/stores/ui'
 
@@ -123,6 +124,8 @@ export function CalendarPage(): React.JSX.Element {
   const [dropTarget, setDropTarget] = useState<string | null>(null)
   const [pending, setPending] = useState<{ post: PostListItem; at: DateTime } | null>(null)
   const scrollRef = useRef<HTMLDivElement>(null)
+  // A sideways trackpad swipe (or Shift + wheel) moves one week or month, like the arrows.
+  const swipe = useRef(createSwipeTracker())
 
   // Week view opens around 8:00 instead of midnight.
   useEffect(() => {
@@ -223,7 +226,13 @@ export function CalendarPage(): React.JSX.Element {
   })
 
   return (
-    <div className="flex h-full min-h-0 flex-col gap-3 px-6 py-4">
+    <div
+      className="flex h-full min-h-0 flex-col gap-3 px-6 py-4"
+      onWheel={(e) => {
+        const dir = swipe.current(e.deltaX, e.deltaY, e.timeStamp)
+        if (dir !== 0) step(dir)
+      }}
+    >
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-2">
         <div className="flex rounded-md border p-0.5">
@@ -388,8 +397,8 @@ export function CalendarPage(): React.JSX.Element {
       )}
 
       <p className="text-xs text-muted-foreground">
-        Drag a post to move it. Click an empty slot to plan a new post there. Times are in your
-        Mac’s time zone.
+        Drag a post to move it. Click an empty slot to plan a new post there. Swipe sideways to
+        change {mode}. Times are in your Mac’s time zone.
       </p>
 
       <AlertDialog open={pending !== null} onOpenChange={(o) => !o && setPending(null)}>
