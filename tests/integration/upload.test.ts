@@ -334,6 +334,24 @@ describe('upload engine', () => {
     expect(google.uploadStarts).toHaveLength(0)
   })
 
+  it('keeps post titles out of notifications when "Hide post titles" is on', async () => {
+    t.repos.settings.update({ hidePostTitles: true })
+    const done = await queue()
+    const missed = await queue({ publishAtUtc: '2026-11-12T13:00:00.000Z', title: 'Secret' })
+    t.clock.set('2026-11-12T14:00:00.000Z')
+    await tick()
+    expect(t.repos.posts.require(done).status).toBe('processing')
+    expect(t.repos.posts.require(missed).status).toBe('needs_decision')
+    expect(notify).toHaveBeenCalledWith('Uploaded', expect.stringContaining('Drift Channel'))
+    expect(notify).toHaveBeenCalledWith(
+      'Publish time passed',
+      "A video wasn't uploaded in time. Open the queue to decide what to do."
+    )
+    const shown = notify.mock.calls.flat().join(' ')
+    expect(shown).not.toContain('MW4 Day 9')
+    expect(shown).not.toContain('Secret')
+  })
+
   it('follows the missed-time policy when the publish time already passed', async () => {
     const ask = await queue({ publishAtUtc: '2026-11-12T13:00:00.000Z' })
     const now = await queue({

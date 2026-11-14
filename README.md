@@ -103,6 +103,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Logs in `~/Library/Logs/ChannelDeck` with secrets scrubbed
 - ✅ Menu bar icon with the pending count; its menu shows the next publish time and has Open, Sync clips now, Pause jobs and Quit
 - ✅ Keep in menu bar: closing the window leaves uploads and syncs running; launch at login (installed app)
+- ✅ Hide post titles (for streaming): notifications and the menu bar say "a video" instead of a post's title
 - ✅ Quota meter (today's uploads / 100 and units / 10,000, resets at midnight Pacific) in the sidebar and Settings
 - ✅ Disk usage per Twitch channel, and "delete local files N days after posting"
 - ✅ Backup export/import as JSON, never with tokens or secrets (channels come back signed out, rules switched off)
@@ -173,7 +174,7 @@ Clips are saved to `~/Movies/ChannelDeck/Clips/<channel>/<year>/<year-month>/` (
 
 ### Backups
 
-**Settings → Backup → Export backup…** saves a JSON file with your settings, channels, Twitch channels, templates, series, layouts, rules and posts not yet on YouTube. It never contains sign-in tokens or secrets. When you import it on a new Mac, click **Reconnect** on each channel and turn the rules back on. Clips come back from Twitch on the next sync.
+**Settings → Backup → Export backup…** saves a JSON file with your settings, channels, Twitch channels, templates, series, layouts, rules and posts not yet on YouTube. It never contains sign-in tokens or secrets. When you import it on a new Mac, click **Reconnect** on each channel and turn the rules back on. Import restores your settings except Dry Run and “delete local files after posting”, which keep the values already set on that Mac. Clips come back from Twitch on the next sync.
 
 ### YouTube quota
 
@@ -221,6 +222,13 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### Unreleased
+
+- Added **Settings → Mac → Hide post titles**, for streaming: notifications and the menu bar say "a video" instead of a post's title, so private titles don't show up on stream.
+- Fixed: status sync marked a post "deleted on YouTube" (and freed its clip to be posted again) the first time YouTube's answer left the video out. A video now has to stay missing for an hour, across two checks, before it counts as deleted. A video YouTube reports as deleted still counts at once.
+- Fixed: importing a backup replaced every setting, so an old backup could turn Dry Run off or switch on deleting local files. Import now leaves Dry Run and "delete local files after posting" as they are on this Mac.
+- Fixed: a symlink inside the clip or render folder could make the app's video player serve a file outside those folders. It now follows links and refuses any that lead outside (from the other developer's `harden-media-protocol` branch, which also adds tests for the video player and the IPC sender check).
 
 ### 1.2.0 (2026-11-13)
 

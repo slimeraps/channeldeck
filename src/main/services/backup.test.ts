@@ -128,7 +128,8 @@ describe('backup', () => {
     expect(target.repos.settings.getSecret('twitchClientSecret')).toBeNull()
     expect(target.repos.settings.get()).toMatchObject({
       twitchClientId: 'public-client-id',
-      dryRun: true
+      // The backup had Dry Run on; the target keeps its own value (off on a fresh install).
+      dryRun: false
     })
     const rule = target.repos.autopostRules.list()[0]
     expect(rule).toMatchObject({
@@ -141,12 +142,28 @@ describe('backup', () => {
     expect(draft).toMatchObject({ status: 'draft', title: 'MW4 Day {{n}}' })
     expect(draft?.seriesId).toBe(target.repos.series.list()[0]?.id)
 
-    // Exporting again gives the same setup (rules now off, channels signed out).
+    // Exporting again gives the same setup (rules now off, channels signed out, and this
+    // Mac's own Dry Run setting).
     const again = createBackupService({ repos: target.repos }).exportBackup()
     expect({ ...again, exportedAt: '' }).toEqual({
       ...exported,
       exportedAt: '',
+      settings: { ...exported.settings, dryRun: false },
       rules: exported.rules.map((r) => ({ ...r, enabled: false }))
+    })
+  })
+
+  it('never changes Dry Run or file deletion on the Mac it is imported into', () => {
+    target.repos.settings.update({ dryRun: true, deleteLocalAfterPostingDays: 30 })
+    source.repos.settings.update({ dryRun: false, deleteLocalAfterPostingDays: 1 })
+    const exported = createBackupService({ repos: source.repos }).exportBackup()
+    expect(exported.settings).toMatchObject({ dryRun: false, deleteLocalAfterPostingDays: 1 })
+
+    createBackupService({ repos: target.repos }).importBackup(JSON.parse(JSON.stringify(exported)))
+    expect(target.repos.settings.get()).toMatchObject({
+      dryRun: true,
+      deleteLocalAfterPostingDays: 30,
+      twitchClientId: 'public-client-id'
     })
   })
 

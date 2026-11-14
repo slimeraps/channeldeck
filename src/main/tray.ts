@@ -44,7 +44,9 @@ export function refreshTray(): void {
         enabled: false
       },
       { label: nextLine, enabled: false },
-      ...(status.next ? [{ label: `   ${status.next.title.slice(0, 60)}`, enabled: false }] : []),
+      ...(status.next && !d.repos.settings.getKey('hidePostTitles')
+        ? [{ label: `   ${status.next.title.slice(0, 60)}`, enabled: false }]
+        : []),
       ...(paused ? [{ label: 'Jobs are paused', enabled: false }] : []),
       { type: 'separator' },
       { label: `Open ${APP_NAME}`, click: () => d.onOpen() },

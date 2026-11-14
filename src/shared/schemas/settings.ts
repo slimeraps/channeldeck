@@ -25,6 +25,8 @@ export const settingsShape = {
   uploadConcurrency: z.number().int().min(1).max(3),
   launchAtLogin: z.boolean(),
   keepInTray: z.boolean(),
+  /** For streaming: notifications and the menu bar say "a video" instead of a post's title. */
+  hidePostTitles: z.boolean(),
   /** Log YouTube calls instead of making them. Twitch sync and downloads still run. */
   dryRun: z.boolean(),
   /** Delete a clip's local files this many days after it's posted; null = keep forever. */
@@ -56,6 +58,7 @@ export function defaultSettings({ homeDir }: { homeDir: string }): Settings {
     uploadConcurrency: 1,
     launchAtLogin: false,
     keepInTray: true,
+    hidePostTitles: false,
     dryRun: false,
     deleteLocalAfterPostingDays: null,
     twitchClientId: null,

@@ -124,7 +124,11 @@ export function createStatusSyncJob(deps: StatusSyncDeps): StatusSyncJob {
         const found = new Map(videos.map((v) => [v.id, v]))
         for (const post of batch) {
           summary.checked += 1
-          const decision = decideSync(post, found.get(post.youtubeVideoId as string) ?? null)
+          const decision = decideSync(
+            { ...post, hideTitle: repos.settings.getKey('hidePostTitles') },
+            found.get(post.youtubeVideoId as string) ?? null,
+            clock().toISOString()
+          )
           if (apply(post, decision)) summary.changed += 1
         }
       }

@@ -222,11 +222,33 @@ describe('status sync', () => {
     expect(notify).toHaveBeenCalledWith('Video rejected', expect.stringContaining('duplicates'))
   })
 
-  it('notices a video deleted in YouTube Studio', async () => {
+  it('notices a video deleted in YouTube Studio once it stays gone for an hour', async () => {
     const { id, videoId } = await uploaded()
     google.videos.delete(videoId)
     await sync.syncNow()
+    // One missing answer only notes the time.
+    expect(t.repos.posts.require(id)).toMatchObject({
+      status: 'processing',
+      missingSinceUtc: t.clock().toISOString()
+    })
+    t.clock.advance(30 * 60_000)
+    await sync.syncNow()
+    expect(t.repos.posts.require(id).status).toBe('processing')
+    t.clock.advance(30 * 60_000)
+    await sync.syncNow()
     expect(t.repos.posts.require(id).status).toBe('canceled')
+    expect(notify).toHaveBeenCalledWith('Video removed from YouTube', expect.any(String))
+  })
+
+  it('keeps a post whose video was missing once and then came back', async () => {
+    const { id, videoId } = await uploaded()
+    const saved = google.videos.get(videoId)!
+    google.videos.delete(videoId)
+    await sync.syncNow()
+    google.videos.set(videoId, saved)
+    t.clock.advance(2 * 60 * 60_000)
+    await sync.syncNow()
+    expect(t.repos.posts.require(id)).toMatchObject({ status: 'processing', missingSinceUtc: null })
   })
 
   it('polls every 2 minutes while processing, then every 15', async () => {

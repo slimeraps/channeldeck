@@ -142,7 +142,8 @@ export function createBackupService(deps: { repos: Repos; clock?: Clock }) {
   /**
    * Adds what isn't here yet; anything with the same channel id or name is left alone.
    * Channels come back signed out ("Needs re-auth"); rules come back switched off; posts
-   * come back as drafts.
+   * come back as drafts. Settings are restored except Dry Run and "delete local files after
+   * posting", which keep this Mac's values.
    */
   function importBackup(raw: unknown): ImportReport {
     const parsed = backupSchema.safeParse(raw)
@@ -164,7 +165,10 @@ export function createBackupService(deps: { repos: Repos; clock?: Clock }) {
     let skipped = 0
     const now = clock()
 
-    repos.settings.update(b.settings)
+    // Settings that decide whether anything is really uploaded or deleted stay as they are
+    // on this Mac: an old backup must never quietly turn Dry Run off or start deleting files.
+    const { dryRun: _dryRun, deleteLocalAfterPostingDays: _deleteDays, ...restored } = b.settings
+    repos.settings.update(restored)
 
     const accountId = new Map<string, number>()
     for (const a of repos.accounts.list({ includeRemoved: true })) accountId.set(a.channelId, a.id)
