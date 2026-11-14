@@ -7,6 +7,7 @@ import {
   MoreHorizontal,
   Pencil,
   Plus,
+  RefreshCw,
   Trash2,
   Wand2
 } from 'lucide-react'
@@ -67,11 +68,13 @@ function RuleCard({
   rule,
   onEdit,
   onDuplicate,
+  onSync,
   onDelete
 }: {
   rule: RuleView
   onEdit: () => void
   onDuplicate: () => void
+  onSync: () => void
   onDelete: () => void
 }): React.JSX.Element {
   const toggle = useAutopostAction((enabled: boolean) =>
@@ -159,6 +162,14 @@ function RuleCard({
               <DropdownMenuItem onSelect={onDuplicate}>
                 <Copy aria-hidden /> Duplicate…
               </DropdownMenuItem>
+              <DropdownMenuItem onSelect={onSync}>
+                <RefreshCw aria-hidden /> Sync…
+                {rule.failed > 0 ? (
+                  <span className="ml-auto text-xs text-muted-foreground">
+                    {rule.failed} failed
+                  </span>
+                ) : null}
+              </DropdownMenuItem>
               <DropdownMenuSeparator />
               <DropdownMenuItem variant="destructive" onSelect={onDelete}>
                 <Trash2 aria-hidden /> Delete…
@@ -201,12 +212,23 @@ export function AutopostPage(): React.JSX.Element {
   const [editing, setEditing] = useState<RuleView | 'new' | null>(null)
   const [duplicating, setDuplicating] = useState<RuleView | null>(null)
   const [deleting, setDeleting] = useState<RuleView | null>(null)
+  const [syncing, setSyncing] = useState<RuleView | null>(null)
   const [cancelUpcoming, setCancelUpcoming] = useState(true)
   const [editingLayout, setEditingLayout] = useState<LayoutView | 'new' | null>(null)
   const [deletingLayout, setDeletingLayout] = useState<LayoutView | null>(null)
   const remove = useAutopostAction(
     (v: { id: number; cancelUpcoming: boolean }) => invoke('autopost:delete', v),
     (r) => `Rule deleted${r.canceled ? `; ${r.canceled} upcoming autoposts canceled` : ''}`
+  )
+  const sync = useAutopostAction(
+    (id: number) => invoke('autopost:sync', { id }),
+    (r) =>
+      (r.requeued
+        ? `Re-queued ${r.requeued} failed clip${r.requeued === 1 ? '' : 's'}; the rule refills its slots now`
+        : 'Nothing to re-queue; the rule refills its empty slots now') +
+      (r.onYouTube
+        ? `. ${r.onYouTube} failed autopost${r.onYouTube === 1 ? ' is' : 's are'} already on YouTube: use Retry in the queue`
+        : '')
   )
   const removeLayout = useAutopostAction(
     (id: number) => invoke('layouts:delete', { id }),
@@ -267,6 +289,7 @@ export function AutopostPage(): React.JSX.Element {
               rule={rule}
               onEdit={() => setEditing(rule)}
               onDuplicate={() => setDuplicating(rule)}
+              onSync={() => setSyncing(rule)}
               onDelete={() => {
                 setCancelUpcoming(true)
                 setDeleting(rule)
@@ -355,6 +378,29 @@ export function AutopostPage(): React.JSX.Element {
               onClick={() => deleting && remove.mutate({ id: deleting.id, cancelUpcoming })}
             >
               Delete rule
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <AlertDialog open={syncing !== null} onOpenChange={(open) => !open && setSyncing(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Sync “{syncing?.input.name}”?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {syncing?.failed
+                ? `Cancels its ${syncing.failed} failed autopost${syncing.failed === 1 ? '' : 's'} and puts those clips back in the pool. The rule then fills its empty slots again, so they get re-uploaded on schedule.`
+                : 'This rule has no failed autoposts to re-queue. Syncing just fills its empty slots now.'}{' '}
+              Clips you unscheduled or swapped out stay skipped.
+              {syncing && !syncing.input.enabled
+                ? ' The rule is off, so slots fill once you turn it on.'
+                : ''}
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Not now</AlertDialogCancel>
+            <AlertDialogAction onClick={() => syncing && sync.mutate(syncing.id)}>
+              Sync rule
             </AlertDialogAction>
           </AlertDialogFooter>
         </AlertDialogContent>

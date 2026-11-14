@@ -67,12 +67,21 @@ export const ruleViewSchema = z.object({
   /** Clips this rule could still use. */
   eligibleClips: z.number().int(),
   skippedClips: z.number().int(),
+  /** Failed autoposts with nothing on YouTube yet: what "Sync" would re-queue. */
+  failed: z.number().int(),
   /** Why the rule can't run right now (e.g. channel needs re-auth), or null. */
   blockedReason: z.string().nullable()
 })
 export type RuleView = z.infer<typeof ruleViewSchema>
 
-export const ruleSaveSchema = z.object({ id: id.optional(), input: ruleInputSchema }).strict()
+export const ruleSaveSchema = z
+  .object({
+    id: id.optional(),
+    input: ruleInputSchema,
+    /** Duplicate: the rule this one copies. The new rule inherits its skipped clips. */
+    copyOf: id.optional()
+  })
+  .strict()
 
 export const rulePreviewInputSchema = ruleInputSchema
   .pick({
@@ -90,7 +99,7 @@ export const rulePreviewInputSchema = ruleInputSchema
     lookaheadDays: true,
     nextNumber: true
   })
-  .extend({ ruleId: id.optional() })
+  .extend({ ruleId: id.optional(), copyOf: id.optional() })
   .strict()
 export type RulePreviewInput = z.infer<typeof rulePreviewInputSchema>
 

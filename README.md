@@ -101,6 +101,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Title and description templates with `{{clip_title}}`, `{{game}}`, `{{broadcaster}}`, `{{clipper}}`, `{{clip_date}}`, `{{clip_url}}`, `{{twitch_url}}`, `{{views}}`, `{{n}}`; titles trimmed safely to 100 characters
 - ✅ Review mode (approve first) or Auto; unapproved autoposts are dropped at their publish time and the clip goes back to the bank
 - ✅ Unscheduling an autopost refills its slot with the next clip; that rule never picks the skipped clip again
+- ✅ **Sync…** in a rule's ⋯ menu re-queues its failed autoposts: their clips go back in the pool and get re-uploaded on schedule. **Duplicate…** carries the original's skipped and queued clips over, so deleting the original doesn't re-post them
 - ✅ Never posts the same clip twice to the same channel (enforced by the database)
 - ✅ "Out of clips" notification (once a day per rule) and a quota warning when your rules would go over YouTube's daily limits
 
@@ -233,6 +234,11 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
+
+### Unreleased
+
+- Autopost: new **Sync…** item in a rule's ⋯ menu (2026-11-14). It cancels the rule's failed autoposts that have nothing on YouTube yet, puts their clips back in the pool and refills the empty slots, so those clips get re-uploaded on schedule. Clips you unscheduled or swapped out stay skipped; a failed autopost that already has a video is left for **Retry** in the queue. The menu shows how many failed autoposts the rule has.
+- Autopost: **Duplicate…** no longer re-posts clips by accident. The copy starts with the original's skip list and, on the same channel, the clips of its autoposts that aren't on YouTube yet, so duplicating a rule and deleting the original no longer brings those clips back. Use **Sync…** to retry failed ones. The editor's preview shows the clips the copy will really pick.
 
 ### 1.6.0 (2026-11-14)
 

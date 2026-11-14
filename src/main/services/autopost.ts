@@ -140,6 +140,23 @@ export function createAutopostService(deps: AutopostDeps) {
     return set
   }
 
+  /**
+   * Skips a duplicate of `sourceId` starts with: the source's skip list and, on the same
+   * channel, the clips of its autoposts that aren't on YouTube yet (deleting the source would
+   * cancel those and free their clips). Retrying failed clips is Sync's job, not Duplicate's.
+   */
+  function inheritedSkips(sourceId: number | undefined, youtubeAccountId: number): string[] {
+    const source = sourceId ? repos.autopostRules.get(sourceId) : undefined
+    if (!source) return []
+    const skips = new Set(source.skippedClipIdsJson)
+    if (source.youtubeAccountId === youtubeAccountId) {
+      for (const post of rulePosts(source.id, SWAPPABLE)) {
+        if (post.clipId && !post.youtubeVideoId) skips.add(post.clipId)
+      }
+    }
+    return [...skips]
+  }
+
   /** Clips whose files exist (a file deleted in Finder makes a clip unusable). */
   function usableBank(twitchAccountIds: readonly number[]): ClipRow[] {
     return repos.clips
@@ -382,6 +399,7 @@ export function createAutopostService(deps: AutopostDeps) {
       upcoming: active.length,
       eligibleClips: eligible,
       skippedClips: rule.skippedClipIdsJson.length,
+      failed: active.filter((p) => p.status === 'failed' && !p.youtubeVideoId).length,
       blockedReason: blockedReason(rule)
     }
   }
@@ -431,11 +449,14 @@ export function createAutopostService(deps: AutopostDeps) {
       return repos.autopostRules.list().map(toView)
     },
 
-    save(input: RuleInput, id?: number): RuleView {
+    save(input: RuleInput, id?: number, copyOf?: number): RuleView {
       validateRefs(input)
       const row = id
         ? repos.autopostRules.update(id, toRow(input))
-        : repos.autopostRules.create(toRow(input))
+        : repos.autopostRules.create({
+            ...toRow(input),
+            skippedClipIdsJson: inheritedSkips(copyOf, input.youtubeAccountId)
+          })
       emptyBankAt.delete(row.id)
       repos.eventLog.write({
         kind: id ? 'autopost.rule_updated' : 'autopost.rule_created',
@@ -453,18 +474,40 @@ export function createAutopostService(deps: AutopostDeps) {
       return toView(row)
     },
 
+    /**
+     * Retries a rule's failed autoposts: each one that has nothing on YouTube is canceled,
+     * which frees its slot and its clip (no skip), and the planner refills the look-ahead.
+     * Failed posts that already have a video need Retry instead, so they're left alone.
+     */
+    sync(id: number): { requeued: number; onYouTube: number } {
+      const rule = repos.autopostRules.require(id)
+      let requeued = 0
+      let onYouTube = 0
+      for (const post of rulePosts(id, ['failed'])) {
+        if (post.youtubeVideoId) {
+          onYouTube += 1
+          continue
+        }
+        repos.posts.transition(post.id, 'cancel', { reason: `rule "${rule.name}" synced` })
+        requeued += 1
+      }
+      emptyBankAt.delete(id)
+      repos.eventLog.write({
+        kind: 'autopost.rule_synced',
+        message: `Synced autopost rule "${rule.name}": ${requeued} failed autopost${requeued === 1 ? '' : 's'} re-queued`,
+        accountId: rule.youtubeAccountId
+      })
+      if (requeued) deps.emitPostsChanged()
+      deps.kickJobs?.()
+      return { requeued, onYouTube }
+    },
+
     /** Deletes a rule; optionally cancels its autoposts that aren't on YouTube yet. */
     remove(id: number, cancelUpcoming: boolean): { canceled: number } {
       const rule = repos.autopostRules.require(id)
       let canceled = 0
       if (cancelUpcoming) {
-        for (const post of rulePosts(id, [
-          'needs_approval',
-          'queued',
-          'failed',
-          'waiting_quota',
-          'needs_decision'
-        ])) {
+        for (const post of rulePosts(id, SWAPPABLE)) {
           if (post.youtubeVideoId) continue
           repos.posts.transition(post.id, 'cancel', { reason: `rule "${rule.name}" deleted` })
           canceled += 1
@@ -509,7 +552,10 @@ export function createAutopostService(deps: AutopostDeps) {
         .filter((s) => !taken.has(s))
         .slice(0, 6)
       const bank = usableBank(input.twitchAccountIds)
-      const excluded = excludedFor(input.youtubeAccountId, existing?.skippedClipIdsJson ?? [])
+      const excluded = excludedFor(
+        input.youtubeAccountId,
+        existing?.skippedClipIdsJson ?? inheritedSkips(input.copyOf, input.youtubeAccountId)
+      )
       const rule = pickRuleOf(input)
       const eligible = pickClips(bank, rule, excluded, Number.MAX_SAFE_INTEGER)
       let titleTooLong = false

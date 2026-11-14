@@ -189,7 +189,7 @@ export function RuleEditor({
   const previewInput = useDebounced<RulePreviewInput | null>(
     input.youtubeAccountId && input.twitchAccountIds.length > 0 && input.slots.length > 0
       ? {
-          ...(rule ? { ruleId: rule.id } : {}),
+          ...(rule ? { ruleId: rule.id } : copyOf ? { copyOf: copyOf.id } : {}),
           youtubeAccountId: input.youtubeAccountId,
           twitchAccountIds: input.twitchAccountIds,
           slots: input.slots.filter((s) => /^\d\d:\d\d$/.test(s)),
@@ -783,7 +783,10 @@ export function RuleEditor({
             onClick={() =>
               parsed.success &&
               save.mutate(
-                { ...(rule ? { id: rule.id } : {}), input: parsed.data },
+                {
+                  ...(rule ? { id: rule.id } : copyOf ? { copyOf: copyOf.id } : {}),
+                  input: parsed.data
+                },
                 { onSuccess: onClose }
               )
             }

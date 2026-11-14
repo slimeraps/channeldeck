@@ -413,6 +413,63 @@ describe('planner', () => {
   })
 })
 
+describe('sync and duplicate', () => {
+  it('sync re-queues failed autoposts but leaves skipped clips and uploaded videos alone', async () => {
+    for (let i = 0; i < 5; i++) bankClip(i, { portrait: true })
+    const { id } = autopost.save(rule({ mode: 'auto', slots: ['18:00'], lookaheadDays: 3 }))
+    await autopost.planRule(id)
+    const [first, second, third] = rulePosts(id)
+    expect([first, second, third].map((p) => p?.clipId)).toEqual(['clip00', 'clip01', 'clip02'])
+    t.repos.autopostRules.addSkipped(id, 'clip03')
+    t.repos.posts.transition(first!.id, 'fail', { reason: 'test' })
+    t.repos.posts.update(second!.id, { youtubeVideoId: 'vid1' })
+    t.repos.posts.transition(second!.id, 'fail', { reason: 'test' })
+    expect(autopost.list().find((r) => r.id === id)?.failed).toBe(1)
+
+    expect(autopost.sync(id)).toEqual({ requeued: 1, onYouTube: 1 })
+    expect(t.repos.posts.require(first!.id).status).toBe('canceled')
+    expect(t.repos.posts.require(second!.id).status).toBe('failed')
+    expect(t.repos.autopostRules.require(id).skippedClipIdsJson).toEqual(['clip03'])
+
+    // The freed slot is filled again, and clip00 is back in the pool (oldest first).
+    await autopost.planRule(id)
+    expect(rulePosts(id).map((p) => p.clipId)).toEqual(['clip00', 'clip01', 'clip02'])
+    expect(autopost.sync(id)).toEqual({ requeued: 0, onYouTube: 1 })
+  })
+
+  it('a duplicate inherits skips, so deleting the original doesn’t re-post its clips', async () => {
+    for (let i = 0; i < 6; i++) bankClip(i, { portrait: true })
+    const { id } = autopost.save(rule({ slots: ['18:00'], lookaheadDays: 2 }))
+    await autopost.planRule(id)
+    expect(rulePosts(id).map((p) => p.clipId)).toEqual(['clip00', 'clip01'])
+    t.repos.autopostRules.addSkipped(id, 'clip02')
+
+    const input = rule({ name: 'Copy', slots: ['18:00'], lookaheadDays: 2 })
+    expect(autopost.preview({ ...input, copyOf: id }).slots.map((s) => s.clip?.id ?? null)).toEqual(
+      ['clip03', 'clip04']
+    )
+    const copy = autopost.save(input, undefined, id)
+    expect(t.repos.autopostRules.require(copy.id).skippedClipIdsJson.sort()).toEqual([
+      'clip00',
+      'clip01',
+      'clip02'
+    ])
+    autopost.remove(id, true)
+    await autopost.planRule(copy.id)
+    expect(rulePosts(copy.id).map((p) => p.clipId)).toEqual(['clip03', 'clip04'])
+  })
+
+  it('a duplicate for another channel only inherits the skip list', async () => {
+    for (let i = 0; i < 4; i++) bankClip(i, { portrait: true })
+    const { id } = autopost.save(rule({ slots: ['18:00'], lookaheadDays: 1 }))
+    await autopost.planRule(id)
+    t.repos.autopostRules.addSkipped(id, 'clip02')
+    const other = seedAccount(t.repos, { channelTitle: 'Second channel' }).id
+    const copy = autopost.save(rule({ youtubeAccountId: other }), undefined, id)
+    expect(t.repos.autopostRules.require(copy.id).skippedClipIdsJson).toEqual(['clip02'])
+  })
+})
+
 describe('swap clip', () => {
   it('swaps an autopost’s clip in the same slot and skips the old clip', async () => {
     for (let i = 0; i < 4; i++) bankClip(i, { portrait: true })
