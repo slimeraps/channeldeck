@@ -2,6 +2,7 @@ import { join } from 'node:path'
 import { app, type BrowserWindow, dialog, Menu, session } from 'electron'
 import { resourcePath } from './paths'
 import { runSelfTest } from './selfTest'
+import { captureScreens, prepareDemoFolder, seedDemoData } from './screenshots'
 import { APP_NAME } from '@shared/constants/app'
 import { emitToRenderer, onEmit, setMainWindow } from './appWindow'
 import { closeDatabase, databasePath, getRepos, initDatabase } from './db'
@@ -37,6 +38,13 @@ const selfTestDir = process.env['CHANNELDECK_SELF_TEST']
 if (selfTestDir) {
   app.setPath('userData', selfTestDir)
   app.setPath('logs', join(selfTestDir, 'logs'))
+}
+// Screenshot mode for UI work (CHANNELDECK_SCREENSHOTS=<empty folder>, from source only):
+// demo data in a throwaway folder, no jobs, no network. See src/main/screenshots.ts.
+const shotsDir = !app.isPackaged ? process.env['CHANNELDECK_SCREENSHOTS'] : undefined
+if (shotsDir) {
+  app.setPath('userData', shotsDir)
+  app.setPath('logs', join(shotsDir, 'logs'))
 }
 initLogger()
 
@@ -110,6 +118,7 @@ async function start(): Promise<void> {
   try {
     const repos = initDatabase()
     repos.eventLog.write({ kind: 'app.start', message: `${APP_NAME} ${app.getVersion()} started` })
+    if (shotsDir) prepareDemoFolder(shotsDir, repos)
   } catch (error) {
     logger.error('[db] could not open the database', error)
     dialog.showErrorBox(
@@ -139,6 +148,18 @@ async function start(): Promise<void> {
       }
     })
   )
+
+  if (shotsDir) {
+    showMainWindow()
+    const window = mainWindow as BrowserWindow | null
+    if (!window) return app.exit(1)
+    if (window.webContents.isLoading()) {
+      await new Promise<void>((resolve) => window.webContents.once('did-finish-load', resolve))
+    }
+    await captureScreens(window, shotsDir, () => seedDemoData(shotsDir, getRepos()))
+    app.exit(0)
+    return
+  }
 
   // Started at login with "keep in menu bar" on: stay in the menu bar until clicked.
   if (!(openedAtLogin() && keepInTray())) showMainWindow()

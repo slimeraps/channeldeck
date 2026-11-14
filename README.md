@@ -213,6 +213,8 @@ To check a build without touching your data, run its self-test. It uses a throwa
 CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/MacOS/ChannelDeck
 ```
 
+**Screenshots for UI work:** from source, `npx electron-vite build && CHANNELDECK_SCREENSHOTS="$(mktemp -d)" ./node_modules/.bin/electron .` opens the app on a throwaway folder with Dry Run on, captures every page empty, fills it with demo channels, clips, rules and posts in every status, captures every page again (plus the editors and the smallest window size), and quits. The PNGs are in `<folder>/shots`. It starts no jobs and calls neither Google nor Twitch.
+
 **Icons:** `swift scripts/draw-icons.swift <dir>` draws the app icon and the menu bar template images with CoreGraphics; `build/icon.icns` is made from the PNG with `sips` + `iconutil`.
 
 **Security:** the window is sandboxed with no Node access; it can only call a typed, validated set of functions. Local videos are previewed through a restricted `cdmedia://` protocol. Secrets are never committed or logged.
@@ -225,6 +227,9 @@ No version numbers yet; the first version is tagged when all phases are complete
 
 ### Unreleased
 
+- UI pass: the queue table fits the window again. At 1280 px wide its last columns (upload progress and the ⋯ menu) were cut off; progress and Approve now sit under the status, and narrow windows drop the thumbnail and show the channel as a colored dot. Publish times stay on one line.
+- UI pass: times use the same 12-hour clock everywhere (the calendar and the autopost slot lists used 24-hour). Time fields are wide enough for AM/PM. Long folder paths in Settings show their end instead of `/Users/…`. The queue's empty state fits under the setup card, Calendar and Autopost empty states get a button to the Channels page, the rule card's buttons line up, and a saved category that YouTube's list can't confirm shows its number instead of a blank box.
+- Added a screenshot mode for UI work (`CHANNELDECK_SCREENSHOTS`, from source only; see Building).
 - Added **Settings → Mac → Hide post titles**, for streaming: notifications and the menu bar say "a video" instead of a post's title, so private titles don't show up on stream.
 - Fixed: status sync marked a post "deleted on YouTube" (and freed its clip to be posted again) the first time YouTube's answer left the video out. A video now has to stay missing for an hour, across two checks, before it counts as deleted. A video YouTube reports as deleted still counts at once.
 - Fixed: importing a backup replaced every setting, so an old backup could turn Dry Run off or switch on deleting local files. Import now leaves Dry Run and "delete local files after posting" as they are on this Mac.

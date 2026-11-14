@@ -3,6 +3,7 @@ import { Download, FileKey2, FolderOpen, KeyRound, Upload } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { QuotaMeter } from '@renderer/components/QuotaMeter'
+import { cn } from '@renderer/lib/utils'
 import { TwitchSetup } from '@renderer/components/twitch/TwitchSetup'
 import {
   AlertDialog,
@@ -75,11 +76,32 @@ function SettingRow({
   )
 }
 
+/**
+ * A file path cut from the left, so a long path still shows its last folders
+ * ("…/ChannelDeck/clips") instead of "/Users/…". The full path is in the tooltip.
+ */
+function PathText({
+  path,
+  className
+}: {
+  path: string | undefined
+  className?: string
+}): React.JSX.Element {
+  return (
+    <span
+      className={cn('truncate text-left font-mono text-xs select-text [direction:rtl]', className)}
+      title={path}
+    >
+      <bdi>{path ?? '…'}</bdi>
+    </span>
+  )
+}
+
 function Row({ label, value }: { label: string; value: string | undefined }): React.JSX.Element {
   return (
     <div className="flex items-baseline justify-between gap-6 py-1.5 text-sm">
-      <span className="text-muted-foreground">{label}</span>
-      <span className="truncate font-mono text-xs select-text">{value ?? '…'}</span>
+      <span className="shrink-0 text-muted-foreground">{label}</span>
+      <PathText path={value} />
     </div>
   )
 }
@@ -239,9 +261,7 @@ export function SettingsPage(): React.JSX.Element {
           hint="Where Twitch clips are saved: <folder>/<channel>/<year>/<year-month>/, oldest first by name."
         >
           <div className="flex min-w-0 items-center gap-2">
-            <span className="max-w-64 truncate font-mono text-xs select-text" title={s?.clipsRoot}>
-              {s?.clipsRoot ?? '…'}
-            </span>
+            <PathText path={s?.clipsRoot} className="max-w-64" />
             <Button
               size="sm"
               variant="secondary"
@@ -261,7 +281,7 @@ export function SettingsPage(): React.JSX.Element {
         >
           <Input
             type="time"
-            className="w-32"
+            className="w-36"
             value={s?.dailySyncTime ?? '04:00'}
             onChange={(e) => e.target.value && update.mutate({ dailySyncTime: e.target.value })}
           />

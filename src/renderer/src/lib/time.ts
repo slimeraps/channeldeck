@@ -1,6 +1,12 @@
 import { DateTime } from 'luxon'
 
 /** "Thu, Nov 13, 9:00 AM" in the Mac's local time zone. */
+/** A daily slot "HH:mm" (24-hour, as stored) shown like the rest of the app: "6:00 PM". */
+export function formatSlot(hhmm: string): string {
+  const parsed = DateTime.fromFormat(hhmm, 'HH:mm')
+  return parsed.isValid ? parsed.toFormat('h:mm a') : hhmm
+}
+
 export function formatLocal(iso: string): string {
   return DateTime.fromISO(iso).toLocal().toFormat('ccc, LLL d, h:mm a')
 }

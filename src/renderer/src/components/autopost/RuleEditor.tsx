@@ -338,7 +338,7 @@ export function RuleEditor({
                       type="time"
                       value={slot}
                       aria-label={`Time ${i + 1}`}
-                      className="h-8 w-28 border-0"
+                      className="h-8 w-32 border-0"
                       onChange={(e) =>
                         set(
                           'slots',

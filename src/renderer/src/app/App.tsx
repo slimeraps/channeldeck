@@ -30,10 +30,14 @@ function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JS
   switch (id) {
     case 'queue':
       return (
-        <>
+        // Column so the queue's empty state fills what the setup card leaves, not a whole
+        // window height below it.
+        <div className="flex h-full flex-col">
           <SetupChecklist />
-          <QueuePage />
-        </>
+          <div className="flex-1">
+            <QueuePage />
+          </div>
+        </div>
       )
     case 'channels':
       return <ChannelsPage />
