@@ -9,7 +9,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.2.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.3.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -225,7 +225,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 No version numbers yet; the first version is tagged when all phases are complete. Newest first.
 
-### Unreleased
+### 1.3.0 (2026-11-13)
 
 - Calendar: swipe sideways with two fingers on the trackpad (or Shift + mouse wheel) to move to the next or previous week or month. One swipe moves one step.
 - UI pass: the queue table fits the window again. At 1280 px wide its last columns (upload progress and the ⋯ menu) were cut off; progress and Approve now sit under the status, and narrow windows drop the thumbnail and show the channel as a colored dot. Publish times stay on one line.
