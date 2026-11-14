@@ -382,6 +382,10 @@ export const invokeContract = {
     output: z.object({ approved: z.number().int() })
   },
   'autopost:forecast': { input: noInput, output: quotaForecastSchema },
+  'autopost:sync': {
+    input: z.object({ id: ruleId }).strict(),
+    output: z.object({ requeued: z.number().int(), onYouTube: z.number().int() })
+  },
   'autopost:swapCandidates': {
     input: postIdInput,
     output: z.array(

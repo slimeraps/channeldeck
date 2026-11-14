@@ -8,12 +8,13 @@ export function registerAutopostHandlers(): void {
   )
 
   handle('autopost:list', () => getAutopost().list())
-  handle('autopost:save', ({ id, input }) => getAutopost().save(input, id))
+  handle('autopost:save', ({ id, input, copyOf }) => getAutopost().save(input, id, copyOf))
   handle('autopost:delete', ({ id, cancelUpcoming }) => getAutopost().remove(id, cancelUpcoming))
   handle('autopost:setEnabled', ({ id, enabled }) => getAutopost().setEnabled(id, enabled))
   handle('autopost:preview', (input) => getAutopost().preview(input))
   handle('autopost:approveAll', ({ id }) => getAutopost().approveAll(id))
   handle('autopost:forecast', () => getAutopost().forecast())
+  handle('autopost:sync', ({ id }) => getAutopost().sync(id))
   handle('autopost:swapCandidates', ({ id }) => getAutopost().swapCandidates(id))
   handle('autopost:swapClip', ({ id, clipId }) => getAutopost().swapClip(id, clipId))
 

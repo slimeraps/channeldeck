@@ -65,6 +65,7 @@ export const INVOKE_CHANNELS = [
   'autopost:preview',
   'autopost:approveAll',
   'autopost:forecast',
+  'autopost:sync',
   'layouts:list',
   'layouts:save',
   'layouts:delete',

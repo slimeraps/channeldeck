@@ -72,10 +72,10 @@ export function useAutopostAction<TVars, TOut>(
 export function useSaveRule(): UseMutationResult<
   RuleView,
   Error,
-  { id?: number; input: RuleInput }
+  { id?: number; input: RuleInput; copyOf?: number }
 > {
   return useAutopostAction(
-    (vars: { id?: number; input: RuleInput }) => invoke('autopost:save', vars),
+    (vars: { id?: number; input: RuleInput; copyOf?: number }) => invoke('autopost:save', vars),
     (rule, vars) => (vars.id ? `Saved "${rule.input.name}"` : `Created "${rule.input.name}"`)
   )
 }
