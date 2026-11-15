@@ -11,7 +11,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.7.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.8.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -237,7 +237,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
 
-### Unreleased
+### 1.8.0 (2026-11-14)
 
 - Editor, phase E6 (2026-11-14):
   - **Auto captions**, made on your Mac: **Captions → Make captions** listens to every video in the edit. The first time, it asks to download the speech model (whisper.cpp's small English model, 190 MB, checked after download).
