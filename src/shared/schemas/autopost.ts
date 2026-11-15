@@ -35,6 +35,8 @@ export const ruleInputSchema = z
     format: z.enum(AUTOPOST_FORMATS),
     /** Layout for vertical renders; null = blurred fill. */
     layoutPresetId: id.nullable(),
+    /** An edit style (text, stickers, captions) put over every clip; null = none. */
+    styleId: id.nullable(),
     /** Use Twitch's own vertical version when a clip has one, instead of rendering. */
     useTwitchVertical: z.boolean(),
     titleTpl: z.string().trim().min(1, 'Add a title template').max(500),
@@ -93,6 +95,7 @@ export const rulePreviewInputSchema = ruleInputSchema
     filters: true,
     format: true,
     layoutPresetId: true,
+    styleId: true,
     useTwitchVertical: true,
     titleTpl: true,
     descriptionTpl: true,

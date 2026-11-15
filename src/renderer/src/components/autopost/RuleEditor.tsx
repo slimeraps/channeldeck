@@ -38,6 +38,7 @@ import {
 } from '@renderer/components/ui/select'
 import { Switch } from '@renderer/components/ui/switch'
 import { Textarea } from '@renderer/components/ui/textarea'
+import { useEditStyles } from '@renderer/hooks/useEditStyles'
 import { useAccounts } from '@renderer/hooks/useAccounts'
 import { useLayouts, useRulePreview, useSaveRule } from '@renderer/hooks/useAutopost'
 import { useTwitchAccounts } from '@renderer/hooks/useTwitch'
@@ -128,6 +129,7 @@ export function RuleEditor({
         filters: {},
         format: 'short',
         layoutPresetId: null,
+        styleId: null,
         useTwitchVertical: false,
         titleTpl: DEFAULT_TITLE_TEMPLATE,
         descriptionTpl: DEFAULT_DESCRIPTION_TEMPLATE,
@@ -198,6 +200,7 @@ export function RuleEditor({
           filters: input.filters,
           format: input.format,
           layoutPresetId: input.layoutPresetId,
+          styleId: input.styleId,
           useTwitchVertical: input.useTwitchVertical,
           titleTpl: input.titleTpl || '{{clip_title}}',
           descriptionTpl: input.descriptionTpl,
@@ -211,6 +214,12 @@ export function RuleEditor({
   const unknown = [
     ...new Set([...unknownVariables(input.titleTpl), ...unknownVariables(input.descriptionTpl)])
   ]
+  const styles = useEditStyles()
+  const captionModel = useQuery({
+    queryKey: ['editor', 'captionModel'],
+    queryFn: () => invoke('editor:captionModel')
+  })
+  const chosenStyle = (styles.data ?? []).find((s) => s.id === input.styleId)
   const ruleLayouts = (layouts.data ?? []).filter((l) =>
     input.twitchAccountIds.includes(l.twitchAccountId)
   )
@@ -577,6 +586,56 @@ export function RuleEditor({
                   </p>
                 </div>
               ) : null}
+            </Section>
+
+            <Section title="Style">
+              <div className="grid gap-1.5">
+                <Label>Text, stickers and captions</Label>
+                <Select
+                  value={input.styleId ? String(input.styleId) : NONE}
+                  onValueChange={(v) => set('styleId', v === NONE ? null : Number(v))}
+                >
+                  <SelectTrigger>
+                    <SelectValue />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value={NONE}>None (the plain clip)</SelectItem>
+                    {(styles.data ?? []).map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.name} ({s.canvas === 'vertical' ? 'Short' : 'wide'})
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  {(styles.data ?? []).length === 0
+                    ? 'No styles yet. In the Editor, add text, stickers or captions and press Save as style.'
+                    : 'Every autopost is rendered from the horizontal clip with this look on top. Make styles in the Editor with Save as style.'}
+                </p>
+                {chosenStyle?.captions ? (
+                  <p
+                    className={
+                      captionModel.data?.installed
+                        ? 'text-xs text-muted-foreground'
+                        : 'text-xs text-amber-500'
+                    }
+                  >
+                    {captionModel.data?.installed
+                      ? 'Captions are made on your Mac for each clip just before it uploads.'
+                      : 'This style has captions, but the caption model isn’t downloaded yet. Download it in the Editor’s Captions panel, or these posts will fail to render.'}
+                  </p>
+                ) : null}
+                {chosenStyle && chosenStyle.canvas === 'vertical' && input.format !== 'short' ? (
+                  <p className="text-xs text-amber-500">
+                    This style is made for Shorts, but the rule posts regular videos.
+                  </p>
+                ) : null}
+                {chosenStyle && chosenStyle.canvas !== 'vertical' && input.format === 'short' ? (
+                  <p className="text-xs text-amber-500">
+                    This style is made for wide videos, but the rule posts Shorts.
+                  </p>
+                ) : null}
+              </div>
             </Section>
 
             <Section title="Title, description and details">

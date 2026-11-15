@@ -4,6 +4,7 @@ import {
   autopostRules,
   editorAssets,
   editProjects,
+  editStyles,
   games,
   layoutPresets,
   series,
@@ -85,6 +86,7 @@ function createCrud<
     | typeof templates
     | typeof series
     | typeof editProjects
+    | typeof editStyles
     | typeof editorAssets
 >(
   db: Db,
@@ -223,3 +225,7 @@ export function createEditorAssetsRepo(db: Db, clock: Clock): EditorAssetsRepo {
       db.select().from(editorAssets).where(eq(editorAssets.fileName, fileName)).get()
   }
 }
+
+export type EditStyleRow = typeof editStyles.$inferSelect
+export const createEditStylesRepo = (db: Db, clock: Clock) =>
+  createCrud(db, clock, editStyles, 'Style')

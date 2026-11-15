@@ -2,9 +2,15 @@ import { mkdirSync, mkdtempSync, rmSync, writeFileSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
-import { newEdit } from '@shared/editOps'
+import { newEdit, newText } from '@shared/editOps'
 import { DEFAULT_TEXT_STYLE } from '@shared/schemas/edit'
-import { createTestDb, seedClip, seedTwitchAccount, type TestDb } from '../../../tests/helpers/db'
+import {
+  createTestDb,
+  seedAccount,
+  seedClip,
+  seedTwitchAccount,
+  type TestDb
+} from '../../../tests/helpers/db'
 import { createMediaAccess } from '../media/access'
 import type { ProbeResult } from '../media/ffprobe'
 import { createEditorService, type EditorDeps } from './editor'
@@ -330,5 +336,40 @@ describe('editor service', () => {
     // The second time comes from the cache.
     expect(deps.transcribe).toHaveBeenCalledTimes(1)
     expect(deps.emitCaptionProgress).toHaveBeenLastCalledWith({ done: 1, total: 1 })
+  })
+  it('saves the look of an edit as a style, and refuses to delete one a rule uses', async () => {
+    const { editor } = service()
+    const plain = newEdit([{ path: video, durationSec: 12, clipId: null }])
+    expect(() => editor.saveStyle('Nothing', plain)).toThrow(/Add some text/)
+
+    const spec = { ...plain, texts: [{ ...newText(plain, 0, 'text-1'), text: '{{clip_title}}' }] }
+    const saved = editor.saveStyle('  Big title ', spec)
+    expect(saved).toMatchObject({
+      name: 'Big title',
+      canvas: 'vertical',
+      texts: 1,
+      captions: false
+    })
+    // The same name updates the style instead of adding another.
+    editor.saveStyle('Big title', spec)
+    expect(editor.listStyles()).toHaveLength(1)
+
+    const account = seedAccount(t.repos)
+    const twitch = seedTwitchAccount(t.repos)
+    const rule = t.repos.autopostRules.create({
+      name: 'Daily',
+      youtubeAccountId: account.id,
+      twitchAccountIdsJson: [twitch.id],
+      slotsJson: ['12:00'],
+      weekdaysJson: [1],
+      titleTpl: '{{clip_title}}',
+      descriptionTpl: '',
+      styleId: saved.id
+    })
+    expect(editor.listStyles()[0]?.usedByRules).toBe(1)
+    await expect(editor.deleteStyle(saved.id)).rejects.toThrow(/used by the autopost rule "Daily"/)
+    t.repos.autopostRules.update(rule.id, { styleId: null })
+    await editor.deleteStyle(saved.id)
+    expect(editor.listStyles()).toEqual([])
   })
 })

@@ -30,6 +30,12 @@ export function registerEditorHandlers(): void {
     await getEditor().deleteAsset(id)
     return { deleted: true }
   })
+  handle('editor:listStyles', () => getEditor().listStyles())
+  handle('editor:saveStyle', ({ name, spec }) => getEditor().saveStyle(name, spec))
+  handle('editor:deleteStyle', async ({ id }) => {
+    await getEditor().deleteStyle(id)
+    return { deleted: true }
+  })
   handle('editor:deleteProject', async ({ id }) => {
     await getEditor().deleteProject(id)
     return { deleted: true }

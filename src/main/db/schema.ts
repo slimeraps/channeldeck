@@ -19,7 +19,7 @@ import {
   TWITCH_AUTH_FLOWS,
   VISIBILITY_MODES
 } from '../../shared/constants/enums'
-import type { EditSpec, RenderJson } from '../../shared/schemas/edit'
+import type { EditSpec, EditStyleSpec, RenderJson } from '../../shared/schemas/edit'
 import type {
   AccountDefaults,
   AutopostFilters,
@@ -181,6 +181,8 @@ export const autopostRules = sqliteTable('autopost_rules', {
   layoutPresetId: integer('layout_preset_id').references(() => layoutPresets.id, {
     onDelete: 'set null'
   }),
+  /** An edit style (text, stickers, captions) every autopost of the rule gets; null = none. */
+  styleId: integer('style_id').references(() => editStyles.id, { onDelete: 'set null' }),
   /** Shorts: use Twitch's own vertical version when a clip has one (else render the layout). */
   useTwitchVertical: integer('use_twitch_vertical', { mode: 'boolean' }).notNull().default(false),
   titleTpl: text('title_tpl').notNull(),
@@ -243,6 +245,15 @@ export const editorAssets = sqliteTable(
 )
 
 /** Video editor projects (the Editor page): an edit saved as you work, reopened later. */
+/** A saved look for autoposts: text layers, stickers and caption style, minus the footage. */
+export const editStyles = sqliteTable('edit_styles', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  styleJson: text('style_json', { mode: 'json' }).$type<EditStyleSpec>().notNull(),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
+})
+
 export const editProjects = sqliteTable('edit_projects', {
   id: integer('id').primaryKey({ autoIncrement: true }),
   name: text('name').notNull(),
