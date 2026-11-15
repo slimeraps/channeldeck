@@ -85,3 +85,18 @@ export const editorAssetSchema = z.object({
   animated: z.boolean()
 })
 export type EditorAsset = z.infer<typeof editorAssetSchema>
+
+/** A saved edit style, for the rule editor's picker and the editor's Style list. */
+export const editStyleSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  canvas: z.enum(['vertical', 'horizontal', 'square']),
+  texts: z.number().int(),
+  stickers: z.number().int(),
+  captions: z.boolean(),
+  /** How many autopost rules use it. */
+  usedByRules: z.number().int()
+})
+export type EditStyle = z.infer<typeof editStyleSchema>
+
+export const styleNameSchema = z.string().trim().min(1, 'Name the style').max(80)

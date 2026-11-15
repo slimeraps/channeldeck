@@ -11,6 +11,8 @@ import {
   finalizeTitle,
   renderTemplate
 } from '@shared/templates'
+import { CANVAS_SIZES } from '@shared/geometry'
+import { editFromStyle, type RenderJson, renderSources } from '@shared/schemas/edit'
 import type { RenderSpecJson } from '@shared/types/json'
 import type { Repos } from '../db/repos'
 import type { AutopostRuleRow } from '../db/repos/catalog'
@@ -19,6 +21,7 @@ import { type Clock, systemClock } from '../db/repos/common'
 import type { PostRow } from '../db/repos/posts'
 import { pickClips, type PickRule } from '../domain/picker'
 import { forecastQuota, type QuotaDayForecast } from '../domain/quota'
+import { editFileName } from '../domain/edit'
 import { renderFileName } from '../domain/render'
 import { slotsBetween } from '../domain/slots'
 import { UserFacingError } from '../errors'
@@ -99,6 +102,7 @@ export function toRuleInput(rule: AutopostRuleRow): RuleInput {
     filters: rule.filtersJson,
     format: rule.format,
     layoutPresetId: rule.layoutPresetId,
+    styleId: rule.styleId,
     useTwitchVertical: rule.useTwitchVertical,
     titleTpl: rule.titleTpl,
     descriptionTpl: rule.descriptionTpl,
@@ -236,11 +240,13 @@ export function createAutopostService(deps: AutopostDeps) {
    * own vertical version and the clip has one (or there's no horizontal file at all).
    */
   function needsRender(
-    rule: Pick<RuleInput, 'format' | 'useTwitchVertical'>,
+    rule: Pick<RuleInput, 'format' | 'useTwitchVertical' | 'styleId'>,
     clip: ClipRow
   ): boolean {
-    if (rule.format !== 'short') return false
     const hasLandscape = Boolean(clip.landscapePath && existsSync(clip.landscapePath))
+    // A style (text, stickers, captions) is laid over the landscape file, so it always renders.
+    if (rule.styleId && hasLandscape) return true
+    if (rule.format !== 'short') return false
     const hasPortrait = Boolean(clip.portraitPath && existsSync(clip.portraitPath))
     if (!hasLandscape) return false
     return !(rule.useTwitchVertical && hasPortrait)
@@ -276,9 +282,37 @@ export function createAutopostService(deps: AutopostDeps) {
       width: number | null
       height: number | null
       isShort: boolean
-      renderJson: RenderSpecJson | null
+      renderJson: RenderJson | null
     }
-    if (needsRender(toRuleInput(rule), clip)) {
+    const style = rule.styleId ? repos.editStyles.get(rule.styleId) : undefined
+    if (style && needsRender(toRuleInput(rule), clip)) {
+      // The style's look over the clip; captions are made when it renders.
+      const source = clip.landscapePath as string
+      const probe = await deps.probe(source).catch((error: unknown) => {
+        logger.warn(`[autopost] could not read ${source}`, error)
+        return null
+      })
+      if (!probe) return null
+      const preset = rule.layoutPresetId ? repos.layoutPresets.get(rule.layoutPresetId) : undefined
+      const spec = editFromStyle({
+        style: style.styleJson,
+        sourcePath: source,
+        clipId: clip.id,
+        durationSec: probe.durationSec,
+        layout: preset ? { kind: preset.kind, presetId: preset.id, crops: preset.cropsJson } : null
+      })
+      const size = CANVAS_SIZES[spec.canvas]
+      file = {
+        filePath: join(rendersRoot(), editFileName(spec)),
+        fileSize: null,
+        fileMtime: null,
+        durationSec: probe.durationSec,
+        width: size.width,
+        height: size.height,
+        isShort: spec.canvas === 'vertical' && probe.durationSec <= 180,
+        renderJson: spec
+      }
+    } else if (needsRender(toRuleInput(rule), clip)) {
       const spec = renderSpec(rule, clip)
       file = {
         filePath: join(rendersRoot(), renderFileName(spec.sourcePath, spec.kind, spec.crops)),
@@ -339,7 +373,7 @@ export function createAutopostService(deps: AutopostDeps) {
       uploadAfterUtc: new Date(Math.max(now.getTime(), Date.parse(slotUtc) - leadMs)).toISOString()
     })
     deps.media.grant(file.filePath)
-    if (file.renderJson) deps.media.grant(file.renderJson.sourcePath)
+    for (const source of renderSources(file.renderJson)) deps.media.grant(source)
     return post
   }
 
@@ -415,6 +449,9 @@ export function createAutopostService(deps: AutopostDeps) {
     if (input.layoutPresetId && !repos.layoutPresets.get(input.layoutPresetId)) {
       throw new UserFacingError('That layout was deleted. Pick another one.')
     }
+    if (input.styleId && !repos.editStyles.get(input.styleId)) {
+      throw new UserFacingError('That style was deleted. Pick another one.')
+    }
   }
 
   function toRow(input: RuleInput) {
@@ -428,6 +465,7 @@ export function createAutopostService(deps: AutopostDeps) {
       filtersJson: input.filters,
       format: input.format,
       layoutPresetId: input.layoutPresetId,
+      styleId: input.styleId,
       useTwitchVertical: input.useTwitchVertical,
       titleTpl: input.titleTpl,
       descriptionTpl: input.descriptionTpl,

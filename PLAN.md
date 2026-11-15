@@ -261,6 +261,17 @@ A video editor that beats Eklipse's: trim, text, crop and zoom, join clips, swit
 
 **Acceptance:** caption logic, whisper JSON parsing, the model download (checksum) and the service (model required, cache) are unit-tested; a real-ffmpeg test shows captions only while their word is on screen; a real transcription test (when a model is given) hears "caption test" from macOS speech; screenshot mode makes captions from a spoken demo clip and the preview matches the render.
 
-### E7–E8
+### E7 — Edit styles for autoposts
 
-E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.
+- [x] `edit_styles` table (name + the look: canvas, texts, stickers, caption style, the length of the edit it came from) and `autopost_rules.style_id` (migration 0011)
+- [x] **Save as style** in the Editor; the editor service lists, saves (same name updates) and deletes styles; a style a rule uses can't be deleted, and stickers a style uses can't be removed from the library
+- [x] Rule editor **Style** picker, with warnings for a missing caption model and a Short/wide mismatch
+- [x] The planner builds an `EditSpec` from style + clip (rule layout for vertical; whole-length layers stretch to the clip, others are clamped or dropped) and renders even when Twitch has a vertical file; a rule without a style is unchanged
+- [x] The upload job's render step makes the captions (cached per file) before `renderEdit`
+- [ ] Backups don't include styles yet (a restored rule has none)
+
+**Acceptance:** `editFromStyle` / `styleFromSpec`, the style service and the planner with a style are tested.
+
+### E8
+
+E8 polish, release, and the editor added to the web plan.

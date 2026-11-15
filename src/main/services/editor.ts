@@ -10,7 +10,8 @@ import {
   isAnimatedAsset,
   overlaysOf,
   renderSources,
-  STICKER_EXTENSIONS
+  STICKER_EXTENSIONS,
+  styleFromSpec
 } from '@shared/schemas/edit'
 import type {
   EditorRender,
@@ -18,9 +19,11 @@ import type {
   EditorStrips,
   EditorAsset,
   EditProject,
-  EditProjectSummary
+  EditProjectSummary,
+  EditStyle
 } from '@shared/schemas/editor'
 import type { Repos } from '../db/repos'
+import type { EditStyleRow } from '../db/repos/catalog'
 import { editFileName, type SourceInfo } from '../domain/edit'
 import { UserFacingError } from '../errors'
 import type { MediaAccess } from '../media/access'
@@ -66,6 +69,11 @@ export interface EditorService {
    * (cached by path, size, date and model); progress via emitCaptionProgress.
    */
   makeCaptions(paths: string[]): Promise<{ sourcePath: string; words: CaptionWord[] }[]>
+
+  listStyles(): EditStyle[]
+  /** Saves the look of an edit (text, stickers, caption style) for autopost rules. */
+  saveStyle(name: string, spec: EditSpec): EditStyle
+  deleteStyle(id: number): Promise<void>
 
   listAssets(): EditorAsset[]
   /** A library image's bytes (the preview decodes GIF frames from them). */
@@ -205,6 +213,19 @@ export function createEditorService(deps: EditorDeps): EditorService {
 
   /** Largest image the sticker library takes. */
   const MAX_ASSET_BYTES = 20 * 1024 * 1024
+
+  function toStyle(row: EditStyleRow, usedByRules: number): EditStyle {
+    const style = row.styleJson
+    return {
+      id: row.id,
+      name: row.name,
+      canvas: style.canvas,
+      texts: style.texts.length,
+      stickers: style.overlays.length,
+      captions: style.captions !== null,
+      usedByRules
+    }
+  }
 
   function toAsset(row: {
     id: number
@@ -479,6 +500,40 @@ export function createEditorService(deps: EditorDeps): EditorService {
       return out
     },
 
+    listStyles() {
+      const rules = deps.repos.autopostRules.list()
+      return deps.repos.editStyles
+        .list()
+        .sort((a, b) => a.name.localeCompare(b.name))
+        .map((row) => toStyle(row, rules.filter((r) => r.styleId === row.id).length))
+    },
+
+    saveStyle(name, spec) {
+      const style = styleFromSpec(spec)
+      if (style.texts.length === 0 && style.overlays.length === 0 && !style.captions) {
+        throw new UserFacingError(
+          'Add some text, a sticker or captions first. A style is the look of an edit.'
+        )
+      }
+      const trimmed = name.trim().slice(0, 80)
+      const existing = deps.repos.editStyles.list().find((s) => s.name === trimmed)
+      const row = existing
+        ? deps.repos.editStyles.update(existing.id, { styleJson: style })
+        : deps.repos.editStyles.create({ name: trimmed, styleJson: style })
+      return toStyle(row, 0)
+    },
+
+    async deleteStyle(id) {
+      const row = deps.repos.editStyles.require(id)
+      const using = deps.repos.autopostRules.list().filter((r) => r.styleId === id)
+      if (using.length > 0) {
+        throw new UserFacingError(
+          `"${row.name}" is used by the autopost rule "${using[0]?.name}". Pick another style there first.`
+        )
+      }
+      deps.repos.editStyles.remove(id)
+    },
+
     listAssets() {
       return deps.repos.editorAssets
         .list()
@@ -516,6 +571,14 @@ export function createEditorService(deps: EditorDeps): EditorService {
       if (inProject) {
         throw new UserFacingError(
           `"${row.name}" is used in the project "${inProject.name}". Remove it there first.`
+        )
+      }
+      const inStyle = deps.repos.editStyles
+        .list()
+        .find((s) => s.styleJson.overlays.some((o) => o.asset === row.fileName))
+      if (inStyle) {
+        throw new UserFacingError(
+          `"${row.name}" is used in the style "${inStyle.name}". Remove it there first.`
         )
       }
       if (deps.repos.posts.usesSticker(row.fileName)) {

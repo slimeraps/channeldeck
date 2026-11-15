@@ -8,7 +8,13 @@ import { editorAssetsDir, resourcePath } from '../paths'
 import { createPowerGuard } from '../power'
 import { renderEdit, renderVertical } from '../media/ffmpeg'
 import { probeVideo } from '../media/ffprobe'
-import { getAutopost, getTwitchAccounts, getYouTubeAccounts, setSyncingProbe } from '../services'
+import {
+  getAutopost,
+  getEditor,
+  getTwitchAccounts,
+  getYouTubeAccounts,
+  setSyncingProbe
+} from '../services'
 import { editTemplateValues } from '../services/editValues'
 import { createClipDownloadJob } from './clipDownload'
 import { createClipSyncJob } from './clipSync'
@@ -45,8 +51,23 @@ export function startJobs(): void {
       if (isEditSpec(spec)) {
         const sources = await Promise.all(spec.segments.map((s) => probeVideo(s.sourcePath)))
         const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
+        let edit = fillEditText(spec, editTemplateValues(getRepos(), spec, zone))
+        // Autoposts with a captions style get their words made here, from each clip's speech.
+        if (edit.captions?.enabled) {
+          const have = new Set(edit.captions.sources.map((c) => c.sourcePath))
+          const missing = [...new Set(edit.segments.map((s) => s.sourcePath))].filter(
+            (p) => !have.has(p)
+          )
+          if (missing.length > 0) {
+            const made = await getEditor().makeCaptions(missing)
+            edit = {
+              ...edit,
+              captions: { ...edit.captions, sources: [...edit.captions.sources, ...made] }
+            }
+          }
+        }
         await renderEdit({
-          spec: fillEditText(spec, editTemplateValues(getRepos(), spec, zone)),
+          spec: edit,
           sources,
           output: post.filePath,
           fontsDir: resourcePath('fonts'),

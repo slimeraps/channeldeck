@@ -57,7 +57,9 @@ import {
   editorStripsSchema,
   editProjectSchema,
   editProjectSummarySchema,
-  projectNameSchema
+  editStyleSchema,
+  projectNameSchema,
+  styleNameSchema
 } from '../schemas/editor'
 import type { EventChannel, InvokeChannel } from './channels'
 
@@ -449,6 +451,15 @@ export const invokeContract = {
   },
   'editor:importAssets': { input: noInput, output: z.array(editorAssetSchema) },
   'editor:deleteAsset': {
+    input: z.object({ id: z.number().int().positive() }).strict(),
+    output: z.object({ deleted: z.boolean() })
+  },
+  'editor:listStyles': { input: noInput, output: z.array(editStyleSchema) },
+  'editor:saveStyle': {
+    input: z.object({ name: styleNameSchema, spec: editSpecSchema }).strict(),
+    output: editStyleSchema
+  },
+  'editor:deleteStyle': {
     input: z.object({ id: z.number().int().positive() }).strict(),
     output: z.object({ deleted: z.boolean() })
   },

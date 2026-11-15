@@ -318,3 +318,80 @@ export function fillEditText(spec: EditSpec, values: TemplateValues): EditSpec {
   if (!spec.texts.some((t) => t.text.includes('{{'))) return spec
   return { ...spec, texts: spec.texts.map((t) => ({ ...t, text: renderTemplate(t.text, values) })) }
 }
+
+// ---- edit styles (autopost rules apply these) ---------------------------------------------
+
+/**
+ * A saved look: the text layers, stickers and caption style of an edit, without its footage.
+ * Autopost rules lay it over each clip they plan. `durationSec` is the length of the edit it
+ * was made from: layers that ran to its end run to the end of any clip, the others keep their
+ * times (and drop out when a clip is shorter than their start).
+ */
+export const editStyleSpecSchema = z
+  .object({
+    canvas: z.enum(CANVAS_KINDS as [CanvasKind, ...CanvasKind[]]),
+    durationSec: z.number().min(MIN_SEGMENT_SECONDS).max(MAX_EDIT_SECONDS),
+    texts: z.array(editTextSchema).max(100),
+    overlays: z.array(editOverlaySchema).max(50),
+    /** The caption look; null = no captions. The words are made per clip when it renders. */
+    captions: captionStyleSchema.nullable()
+  })
+  .strict()
+export type EditStyleSpec = z.infer<typeof editStyleSpecSchema>
+
+/** The style an edit's look makes (its footage and caption words are left out). */
+export function styleFromSpec(spec: EditSpec): EditStyleSpec {
+  return {
+    canvas: spec.canvas,
+    durationSec: Math.max(MIN_SEGMENT_SECONDS, editDuration(spec)),
+    texts: spec.texts,
+    overlays: overlaysOf(spec),
+    captions: spec.captions?.enabled ? spec.captions.style : null
+  }
+}
+
+function fitLayer<T extends { startSec: number; endSec: number }>(
+  layer: T,
+  styleEnd: number,
+  clipEnd: number
+): T | null {
+  if (layer.startSec >= clipEnd - 0.05) return null
+  const end = layer.endSec >= styleEnd - 0.05 ? clipEnd : Math.min(layer.endSec, clipEnd)
+  return { ...layer, endSec: Math.max(end, layer.startSec + 0.1) }
+}
+
+/** One clip file with a style over it, ready to render (captions are made at render time). */
+export function editFromStyle(args: {
+  style: EditStyleSpec
+  sourcePath: string
+  clipId: string | null
+  durationSec: number
+  /** Vertical canvases: how the landscape picture is laid out (null = blurred fill). */
+  layout: EditLayout | null
+}): EditSpec {
+  const { style } = args
+  const out = Math.max(MIN_SEGMENT_SECONDS, args.durationSec)
+  const layers = <T extends { startSec: number; endSec: number }>(list: T[]): T[] =>
+    list.flatMap((l) => fitLayer(l, style.durationSec, out) ?? [])
+  return {
+    version: EDIT_SPEC_VERSION,
+    canvas: style.canvas,
+    segments: [
+      {
+        sourcePath: args.sourcePath,
+        clipId: args.clipId,
+        inSec: 0,
+        outSec: out,
+        layout:
+          style.canvas === 'vertical'
+            ? (args.layout ?? { kind: 'blur_fill', presetId: null, crops: {} })
+            : null,
+        frame: null
+      }
+    ],
+    texts: layers(style.texts),
+    ...(style.overlays.length > 0 ? { overlays: layers(style.overlays) } : {}),
+    ...(style.captions ? { captions: { enabled: true, style: style.captions, sources: [] } } : {}),
+    volume: 1
+  }
+}

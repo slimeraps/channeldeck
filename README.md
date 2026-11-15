@@ -99,6 +99,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Daylight-saving safe: a time skipped in spring moves to the next valid minute; a repeated time in fall is used once
 - ✅ Pick order (oldest, newest, most viewed) and filters (games, length, views, featured)
 - ✅ Shorts made from the horizontal clip with a layout (blurred fill, center crop, or facecam-on-top split drawn in a crop editor with a live preview and an 8-second test render), or from Twitch's own vertical version if the rule prefers it
+- ✅ **Styles for autoposts:** in the Editor, **Save as style** keeps the look of an edit (text layers, stickers, caption style) without its footage. A rule's **Style** picker puts that look on every clip it posts, with the text variables filled in and **auto captions** made on your Mac from each clip's speech just before it uploads
 - ✅ **Format** switch in the post editor: any clip post (or horizontal video) can be horizontal, Twitch's vertical version, or a vertical render with a layout, and **Render now** previews the Short
 - ✅ Title and description templates with `{{clip_title}}`, `{{game}}`, `{{broadcaster}}`, `{{clipper}}`, `{{clip_date}}`, `{{clip_url}}`, `{{twitch_url}}`, `{{views}}`, `{{n}}`; titles trimmed safely to 100 characters
 - ✅ Review mode (approve first) or Auto; unapproved autoposts are dropped at their publish time and the clip goes back to the bank
@@ -236,6 +237,15 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
+
+### Unreleased
+
+- Editor, phase E7 (2026-11-15):
+  - **Edit styles for autoposts:** the Editor's **Save as style** button saves an edit's text layers, stickers and caption look (no footage) under a name. Same name updates the style.
+  - A rule's new **Style** section picks one. Every autopost of that rule is then rendered from the horizontal clip with the rule's layout and the style on top: text with `{{clip_title}}` and the other variables filled in, stickers, and **auto captions**. Layers that ran to the end of the style's edit run to the end of each clip; shorter clips drop layers that would start after they end.
+  - Captions are made on your Mac for each clip just before it uploads (each file is transcribed once). If the caption model isn't downloaded, the post fails with a message saying so, and the rule editor warns about it.
+  - A style a rule uses can't be deleted, and stickers a style uses stay in the library. A rule without a style behaves exactly as before.
+  - Not in backups yet: a restored rule comes back without its style.
 
 ### 1.8.0 (2026-11-14)
 

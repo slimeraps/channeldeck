@@ -6,6 +6,7 @@ import {
   Check,
   Clapperboard,
   Download,
+  Palette,
   FileVideo,
   FolderOpen,
   Loader2,
@@ -54,6 +55,7 @@ import {
 } from '@shared/schemas/edit'
 import type { EditorRender } from '@shared/schemas/editor'
 import type { ClipView } from '@shared/schemas/twitch'
+import { SaveStyleDialog } from './SaveStyleDialog'
 import { ClipLibraryDialog } from '@renderer/components/post-editor/ClipLibraryDialog'
 import { Button } from '@renderer/components/ui/button'
 import {
@@ -136,6 +138,7 @@ export function Editor({
   const store = useVideoEditor.getState()
   const queryClient = useQueryClient()
   const [pickingClip, setPickingClip] = useState(false)
+  const [savingStyle, setSavingStyle] = useState(false)
   const [library, setLibrary] = useState<'sticker' | 'logo' | null>(null)
   const [captionsOpen, setCaptionsOpen] = useState(false)
   const assetList = useEditorAssets()
@@ -490,6 +493,15 @@ export function Editor({
             </div>
           ) : (
             <>
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setSavingStyle(true)}
+                aria-label="Save as style…"
+                title="Save as style: keep this look (text, stickers, captions) for autopost rules"
+              >
+                <Palette aria-hidden />
+              </Button>
               {mode === 'project' ? (
                 <Button
                   variant="outline"
@@ -666,6 +678,9 @@ export function Editor({
       ) : null}
       {pickingClip ? (
         <ClipLibraryDialog onPick={addClip} onClose={() => setPickingClip(false)} />
+      ) : null}
+      {spec && savingStyle ? (
+        <SaveStyleDialog spec={spec} onClose={() => setSavingStyle(false)} />
       ) : null}
 
       <Dialog

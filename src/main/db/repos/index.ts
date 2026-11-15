@@ -8,6 +8,7 @@ import {
   createSeriesRepo,
   createEditorAssetsRepo,
   createEditProjectsRepo,
+  createEditStylesRepo,
   createTemplatesRepo
 } from './catalog'
 import { createClipsRepo } from './clips'
@@ -38,6 +39,7 @@ export function createRepos(
     autopostRules: createAutopostRulesRepo(db, clock),
     templates: createTemplatesRepo(db, clock),
     editProjects: createEditProjectsRepo(db, clock),
+    editStyles: createEditStylesRepo(db, clock),
     editorAssets: createEditorAssetsRepo(db, clock),
     series: createSeriesRepo(db, clock),
     posts: createPostsRepo(db, clock),

@@ -3,6 +3,12 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import type { RuleInput } from '@shared/schemas/autopost'
+import {
+  DEFAULT_CAPTION_STYLE,
+  DEFAULT_TEXT_STYLE,
+  EDIT_SPEC_VERSION,
+  type EditSpec
+} from '@shared/schemas/edit'
 import { createUploadJob } from '../../src/main/jobs/upload'
 import { createMediaAccess } from '../../src/main/media/access'
 import type { ProbeResult } from '../../src/main/media/ffprobe'
@@ -89,6 +95,7 @@ function rule(o: Partial<RuleInput> = {}): RuleInput {
     filters: {},
     format: 'short',
     layoutPresetId: null,
+    styleId: null,
     useTwitchVertical: true,
     titleTpl: '{{clip_title}} #{{n}}',
     descriptionTpl: 'Clipped by {{clipper}}',
@@ -288,6 +295,57 @@ describe('planner', () => {
         presetId: preset.id
       }
     })
+  })
+
+  it('plans a styled edit: the style over the clip, captions made later', async () => {
+    bankClip(0, { portrait: true }) // has a portrait file, but a style always renders the landscape
+    const style = t.repos.editStyles.create({
+      name: 'Title + captions',
+      styleJson: {
+        canvas: 'vertical',
+        durationSec: 10,
+        texts: [
+          {
+            id: 'title',
+            text: '{{clip_title}}',
+            startSec: 0,
+            endSec: 10,
+            x: 0.5,
+            y: 0.15,
+            style: DEFAULT_TEXT_STYLE,
+            animation: 'none'
+          }
+        ],
+        overlays: [],
+        captions: DEFAULT_CAPTION_STYLE
+      }
+    })
+    const { id } = autopost.save(
+      rule({ slots: ['18:00'], lookaheadDays: 1, styleId: style.id, useTwitchVertical: true })
+    )
+    await autopost.planRule(id)
+    const post = rulePosts(id)[0]
+    expect(post).toMatchObject({
+      filePath: expect.stringMatching(
+        new RegExp(`^${dir}/_renders/clip00_edit_[0-9a-f]{10}\\.mp4$`)
+      ),
+      width: 1080,
+      height: 1920,
+      isShort: true
+    })
+    const spec = post?.renderJson as EditSpec
+    expect(spec.version).toBe(EDIT_SPEC_VERSION)
+    expect(spec.segments[0]).toMatchObject({
+      sourcePath: join(dir, 'clip00_landscape.mp4'),
+      clipId: 'clip00',
+      outSec: 30
+    })
+    expect(spec.texts[0]).toMatchObject({ text: '{{clip_title}}', endSec: 30 })
+    expect(spec.captions).toMatchObject({ enabled: true, sources: [] })
+  })
+
+  it('refuses a rule whose style was deleted', () => {
+    expect(() => autopost.save(rule({ styleId: 999 }))).toThrow(/style was deleted/)
   })
 
   it('renders Shorts from the horizontal clip unless the rule prefers Twitch’s vertical version', async () => {
