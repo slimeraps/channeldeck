@@ -249,6 +249,18 @@ A video editor that beats Eklipse's: trim, text, crop and zoom, join clips, swit
 
 **Acceptance:** sticker graph and inputs, the library (import once, wrong type, delete blocked by use), sticker operations and the protocol's file types are unit-tested; real-ffmpeg tests show a still sticker only for its time and a GIF looping; screenshot mode adds a GIF sticker, a logo and a name watermark, and the preview matches the rendered frame.
 
-### E6–E8
+### E6 — Auto captions
+
+- [x] whisper.cpp v1.9.5 built by `scripts/build-whisper.sh` (cmake from PyPI in a throwaway folder; static, Metal embedded, any Apple Silicon Mac) into `resources/bin/whisper-cli` (7.4 MB, links only system frameworks); the self-test checks it runs from the installed app
+- [x] Speech model: small.en q5_1 (190 MB) from whisper.cpp's Hugging Face page, downloaded once after the user agrees, size and SHA-256 checked, kept in userData/models (spike on Cody's clips: far better than base.en, about 20–40× real time on an M5)
+- [x] Captions store each source's words in its own time (`EditSpec.captions.sources`), so trims, splits and moves never desync them; each file is transcribed once (cached)
+- [x] Cleanup of whisper's output: words from tokens, markers skipped, sound tags in ( ) / [ ] dropped, an exactly repeated line dropped, bunched word starts spread out
+- [x] Looks: Highlight (the spoken word colored), Pop (one word at a time), Plain; font, size, colors, outline, position, words per line, ALL CAPS; word list to correct lines (new words share the line's time)
+- [x] Render and preview draw from the same caption events (shared/captions.ts), captions under the text layers
+- [x] Privacy policy notes the one-time model download
+
+**Acceptance:** caption logic, whisper JSON parsing, the model download (checksum) and the service (model required, cache) are unit-tested; a real-ffmpeg test shows captions only while their word is on screen; a real transcription test (when a model is given) hears "caption test" from macOS speech; screenshot mode makes captions from a spoken demo clip and the preview matches the render.
+
+### E7–E8
 
 E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.

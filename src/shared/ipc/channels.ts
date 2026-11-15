@@ -79,6 +79,10 @@ export const INVOKE_CHANNELS = [
   'editor:saveProject',
   'editor:renameProject',
   'editor:deleteProject',
+  'editor:captionModel',
+  'editor:downloadCaptionModel',
+  'editor:cancelModelDownload',
+  'editor:makeCaptions',
   'editor:listAssets',
   'editor:assetBytes',
   'editor:importAssets',
@@ -114,7 +118,9 @@ export const EVENT_CHANNELS = [
   'twitch:changed',
   'twitch:deviceCode',
   'templates:changed',
-  'editor:renderProgress'
+  'editor:renderProgress',
+  'editor:modelProgress',
+  'editor:captionProgress'
 ] as const
 export type EventChannel = (typeof EVENT_CHANNELS)[number]
 

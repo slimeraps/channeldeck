@@ -137,6 +137,50 @@ export const editOverlaySchema = z
     path: ['endSec']
   })
 
+/** One spoken word, in its source video's own time (so trims and moves never desync it). */
+export const captionWordSchema = z
+  .object({
+    text: z.string().min(1).max(60),
+    startSec: seconds,
+    endSec: seconds
+  })
+  .strict()
+
+export const CAPTION_LOOKS = ['highlight', 'pop', 'plain'] as const
+
+export const captionStyleSchema = z
+  .object({
+    /** highlight: a line with the spoken word colored; pop: one word at a time; plain: lines. */
+    look: z.enum(CAPTION_LOOKS),
+    font: z.enum(EDIT_FONTS),
+    size: z.number().int().min(24).max(300),
+    color: color,
+    highlightColor: color,
+    outlineColor: color,
+    outlineWidth: z.number().min(0).max(30),
+    /** Middle of the caption line, as a fraction of the canvas height. */
+    y: unit,
+    /** Most words on one caption line. */
+    maxWords: z.number().int().min(1).max(10),
+    uppercase: z.boolean()
+  })
+  .strict()
+
+export const editCaptionsSchema = z
+  .object({
+    enabled: z.boolean(),
+    style: captionStyleSchema,
+    /** Words per source file (transcribed once per file, cached). */
+    sources: z
+      .array(
+        z
+          .object({ sourcePath: z.string().min(1), words: z.array(captionWordSchema).max(20_000) })
+          .strict()
+      )
+      .max(100)
+  })
+  .strict()
+
 export const editSpecSchema = z
   .object({
     version: z.literal(EDIT_SPEC_VERSION),
@@ -145,6 +189,8 @@ export const editSpecSchema = z
     texts: z.array(editTextSchema).max(100),
     /** Stickers and logos (older edits don't have the field: none). */
     overlays: z.array(editOverlaySchema).max(50).optional(),
+    /** Auto captions (none until you make them). */
+    captions: editCaptionsSchema.optional(),
     /** Original audio volume (1 = unchanged, 0 = muted). */
     volume: z.number().min(0).max(2)
   })
@@ -161,6 +207,23 @@ export type TextStyle = z.infer<typeof textStyleSchema>
 export type EditLayout = z.infer<typeof editLayoutSchema>
 export type EditFrame = z.infer<typeof editFrameSchema>
 export type EditOverlay = z.infer<typeof editOverlaySchema>
+export type CaptionWord = z.infer<typeof captionWordSchema>
+export type CaptionStyle = z.infer<typeof captionStyleSchema>
+export type EditCaptions = z.infer<typeof editCaptionsSchema>
+
+/** The default caption look: the line with the spoken word in the brand pink. */
+export const DEFAULT_CAPTION_STYLE: CaptionStyle = {
+  look: 'highlight',
+  font: 'Archivo Black',
+  size: 78,
+  color: '#ffffff',
+  highlightColor: '#ffa6c9',
+  outlineColor: '#000000',
+  outlineWidth: 7,
+  y: 0.66,
+  maxWords: 3,
+  uppercase: true
+}
 
 /** The edit's stickers (none for edits made before stickers existed). */
 export const overlaysOf = (spec: Pick<EditSpec, 'overlays'>): EditOverlay[] => spec.overlays ?? []

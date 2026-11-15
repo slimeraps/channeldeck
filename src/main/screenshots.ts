@@ -1,4 +1,5 @@
-import { mkdirSync, writeFileSync } from 'node:fs'
+import { execFileSync } from 'node:child_process'
+import { copyFileSync, existsSync, mkdirSync, writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import type { BrowserWindow } from 'electron'
 import { DateTime } from 'luxon'
@@ -128,6 +129,15 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
 
   // A short video and a few differently colored thumbnails for the clip bank.
   const video = join(clipsRoot, 'demo', 'demo_landscape.mp4')
+  // A spoken line (macOS's voice) so auto captions have something to hear.
+  const speech = join(clipsRoot, 'demo', 'speech.aiff')
+  let spoken = false
+  try {
+    execFileSync('say', ['-o', speech, 'No way, that was the cleanest play of the night.'])
+    spoken = true
+  } catch {
+    // Not on a Mac with speech: the demo video stays silent.
+  }
   await runFfmpeg([
     '-hide_banner',
     '-nostdin',
@@ -136,12 +146,19 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
     'lavfi',
     '-i',
     'testsrc2=size=1280x720:rate=30:duration=3',
+    ...(spoken ? ['-i', speech, '-c:a', 'aac', '-af', 'apad', '-t', '3'] : []),
     '-c:v',
     'libx264',
     '-preset',
     'ultrafast',
     video
   ])
+  // The caption model, when given (it's 190 MB, so screenshots only use one you already have).
+  const model = process.env['CHANNELDECK_DEMO_WHISPER_MODEL']
+  if (model && existsSync(model)) {
+    mkdirSync(join(dir, 'models'), { recursive: true })
+    copyFileSync(model, join(dir, 'models', 'ggml-small.en-q5_1.bin'))
+  }
   const thumbs: string[] = []
   for (const [i, color] of [
     '0x6366f1',
@@ -648,6 +665,15 @@ export async function captureScreens(
         await click('Channel name watermark')
         await settle(800)
         await shot('data-editor-watermarks')
+      }
+      // Auto captions: the model download panel, or (with a model) captions on the video.
+      if (await click('Captions')) {
+        await settle(800)
+        if (await click('Make captions')) await settle(8000)
+        await key('Home')
+        await key('l')
+        await shot('data-editor-captions')
+        await click('Captions')
       }
       // A text at the playhead (T), without animation so the preview and render line up.
       await key('t', 600)

@@ -2,6 +2,7 @@ import {
   AlertTriangle,
   AtSign,
   BadgeCheck,
+  Captions,
   Check,
   Clapperboard,
   Download,
@@ -81,6 +82,7 @@ import { invoke, onEvent } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/utils'
 import { useVideoEditor } from '@renderer/stores/videoEditor'
 import { AssetLibrary } from './AssetLibrary'
+import { CaptionsPanel } from './CaptionsPanel'
 import { FramePanel } from './FramePanel'
 import { LayoutPanel } from './LayoutPanel'
 import { postClipId } from '@renderer/lib/editPost'
@@ -135,6 +137,7 @@ export function Editor({
   const queryClient = useQueryClient()
   const [pickingClip, setPickingClip] = useState(false)
   const [library, setLibrary] = useState<'sticker' | 'logo' | null>(null)
+  const [captionsOpen, setCaptionsOpen] = useState(false)
   const assetList = useEditorAssets()
   const assets = new Map((assetList.data ?? []).map((a) => [a.fileName, a]))
   const selectedOverlayId = useVideoEditor((s) => s.selectedOverlay)
@@ -225,7 +228,8 @@ export function Editor({
     .find((src) => src?.clipId)
   const values = clipSource?.values ?? {}
   const selectedOverlay = (spec.overlays ?? []).find((o) => o.id === selectedOverlayId) ?? null
-  const panelOpen = Boolean(selectedText ?? selectedOverlay)
+  const showCaptions = captionsOpen && !selectedText && !selectedOverlay
+  const panelOpen = Boolean(selectedText ?? selectedOverlay) || showCaptions
 
   function togglePlay(): void {
     const s = useVideoEditor.getState()
@@ -428,8 +432,28 @@ export function Editor({
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
-        <Button variant="outline" size="sm" onClick={addTextHere} title="Add text (T)">
-          <Type aria-hidden /> Text
+        <Button
+          variant="outline"
+          size="sm"
+          onClick={addTextHere}
+          title="Add text (T)"
+          aria-label="Text"
+        >
+          <Type aria-hidden /> <span className="hidden 2xl:inline">Text</span>
+        </Button>
+        <Button
+          variant={showCaptions ? 'secondary' : 'outline'}
+          size="sm"
+          aria-pressed={showCaptions}
+          onClick={() => {
+            store.selectText(null)
+            store.selectOverlay(null)
+            setCaptionsOpen((open) => !(open && showCaptions))
+          }}
+          title="Auto captions"
+          aria-label="Captions"
+        >
+          <Captions aria-hidden /> <span className="hidden 2xl:inline">Captions</span>
         </Button>
         {spec.canvas === 'vertical' ? (
           <Button
@@ -438,8 +462,9 @@ export function Editor({
             aria-pressed={showGuides}
             onClick={() => store.toggleGuides()}
             title="Show what YouTube's Shorts player covers"
+            aria-label="Guides"
           >
-            <View aria-hidden /> Guides
+            <View aria-hidden /> <span className="hidden 2xl:inline">Guides</span>
           </Button>
         ) : null}
         <div className="ml-auto flex items-center gap-2">
@@ -553,6 +578,7 @@ export function Editor({
           </div>
         </div>
         <aside className="w-72 shrink-0 space-y-5 overflow-y-auto border-l p-4">
+          {showCaptions ? <CaptionsPanel spec={spec} /> : null}
           {selectedText ? (
             <TextPanel spec={spec} text={selectedText} isClip={Boolean(clipSource)} />
           ) : null}

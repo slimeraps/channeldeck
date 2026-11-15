@@ -239,6 +239,11 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 
 ### Unreleased
 
+- Editor, phase E6 (2026-11-14):
+  - **Auto captions**, made on your Mac: **Captions → Make captions** listens to every video in the edit. The first time, it asks to download the speech model (whisper.cpp's small English model, 190 MB, checked after download).
+  - **Looks:** **Highlight** colors the word being said, **Pop** shows one word at a time, **Plain** shows whole lines. Pick the font, size, colors, outline, position, words per line and ALL CAPS.
+  - **Fixing words:** fix any line in the word list.
+  - Captions follow your cuts: trimming, splitting or moving pieces keeps them in sync. Sound tags like "(gunshots)" and repeated lines are left out.
 - Editor, phase E5 (2026-11-14):
   - **Stickers and logos:** **Add → Sticker or image…** opens your sticker library. Import PNG, JPG, WebP or GIF files (GIFs play); the same image is stored once. Place a sticker by dragging it on the preview; set its size, opacity and when it shows in the Sticker panel or on the timeline's sticker row.
   - **Watermarks:** **Logo watermark…** puts your logo in the top right for the whole video. **Channel name watermark** adds the streamer's name in the top left. Both stay clear of what YouTube's Shorts player covers, and you can move them.

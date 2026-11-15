@@ -57,6 +57,15 @@ function service(o: Partial<EditorDeps> = {}) {
       writeFileSync(output, 'jpg')
     }),
     chooseImages: vi.fn(async () => []),
+    modelPath: join(dir, 'models', 'model.bin'),
+    modelSizeBytes: 100,
+    downloadModel: vi.fn(async ({ dest }) => {
+      mkdirSync(join(dest, '..'), { recursive: true })
+      writeFileSync(dest, 'model')
+    }),
+    transcribe: vi.fn(async () => [{ text: 'gg', startSec: 1, endSec: 1.4 }]),
+    emitModelProgress: vi.fn(),
+    emitCaptionProgress: vi.fn(),
     probeImage: vi.fn(async () => ({ width: 200, height: 100 })),
     chooseSavePath: vi.fn(async (name: string) => {
       // A real save dialog only returns folders that exist.
@@ -304,5 +313,22 @@ describe('editor service', () => {
     await editor.deleteProject(project.id)
     await editor.deleteAsset(asset.id)
     expect(editor.listAssets()).toEqual([])
+  })
+
+  it('makes captions only once the model is here, and transcribes each file once', async () => {
+    const { editor, deps } = service()
+    expect(editor.captionModel()).toEqual({ installed: false, sizeBytes: 100, downloading: false })
+    await expect(editor.makeCaptions([video])).rejects.toThrow(/Download the caption model/)
+
+    await editor.downloadCaptionModel()
+    expect(editor.captionModel().installed).toBe(true)
+    const first = await editor.makeCaptions([video, video])
+    expect(first).toEqual([
+      { sourcePath: video, words: [{ text: 'gg', startSec: 1, endSec: 1.4 }] }
+    ])
+    await editor.makeCaptions([video])
+    // The second time comes from the cache.
+    expect(deps.transcribe).toHaveBeenCalledTimes(1)
+    expect(deps.emitCaptionProgress).toHaveBeenLastCalledWith({ done: 1, total: 1 })
   })
 })
