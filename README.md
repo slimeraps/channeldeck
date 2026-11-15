@@ -239,6 +239,10 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 
 ### Unreleased
 
+- Editor, phase E5 (2026-11-14):
+  - **Stickers and logos:** **Add → Sticker or image…** opens your sticker library. Import PNG, JPG, WebP or GIF files (GIFs play); the same image is stored once. Place a sticker by dragging it on the preview; set its size, opacity and when it shows in the Sticker panel or on the timeline's sticker row.
+  - **Watermarks:** **Logo watermark…** puts your logo in the top right for the whole video. **Channel name watermark** adds the streamer's name in the top left. Both stay clear of what YouTube's Shorts player covers, and you can move them.
+  - Stickers render exactly where and when the preview shows them.
 - Editor, phase E4 (2026-11-14):
   - **Projects:** edits save as projects while you work. The Editor page lists them with a thumbnail, the canvas, length and when you last changed them, with **Rename…** and **Delete…**.
   - **From the editor:** **Post…** opens the post editor with the edit, and the post uploads the edited video. **Export…** saves a copy of the render wherever you choose.

@@ -8,7 +8,7 @@ import type { YouTubeApi } from '../google/youtube'
 import { demoAnalyticsApi, demoVideoTitles } from '../screenshots'
 import { logger } from '../logger'
 import { createMediaAccess, type MediaAccess } from '../media/access'
-import { probeVideo } from '../media/ffprobe'
+import { probeImage, probeVideo } from '../media/ffprobe'
 import { notify } from '../notify'
 import { secrets } from '../secrets'
 import { isSafeExternalUrl } from '../security'
@@ -20,7 +20,7 @@ import {
   renderEdit,
   renderVertical
 } from '../media/ffmpeg'
-import { resourcePath } from '../paths'
+import { editorAssetsDir, resourcePath } from '../paths'
 import { type AnalyticsService, createAnalyticsService } from './analytics'
 import { createAutopostService, type AutopostService } from './autopost'
 import { createClipsService, type ClipsService } from './clips'
@@ -67,7 +67,7 @@ export function initServices(): void {
     // The clip bank (and renders inside it) is always previewable.
     roots: () => {
       const clipsRoot = repos.settings.getKey('clipsRoot')
-      return [clipsRoot, join(clipsRoot, '_renders'), editorCacheDir()]
+      return [clipsRoot, join(clipsRoot, '_renders'), editorCacheDir(), editorAssetsDir()]
     },
     isReferenced: (path) => repos.posts.referencesFile(path)
   })
@@ -159,6 +159,7 @@ export function initServices(): void {
     probe: probeVideo,
     cacheDir: editorCacheDir(),
     fontsDir: resourcePath('fonts'),
+    assetsDir: editorAssetsDir(),
     makeFilmstrip,
     filmstripFrames,
     makeWaveform,
@@ -176,7 +177,20 @@ export function initServices(): void {
         ? await dialog.showSaveDialog(window, options)
         : await dialog.showSaveDialog(options)
       return result.canceled || !result.filePath ? null : result.filePath
-    }
+    },
+    chooseImages: async () => {
+      const options: Electron.OpenDialogOptions = {
+        title: 'Add stickers or a logo',
+        properties: ['openFile', 'multiSelections'],
+        filters: [{ name: 'Images', extensions: ['png', 'jpg', 'jpeg', 'webp', 'gif'] }]
+      }
+      const window = BrowserWindow.getFocusedWindow()
+      const result = window
+        ? await dialog.showOpenDialog(window, options)
+        : await dialog.showOpenDialog(options)
+      return result.canceled ? [] : result.filePaths
+    },
+    probeImage
   })
 
   layouts = createLayoutsService({

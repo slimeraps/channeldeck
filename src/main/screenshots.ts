@@ -167,6 +167,37 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
     thumbs.push(thumb)
   }
 
+  // Two images in the editor's sticker library: a round pink "logo" with a transparent
+  // background, and a small animated GIF.
+  const assets = join(dir, 'editor-assets')
+  mkdirSync(assets, { recursive: true })
+  const logo = 'dea55e7000000000000000a1.png'
+  const gif = 'dea55e7000000000000000a2.gif'
+  await runFfmpeg([
+    '-hide_banner',
+    '-nostdin',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    "color=c=0xffa6c9:s=256x256,format=rgba,geq=r='255':g='166':b='201':a='if(lt(hypot(X-128,Y-128),120),255,0)'",
+    '-frames:v',
+    '1',
+    join(assets, logo)
+  ])
+  await runFfmpeg([
+    '-hide_banner',
+    '-nostdin',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    'testsrc=s=160x160:r=10:d=1',
+    join(assets, gif)
+  ])
+  repos.editorAssets.create({ name: 'Channel logo', fileName: logo, width: 256, height: 256 })
+  repos.editorAssets.create({ name: 'Hype GIF', fileName: gif, width: 160, height: 160 })
+
   repos.settings.update({
     setupConsentConfirmed: true,
     setupClipFolderConfirmed: true,
@@ -600,6 +631,24 @@ export async function captureScreens(
       // Split at the playhead with S.
       await key('s')
       await shot('data-editor-split')
+      // A sticker (the animated GIF), a logo watermark and a channel-name watermark.
+      if ((await mouseClick('[aria-label="Add a piece"]')) && (await click('Sticker or image…'))) {
+        await settle(800)
+        await shot('data-editor-library')
+        await mouseClick('[role="dialog"] .grid > div:first-child button')
+        await settle(1200)
+        await shot('data-editor-sticker')
+      }
+      if ((await mouseClick('[aria-label="Add a piece"]')) && (await click('Logo watermark…'))) {
+        await settle(800)
+        await mouseClick('[role="dialog"] .grid > div:last-child button')
+        await settle(1200)
+      }
+      if (await mouseClick('[aria-label="Add a piece"]')) {
+        await click('Channel name watermark')
+        await settle(800)
+        await shot('data-editor-watermarks')
+      }
       // A text at the playhead (T), without animation so the preview and render line up.
       await key('t', 600)
       await click('None')

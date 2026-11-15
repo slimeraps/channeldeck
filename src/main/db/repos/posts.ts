@@ -47,6 +47,8 @@ export interface PostsRepo {
   deleteDraft(id: string): void
   /** Whether any post uses this file as its video or thumbnail (for the media protocol). */
   referencesFile(path: string): boolean
+  /** Whether a post that isn't published or canceled renders with this sticker file. */
+  usesSticker(fileName: string): boolean
   /** Clip ids with a post on this channel that isn't canceled (the never-twice set). */
   activeClipIds(accountId: number): Set<string>
 }
@@ -180,6 +182,22 @@ export function createPostsRepo(db: Db, clock: Clock): PostsRepo {
       db.delete(posts)
         .where(and(eq(posts.id, id), eq(posts.status, 'draft')))
         .run()
+    },
+
+    usesSticker(fileName) {
+      return (
+        db
+          .select({ id: posts.id })
+          .from(posts)
+          .where(
+            and(
+              sql`EXISTS (SELECT 1 FROM json_each(${posts.renderJson}, '$.overlays') WHERE json_extract(value, '$.asset') = ${fileName})`,
+              sql`${posts.status} NOT IN ('published', 'canceled')`
+            )
+          )
+          .limit(1)
+          .get() !== undefined
+      )
     },
 
     referencesFile(path) {

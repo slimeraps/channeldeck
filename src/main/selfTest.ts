@@ -7,7 +7,7 @@ import { logger } from './logger'
 import { DEFAULT_TEXT_STYLE } from '@shared/schemas/edit'
 import { ffmpegPath, renderEdit, renderVertical, runFfmpeg } from './media/ffmpeg'
 import { ffprobePath, probeVideo } from './media/ffprobe'
-import { resourcePath } from './paths'
+import { editorAssetsDir, resourcePath } from './paths'
 import { getPosts, getYouTubeAccounts, initServices } from './services'
 
 /**
@@ -106,7 +106,8 @@ export async function runSelfTest(): Promise<number> {
       },
       sources: [probe, probe],
       output: edited,
-      fontsDir: resourcePath('fonts')
+      fontsDir: resourcePath('fonts'),
+      assetsDir: editorAssetsDir()
     })
     const edit = await probeVideo(edited)
     report['edit'] = { size: `${edit.width}x${edit.height}`, durationSec: edit.durationSec }

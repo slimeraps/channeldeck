@@ -10,3 +10,8 @@ export function resourcePath(name: string): string {
     ? join(process.resourcesPath, 'app.asar.unpacked', 'resources', name)
     : join(app.getAppPath(), 'resources', name)
 }
+
+/** The editor's sticker and logo library. */
+export function editorAssetsDir(): string {
+  return join(app.getPath('userData'), 'editor-assets')
+}

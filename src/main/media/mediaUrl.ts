@@ -33,6 +33,9 @@ export interface MediaPolicy {
   isAllowedFile: (path: string) => boolean
 }
 
+/** GIF and WebP: sticker images (PNG and JPG are already served as thumbnails). */
+const isStickerOnlyImage = (path: string): boolean => ['gif', 'webp'].includes(extensionOf(path))
+
 /** True when path is strictly inside root (matches on a folder boundary: root + separator). */
 function isInsideRoot(path: string, root: string): boolean {
   const r = normalize(root).replace(/[/\\]+$/, '')
@@ -42,7 +45,7 @@ function isInsideRoot(path: string, root: string): boolean {
 /** Only video/image files, only inside allowed roots or explicitly allowed. */
 export function isServable(path: string, policy: MediaPolicy): boolean {
   if (!isAbsolute(path) || normalize(path) !== path) return false
-  if (!isVideoPath(path) && !isThumbnailPath(path)) return false
+  if (!isVideoPath(path) && !isThumbnailPath(path) && !isStickerOnlyImage(path)) return false
   if (policy.isAllowedFile(path)) return true
   return policy.roots.some((root) => isInsideRoot(path, root))
 }
@@ -80,7 +83,9 @@ const CONTENT_TYPES: Record<string, string> = {
   avi: 'video/x-msvideo',
   jpg: 'image/jpeg',
   jpeg: 'image/jpeg',
-  png: 'image/png'
+  png: 'image/png',
+  gif: 'image/gif',
+  webp: 'image/webp'
 }
 
 export function contentTypeFor(path: string): string {

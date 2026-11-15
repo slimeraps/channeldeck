@@ -225,6 +225,23 @@ export const templates = sqliteTable('templates', {
   updatedAt: updatedAt()
 })
 
+/** Images imported for stickers and logos in the video editor (files in userData/editor-assets). */
+export const editorAssets = sqliteTable(
+  'editor_assets',
+  {
+    id: integer('id').primaryKey({ autoIncrement: true }),
+    /** The name it was imported with (shown in the library). */
+    name: text('name').notNull(),
+    /** Content hash + extension: the file in the library and what edits refer to. */
+    fileName: text('file_name').notNull(),
+    width: integer('width').notNull(),
+    height: integer('height').notNull(),
+    createdAt: createdAt(),
+    updatedAt: updatedAt()
+  },
+  (t) => [uniqueIndex('editor_assets_file_name').on(t.fileName)]
+)
+
 /** Video editor projects (the Editor page): an edit saved as you work, reopened later. */
 export const editProjects = sqliteTable('edit_projects', {
   id: integer('id').primaryKey({ autoIncrement: true }),

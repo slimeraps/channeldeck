@@ -4,7 +4,7 @@ import { emitToRenderer } from '../appWindow'
 import { getRepos } from '../db'
 import { logger } from '../logger'
 import { notify } from '../notify'
-import { resourcePath } from '../paths'
+import { editorAssetsDir, resourcePath } from '../paths'
 import { createPowerGuard } from '../power'
 import { renderEdit, renderVertical } from '../media/ffmpeg'
 import { probeVideo } from '../media/ffprobe'
@@ -50,6 +50,7 @@ export function startJobs(): void {
           sources,
           output: post.filePath,
           fontsDir: resourcePath('fonts'),
+          assetsDir: editorAssetsDir(),
           signal
         })
       } else {

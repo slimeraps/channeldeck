@@ -1,5 +1,7 @@
 import {
   AlertTriangle,
+  AtSign,
+  BadgeCheck,
   Check,
   Clapperboard,
   Download,
@@ -13,6 +15,7 @@ import {
   Scissors,
   Send,
   Sparkles,
+  Sticker,
   Trash2,
   Type,
   View,
@@ -23,8 +26,13 @@ import { useQueryClient } from '@tanstack/react-query'
 import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
+  addOverlay,
   addSegment,
   addText,
+  newLogoWatermark,
+  newNameWatermark,
+  newOverlay,
+  removeOverlay,
   locate,
   newText,
   removeText,
@@ -59,17 +67,25 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger
 } from '@renderer/components/ui/dropdown-menu'
-import { editorKey, useEditorSources, useEditorStrips } from '@renderer/hooks/useEditorSources'
+import {
+  editorKey,
+  useEditorAssets,
+  useEditorSources,
+  useEditorStrips
+} from '@renderer/hooks/useEditorSources'
 import { formatClock } from '@renderer/lib/clock'
 import { invoke, onEvent } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/utils'
 import { useVideoEditor } from '@renderer/stores/videoEditor'
+import { AssetLibrary } from './AssetLibrary'
 import { FramePanel } from './FramePanel'
 import { LayoutPanel } from './LayoutPanel'
 import { postClipId } from '@renderer/lib/editPost'
 import { Preview } from './Preview'
+import { StickerPanel } from './StickerPanel'
 import { TextPanel } from './TextPanel'
 import { Timeline } from './Timeline'
 
@@ -118,6 +134,10 @@ export function Editor({
   const store = useVideoEditor.getState()
   const queryClient = useQueryClient()
   const [pickingClip, setPickingClip] = useState(false)
+  const [library, setLibrary] = useState<'sticker' | 'logo' | null>(null)
+  const assetList = useEditorAssets()
+  const assets = new Map((assetList.data ?? []).map((a) => [a.fileName, a]))
+  const selectedOverlayId = useVideoEditor((s) => s.selectedOverlay)
   const [render, setRender] = useState<RenderState>({ status: 'idle' })
 
   const paths = spec ? spec.segments.map((s) => s.sourcePath) : []
@@ -169,6 +189,9 @@ export function Editor({
         if (s.selectedText) {
           s.change(removeText(current, s.selectedText))
           s.selectText(null)
+        } else if (s.selectedOverlay) {
+          s.change(removeOverlay(current, s.selectedOverlay))
+          s.selectOverlay(null)
         } else {
           deletePiece()
         }
@@ -201,6 +224,8 @@ export function Editor({
     .map((seg) => sources.get(seg.sourcePath))
     .find((src) => src?.clipId)
   const values = clipSource?.values ?? {}
+  const selectedOverlay = (spec.overlays ?? []).find((o) => o.id === selectedOverlayId) ?? null
+  const panelOpen = Boolean(selectedText ?? selectedOverlay)
 
   function togglePlay(): void {
     const s = useVideoEditor.getState()
@@ -242,6 +267,15 @@ export function Editor({
     if (!s.spec) return
     s.setPlaying(false)
     const text = newText(s.spec, s.playhead, crypto.randomUUID())
+    s.change(addText(s.spec, text))
+    s.selectText(text.id)
+  }
+
+  /** The streamer's name, small, top left, for the whole video ({{broadcaster}}). */
+  function addNameWatermark(): void {
+    const s = useVideoEditor.getState()
+    if (!s.spec) return
+    const text = newNameWatermark(s.spec, crypto.randomUUID())
     s.change(addText(s.spec, text))
     s.selectText(text.id)
   }
@@ -382,6 +416,16 @@ export function Editor({
             <DropdownMenuItem onSelect={() => void addVideo()}>
               <FileVideo aria-hidden /> Video file…
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem onSelect={() => setLibrary('sticker')}>
+              <Sticker aria-hidden /> Sticker or image…
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={() => setLibrary('logo')}>
+              <BadgeCheck aria-hidden /> Logo watermark…
+            </DropdownMenuItem>
+            <DropdownMenuItem onSelect={addNameWatermark}>
+              <AtSign aria-hidden /> Channel name watermark
+            </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
         <Button variant="outline" size="sm" onClick={addTextHere} title="Add text (T)">
@@ -492,7 +536,7 @@ export function Editor({
       {/* Preview and inspector */}
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          <Preview spec={spec} sources={sources} values={values} />
+          <Preview spec={spec} sources={sources} values={values} assets={assets} />
           <div className="flex items-center justify-center gap-3 pb-2 text-sm">
             <Button
               variant="secondary"
@@ -512,7 +556,14 @@ export function Editor({
           {selectedText ? (
             <TextPanel spec={spec} text={selectedText} isClip={Boolean(clipSource)} />
           ) : null}
-          <section className={selectedText ? 'hidden' : 'space-y-2'}>
+          {selectedOverlay ? (
+            <StickerPanel
+              spec={spec}
+              overlay={selectedOverlay}
+              asset={assets.get(selectedOverlay.asset)}
+            />
+          ) : null}
+          <section className={panelOpen ? 'hidden' : 'space-y-2'}>
             <h3 className="text-sm font-medium">Piece {index + 1}</h3>
             <p className="truncate text-xs text-muted-foreground" title={segment.sourcePath}>
               {source?.clipTitle ?? source?.fileName ?? segment.sourcePath}
@@ -546,7 +597,7 @@ export function Editor({
               </Button>
             </div>
           </section>
-          {selectedText ? null : spec.canvas === 'vertical' ? (
+          {panelOpen ? null : spec.canvas === 'vertical' ? (
             <LayoutPanel spec={spec} index={index} source={source} />
           ) : (
             <FramePanel spec={spec} index={index} />
@@ -561,8 +612,32 @@ export function Editor({
         </aside>
       </div>
 
-      <Timeline spec={spec} sources={sources} strips={strips} />
+      <Timeline
+        spec={spec}
+        sources={sources}
+        strips={strips}
+        assetNames={new Map([...assets].map(([file, asset]) => [file, asset.name]))}
+      />
 
+      {library ? (
+        <AssetLibrary
+          purpose={library}
+          onClose={() => setLibrary(null)}
+          onPick={(asset) => {
+            const s = useVideoEditor.getState()
+            if (!s.spec) return
+            const id = crypto.randomUUID()
+            const overlay =
+              library === 'logo'
+                ? newLogoWatermark(s.spec, id, asset.fileName)
+                : newOverlay(s.spec, s.playhead, id, asset.fileName)
+            s.setPlaying(false)
+            s.change(addOverlay(s.spec, overlay))
+            s.selectOverlay(id)
+            setLibrary(null)
+          }}
+        />
+      ) : null}
       {pickingClip ? (
         <ClipLibraryDialog onPick={addClip} onClose={() => setPickingClip(false)} />
       ) : null}

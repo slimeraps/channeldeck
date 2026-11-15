@@ -111,12 +111,40 @@ export const editTextSchema = z
     path: ['endSec']
   })
 
+/** Image files a sticker or logo can be: still images, and GIFs (which loop). */
+export const STICKER_EXTENSIONS = ['png', 'jpg', 'jpeg', 'webp', 'gif'] as const
+
+/** A sticker, logo or other image on top of the video (under the text). */
+export const editOverlaySchema = z
+  .object({
+    id: z.string().min(1).max(64),
+    /** File name in the editor's asset library (userData/editor-assets). */
+    asset: z
+      .string()
+      .regex(/^[0-9a-f]{16,64}\.(png|jpe?g|webp|gif)$/, 'Not a file from the sticker library'),
+    startSec: seconds,
+    endSec: seconds,
+    /** Center of the image on the canvas, as fractions. */
+    x: unit,
+    y: unit,
+    /** Width as a share of the canvas width (the height follows the image's shape). */
+    width: z.number().min(0.02).max(1),
+    opacity: z.number().min(0.05).max(1)
+  })
+  .strict()
+  .refine((o) => o.endSec > o.startSec, {
+    message: 'A sticker must end after it starts.',
+    path: ['endSec']
+  })
+
 export const editSpecSchema = z
   .object({
     version: z.literal(EDIT_SPEC_VERSION),
     canvas: z.enum(CANVAS_KINDS as [CanvasKind, ...CanvasKind[]]),
     segments: z.array(editSegmentSchema).min(1).max(100),
     texts: z.array(editTextSchema).max(100),
+    /** Stickers and logos (older edits don't have the field: none). */
+    overlays: z.array(editOverlaySchema).max(50).optional(),
     /** Original audio volume (1 = unchanged, 0 = muted). */
     volume: z.number().min(0).max(2)
   })
@@ -132,6 +160,13 @@ export type EditText = z.infer<typeof editTextSchema>
 export type TextStyle = z.infer<typeof textStyleSchema>
 export type EditLayout = z.infer<typeof editLayoutSchema>
 export type EditFrame = z.infer<typeof editFrameSchema>
+export type EditOverlay = z.infer<typeof editOverlaySchema>
+
+/** The edit's stickers (none for edits made before stickers existed). */
+export const overlaysOf = (spec: Pick<EditSpec, 'overlays'>): EditOverlay[] => spec.overlays ?? []
+
+/** GIFs play (and loop); other images are still. */
+export const isAnimatedAsset = (asset: string): boolean => asset.toLowerCase().endsWith('.gif')
 
 export const DEFAULT_TEXT_STYLE: TextStyle = {
   font: 'Archivo Black',

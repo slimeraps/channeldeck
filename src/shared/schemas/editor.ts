@@ -72,3 +72,16 @@ export const editProjectSchema = z.object({
 export type EditProject = z.infer<typeof editProjectSchema>
 
 export const projectNameSchema = z.string().trim().min(1, 'Name the project').max(80)
+
+/** An image in the sticker library. */
+export const editorAssetSchema = z.object({
+  id: z.number().int().positive(),
+  name: z.string(),
+  /** What edits refer to (EditOverlay.asset). */
+  fileName: z.string(),
+  url: z.string(),
+  width: z.number().int(),
+  height: z.number().int(),
+  animated: z.boolean()
+})
+export type EditorAsset = z.infer<typeof editorAssetSchema>

@@ -1,9 +1,10 @@
 import { spawn } from 'node:child_process'
+import { existsSync } from 'node:fs'
 import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
-import { dirname, join } from 'node:path'
+import { basename, dirname, join } from 'node:path'
 import ffmpegStatic from 'ffmpeg-static'
-import { type EditSpec, editDuration } from '@shared/schemas/edit'
+import { type EditSpec, editDuration, overlaysOf } from '@shared/schemas/edit'
 import { buildAss } from '../domain/ass'
 import { editArgs, editFilter, type SourceInfo } from '../domain/edit'
 import { renderArgs, renderFilter, type RenderSpec } from '../domain/render'
@@ -113,10 +114,19 @@ export async function renderEdit(args: {
   sources: readonly SourceInfo[]
   output: string
   fontsDir: string
+  /** The sticker library (userData/editor-assets); stickers name files in it. */
+  assetsDir: string
   signal?: AbortSignal
   onProgress?: (fraction: number) => void
   binary?: string
 }): Promise<void> {
+  const stickerPaths = overlaysOf(args.spec).map((o) => join(args.assetsDir, o.asset))
+  const gone = stickerPaths.find((path) => !existsSync(path))
+  if (gone) {
+    throw new UserFacingError(
+      `A sticker in this edit was removed from the library (${basename(gone)}). Delete it from the edit or import it again.`
+    )
+  }
   await mkdir(dirname(args.output), { recursive: true })
   const part = `${args.output}.part`
   const work = await mkdtemp(join(tmpdir(), 'channeldeck-edit-'))
@@ -127,7 +137,7 @@ export async function renderEdit(args: {
       await writeFile(assPath, buildAss(args.spec.canvas, args.spec.texts), 'utf8')
     }
     const filter = editFilter(args.spec, args.sources, { assPath, fontsDir: args.fontsDir })
-    await runFfmpeg(editArgs({ spec: args.spec, filter, output: part }), {
+    await runFfmpeg(editArgs({ spec: args.spec, filter, output: part, stickerPaths }), {
       durationSec: editDuration(args.spec),
       ...(args.signal ? { signal: args.signal } : {}),
       ...(args.onProgress ? { onProgress: args.onProgress } : {}),

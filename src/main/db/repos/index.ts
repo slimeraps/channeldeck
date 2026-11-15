@@ -6,6 +6,7 @@ import {
   createGamesRepo,
   createLayoutPresetsRepo,
   createSeriesRepo,
+  createEditorAssetsRepo,
   createEditProjectsRepo,
   createTemplatesRepo
 } from './catalog'
@@ -37,6 +38,7 @@ export function createRepos(
     autopostRules: createAutopostRulesRepo(db, clock),
     templates: createTemplatesRepo(db, clock),
     editProjects: createEditProjectsRepo(db, clock),
+    editorAssets: createEditorAssetsRepo(db, clock),
     series: createSeriesRepo(db, clock),
     posts: createPostsRepo(db, clock),
     postSteps: createPostStepsRepo(db, clock),

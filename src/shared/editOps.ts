@@ -4,11 +4,13 @@ import {
   EDIT_SPEC_VERSION,
   type EditFrame,
   type EditLayout,
+  type EditOverlay,
   type EditText,
   type EditSegment,
   type EditSpec,
   editDuration,
   MIN_SEGMENT_SECONDS,
+  overlaysOf,
   segmentDuration,
   segmentStarts
 } from './schemas/edit'
@@ -271,4 +273,109 @@ export function setFrame(spec: EditSpec, index: number | 'all', frame: EditFrame
     ...spec,
     segments: spec.segments.map((s, i) => (index === 'all' || i === index ? { ...s, frame } : s))
   }
+}
+
+// ---- stickers and logos ---------------------------------------------------------------------
+
+/** A new sticker at the playhead: in the middle, a third of the width, three seconds. */
+export function newOverlay(spec: EditSpec, t: number, id: string, asset: string): EditOverlay {
+  const total = editDuration(spec)
+  const length = Math.min(NEW_TEXT_SECONDS, total)
+  const startSec = Math.max(0, Math.min(t, total - length))
+  return {
+    id,
+    asset,
+    startSec,
+    endSec: Math.min(total, startSec + length),
+    x: 0.5,
+    y: 0.5,
+    width: spec.canvas === 'vertical' ? 0.35 : 0.2,
+    opacity: 1
+  }
+}
+
+/**
+ * A logo watermark: the whole video, top right, slightly see-through. On a vertical video it
+ * sits below the area YouTube's Shorts player covers at the top.
+ */
+export function newLogoWatermark(spec: EditSpec, id: string, asset: string): EditOverlay {
+  const vertical = spec.canvas === 'vertical'
+  return {
+    id,
+    asset,
+    startSec: 0,
+    endSec: editDuration(spec),
+    x: vertical ? 0.84 : 0.9,
+    y: vertical ? 0.12 : 0.12,
+    width: vertical ? 0.22 : 0.12,
+    opacity: 0.85
+  }
+}
+
+/** A channel-name watermark: the streamer's name, small, top left, for the whole video. */
+export function newNameWatermark(spec: EditSpec, id: string): EditText {
+  const vertical = spec.canvas === 'vertical'
+  return {
+    id,
+    text: '{{broadcaster}}',
+    startSec: 0,
+    endSec: editDuration(spec),
+    x: vertical ? 0.06 : 0.04,
+    y: vertical ? 0.12 : 0.08,
+    style: {
+      ...DEFAULT_TEXT_STYLE,
+      size: vertical ? 56 : 48,
+      color: '#ffffffd9',
+      outlineWidth: 4,
+      align: 'left'
+    },
+    animation: 'none'
+  }
+}
+
+export function addOverlay(spec: EditSpec, overlay: EditOverlay): EditSpec {
+  return { ...spec, overlays: [...overlaysOf(spec), overlay] }
+}
+
+export function updateOverlay(
+  spec: EditSpec,
+  id: string,
+  patch: Partial<Omit<EditOverlay, 'id'>>
+): EditSpec {
+  return {
+    ...spec,
+    overlays: overlaysOf(spec).map((o) => (o.id === id ? { ...o, ...patch } : o))
+  }
+}
+
+export function removeOverlay(spec: EditSpec, id: string): EditSpec {
+  return { ...spec, overlays: overlaysOf(spec).filter((o) => o.id !== id) }
+}
+
+/** Moves a sticker in time, keeping its length and keeping it inside the edit. */
+export function moveOverlay(spec: EditSpec, id: string, startSec: number): EditSpec {
+  const o = overlaysOf(spec).find((x) => x.id === id)
+  if (!o) return spec
+  const length = o.endSec - o.startSec
+  const start = Math.max(0, Math.min(startSec, editDuration(spec) - length))
+  return updateOverlay(spec, id, { startSec: start, endSec: start + length })
+}
+
+/** Changes when a sticker starts or ends; at least 0.1 s long and inside the edit. */
+export function retimeOverlay(
+  spec: EditSpec,
+  id: string,
+  edge: 'start' | 'end',
+  sec: number
+): EditSpec {
+  const o = overlaysOf(spec).find((x) => x.id === id)
+  if (!o) return spec
+  const total = editDuration(spec)
+  return edge === 'start'
+    ? updateOverlay(spec, id, {
+        startSec: Math.max(0, Math.min(sec, o.endSec - MIN_SEGMENT_SECONDS))
+      })
+    : updateOverlay(spec, id, {
+        endSec: Math.min(total, Math.max(sec, o.startSec + MIN_SEGMENT_SECONDS))
+      })
 }

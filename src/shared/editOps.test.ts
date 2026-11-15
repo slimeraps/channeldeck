@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
+  addOverlay,
   addSegment,
+  moveOverlay,
+  newLogoWatermark,
+  newNameWatermark,
+  newOverlay,
+  removeOverlay,
+  retimeOverlay,
+  updateOverlay,
   addText,
   moveText,
   newText,
@@ -150,5 +158,33 @@ describe('setFrame', () => {
     const wide = newEdit([a, b], 'horizontal')
     expect(setFrame(wide, 1, frame).segments.map((s) => s.frame?.zoomEnd)).toEqual([1, 1.6])
     expect(setFrame(wide, 'all', frame).segments.every((s) => s.frame === frame)).toBe(true)
+  })
+})
+
+describe('stickers', () => {
+  const asset = '0123456789abcdef01234567.png'
+
+  it('adds, moves, retimes, edits and removes stickers', () => {
+    let spec = addOverlay(edit(), newOverlay(edit(), 12.5, 's1', asset))
+    expect(spec.overlays?.[0]).toMatchObject({ startSec: 11, endSec: 14, x: 0.5, width: 0.35 })
+    expect(editSpecSchema.safeParse(spec).success).toBe(true)
+    spec = updateOverlay(spec, 's1', { opacity: 0.5 })
+    expect(spec.overlays?.[0]?.opacity).toBe(0.5)
+    expect(moveOverlay(spec, 's1', 0).overlays?.[0]).toMatchObject({ startSec: 0, endSec: 3 })
+    expect(retimeOverlay(spec, 's1', 'start', 2).overlays?.[0]?.startSec).toBe(2)
+    expect(removeOverlay(spec, 's1').overlays).toEqual([])
+  })
+
+  it('makes watermarks that last the whole video', () => {
+    expect(newLogoWatermark(edit(), 'l', asset)).toMatchObject({ startSec: 0, endSec: 14 })
+    const name = newNameWatermark(edit(), 'n')
+    expect(name).toMatchObject({ text: '{{broadcaster}}', startSec: 0, endSec: 14 })
+    expect(editSpecSchema.safeParse(addText(edit(), name)).success).toBe(true)
+  })
+
+  it('treats an edit from before stickers as having none', () => {
+    const old = edit()
+    delete old.overlays
+    expect(removeOverlay(old, 'x').overlays).toEqual([])
   })
 })

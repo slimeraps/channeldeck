@@ -31,6 +31,8 @@ interface VideoEditorState {
   selected: number | null
   /** The text layer being edited (its panel shows instead of the piece's). */
   selectedText: string | null
+  /** The sticker being edited (only one of text and sticker is selected at a time). */
+  selectedOverlay: string | null
   /** Shows where YouTube's Shorts buttons and captions cover the video. */
   showGuides: boolean
   playhead: number
@@ -46,6 +48,7 @@ interface VideoEditorState {
   redo: () => void
   select: (index: number | null) => void
   selectText: (id: string | null) => void
+  selectOverlay: (id: string | null) => void
   toggleGuides: () => void
   seek: (t: number) => void
   setPlaying: (playing: boolean) => void
@@ -55,6 +58,9 @@ interface VideoEditorState {
 /** The selected text, if it still exists in this version of the edit. */
 const keepText = (spec: EditSpec, id: string | null): string | null =>
   id && spec.texts.some((t) => t.id === id) ? id : null
+
+const keepOverlay = (spec: EditSpec, id: string | null): string | null =>
+  id && (spec.overlays ?? []).some((o) => o.id === id) ? id : null
 
 const clampTime = (spec: EditSpec | null, t: number): number =>
   Math.min(Math.max(0, t), spec ? editDuration(spec) : 0)
@@ -67,6 +73,7 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
   dragStart: null,
   selected: null,
   selectedText: null,
+  selectedOverlay: null,
   showGuides: false,
   playhead: 0,
   playing: false,
@@ -81,6 +88,7 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       dragStart: null,
       selected: 0,
       selectedText: null,
+      selectedOverlay: null,
       playhead: 0,
       playing: false
     }),
@@ -108,7 +116,8 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       dragStart: null,
       playhead: clampTime(next, get().playhead),
       selected: Math.min(get().selected ?? 0, next.segments.length - 1),
-      selectedText: keepText(next, get().selectedText)
+      selectedText: keepText(next, get().selectedText),
+      selectedOverlay: keepOverlay(next, get().selectedOverlay)
     })
   },
 
@@ -128,7 +137,8 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       future: [spec, ...future],
       playhead: clampTime(previous, get().playhead),
       selected: Math.min(get().selected ?? 0, previous.segments.length - 1),
-      selectedText: keepText(previous, get().selectedText)
+      selectedText: keepText(previous, get().selectedText),
+      selectedOverlay: keepOverlay(previous, get().selectedOverlay)
     })
   },
 
@@ -142,12 +152,14 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       future: future.slice(1),
       playhead: clampTime(next, get().playhead),
       selected: Math.min(get().selected ?? 0, next.segments.length - 1),
-      selectedText: keepText(next, get().selectedText)
+      selectedText: keepText(next, get().selectedText),
+      selectedOverlay: keepOverlay(next, get().selectedOverlay)
     })
   },
 
-  select: (index) => set({ selected: index, selectedText: null }),
-  selectText: (id) => set({ selectedText: id }),
+  select: (index) => set({ selected: index, selectedText: null, selectedOverlay: null }),
+  selectText: (id) => set({ selectedText: id, ...(id ? { selectedOverlay: null } : {}) }),
+  selectOverlay: (id) => set({ selectedOverlay: id, ...(id ? { selectedText: null } : {}) }),
   toggleGuides: () => set({ showGuides: !get().showGuides }),
   seek: (t) => set({ playhead: clampTime(get().spec, t) }),
   setPlaying: (playing) => set({ playing }),

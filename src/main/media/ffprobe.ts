@@ -128,3 +128,24 @@ export async function probeVideo(path: string): Promise<ProbeResult> {
     mtimeMs: Math.round(info.mtimeMs)
   })
 }
+
+/** Width and height of an image (stickers and logos); a GIF reports its first frame's size. */
+export async function probeImage(path: string): Promise<{ width: number; height: number }> {
+  let stdout: string
+  try {
+    ;({ stdout } = await execFileAsync(
+      ffprobePath(),
+      ['-v', 'error', '-print_format', 'json', '-show_streams', '-select_streams', 'v:0', path],
+      { maxBuffer: 1024 * 1024, timeout: 15_000 }
+    ))
+  } catch (error) {
+    throw new UserFacingError(`ChannelDeck couldn't read ${basename(path)}. Is it an image?`, {
+      cause: error
+    })
+  }
+  const stream = (JSON.parse(stdout) as FfprobeJson).streams?.[0]
+  if (!stream?.width || !stream.height) {
+    throw new UserFacingError(`${basename(path)} doesn't look like an image ChannelDeck can use.`)
+  }
+  return { width: stream.width, height: stream.height }
+}

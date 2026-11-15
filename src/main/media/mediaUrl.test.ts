@@ -38,6 +38,14 @@ describe('isServable', () => {
     expect(isServable('/Users/cody/Desktop/upload.mov', policy)).toBe(true)
   })
 
+  it('serves sticker images (GIF, WebP) in a root, but no other file types', () => {
+    const root = '/Users/cody/Movies/ChannelDeck/Clips/'
+    expect(isServable(`${root}a.gif`, policy)).toBe(true)
+    expect(isServable(`${root}a.webp`, policy)).toBe(true)
+    expect(isServable(`${root}notes.txt`, policy)).toBe(false)
+    expect(isServable(`${root}secret.json`, policy)).toBe(false)
+  })
+
   it('refuses everything else', () => {
     expect(isServable('/Users/cody/Desktop/other.mov', policy)).toBe(false)
     expect(isServable('/Users/cody/Movies/ChannelDeck/Clips/../../secret.mp4', policy)).toBe(false)
