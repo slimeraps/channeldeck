@@ -19,7 +19,7 @@ import {
   TWITCH_AUTH_FLOWS,
   VISIBILITY_MODES
 } from '../../shared/constants/enums'
-import type { RenderJson } from '../../shared/schemas/edit'
+import type { EditSpec, RenderJson } from '../../shared/schemas/edit'
 import type {
   AccountDefaults,
   AutopostFilters,
@@ -221,6 +221,15 @@ export const templates = sqliteTable('templates', {
     .$type<string[]>()
     .notNull()
     .default(sql`'[]'`),
+  createdAt: createdAt(),
+  updatedAt: updatedAt()
+})
+
+/** Video editor projects (the Editor page): an edit saved as you work, reopened later. */
+export const editProjects = sqliteTable('edit_projects', {
+  id: integer('id').primaryKey({ autoIncrement: true }),
+  name: text('name').notNull(),
+  specJson: text('spec_json', { mode: 'json' }).$type<EditSpec>().notNull(),
   createdAt: createdAt(),
   updatedAt: updatedAt()
 })

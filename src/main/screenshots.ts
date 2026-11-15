@@ -627,6 +627,31 @@ export async function captureScreens(
       await shot('data-editor-rendered')
       await escape()
     }
+    // Post… opens the post editor with the edit; Edit video… opens the editor over it.
+    if (await click('Post…')) {
+      await settle(2000)
+      await shot('data-editor-post')
+      if (await click('Edit video…')) {
+        await settle(2500)
+        await shot('data-editor-post-overlay')
+        await click('Cancel editing')
+      }
+      await escape()
+    }
+    // Closing the editor shows the saved projects.
+    await go('Editor')
+    await click('Close the editor')
+    await settle(1500)
+    await shot('data-editor-projects')
+  }
+  // Clips page: select two clips and join them in a new edit.
+  await go('Clips')
+  await mouseClick('[aria-label="Select clip"]')
+  await mouseClick('[aria-label="Select clip"]')
+  if (await click('Edit together…')) {
+    await settle(3000)
+    await shot('data-editor-together')
+    await click('Close the editor')
   }
 
   // 3. The smallest window the app allows.

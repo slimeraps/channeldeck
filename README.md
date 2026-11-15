@@ -239,6 +239,12 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 
 ### Unreleased
 
+- Editor, phase E4 (2026-11-14):
+  - **Projects:** edits save as projects while you work. The Editor page lists them with a thumbnail, the canvas, length and when you last changed them, with **Rename…** and **Delete…**.
+  - **From the editor:** **Post…** opens the post editor with the edit, and the post uploads the edited video. **Export…** saves a copy of the render wherever you choose.
+  - **From a post:** **Edit video…** opens the editor right over the post editor. **Done** puts the edit on the post, which then shows an "Edited video" summary with **Remove edit**.
+  - **From the Clips page:** **Edit…** on any clip, and **Edit together…** for selected clips, joined oldest first.
+  - **Never-twice:** a joined post stays linked to its first clip when all its clips come from one Twitch channel. The post editor warns when other clips in the edit are already posted to that channel.
 - Editor, phase E3 (2026-11-14):
   - **Text:** **Text** (or T) adds text at the playhead. Pick a font (Archivo Black, Anton or Bebas Neue), size, color, an outline or a box, a shadow, alignment, and None, Fade or Pop. Drag it on the preview, and drag it or its ends on the timeline's text row. **Insert a clip detail…** adds `{{clip_title}}`, `{{game}}`, `{{broadcaster}}` and more, filled from the first clip in the edit. The preview places text exactly where the render puts it (same fonts, same sizes, same line wrapping).
   - **Crop and zoom:** for 16:9 and 1:1, the **Frame** panel zooms in, can zoom slowly over a piece, and moves the picture; you can also drag the picture in the preview.

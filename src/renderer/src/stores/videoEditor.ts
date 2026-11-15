@@ -11,12 +11,19 @@ import { editDuration } from '@shared/schemas/edit'
 
 const MAX_HISTORY = 200
 
+/**
+ * Who the open edit belongs to: a saved project on the Editor page (autosaved), or a post
+ * being edited in the post editor (handed back on Done).
+ */
+export type EditorOrigin = { kind: 'project'; id: number; name: string } | { kind: 'post' }
+
 /** Timeline zoom limits, in pixels per second. */
 export const MIN_PX_PER_SEC = 8
 export const MAX_PX_PER_SEC = 400
 
 interface VideoEditorState {
   spec: EditSpec | null
+  origin: EditorOrigin | null
   past: EditSpec[]
   future: EditSpec[]
   /** The spec before a live drag started (null when not dragging). */
@@ -30,7 +37,8 @@ interface VideoEditorState {
   playing: boolean
   pxPerSec: number
 
-  open: (spec: EditSpec) => void
+  open: (spec: EditSpec, origin: EditorOrigin) => void
+  rename: (name: string) => void
   close: () => void
   change: (next: EditSpec, options?: { live?: boolean }) => void
   commit: () => void
@@ -53,6 +61,7 @@ const clampTime = (spec: EditSpec | null, t: number): number =>
 
 export const useVideoEditor = create<VideoEditorState>((set, get) => ({
   spec: null,
+  origin: null,
   past: [],
   future: [],
   dragStart: null,
@@ -63,9 +72,10 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
   playing: false,
   pxPerSec: 60,
 
-  open: (spec) =>
+  open: (spec, origin) =>
     set({
       spec,
+      origin,
       past: [],
       future: [],
       dragStart: null,
@@ -75,7 +85,13 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       playing: false
     }),
 
-  close: () => set({ spec: null, past: [], future: [], dragStart: null, playing: false }),
+  close: () =>
+    set({ spec: null, origin: null, past: [], future: [], dragStart: null, playing: false }),
+
+  rename(name) {
+    const { origin } = get()
+    if (origin?.kind === 'project') set({ origin: { ...origin, name } })
+  },
 
   change(next, options = {}) {
     const { spec, past, dragStart } = get()

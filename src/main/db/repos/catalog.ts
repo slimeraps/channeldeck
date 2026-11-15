@@ -1,6 +1,6 @@
 import { asc, eq, inArray, sql } from 'drizzle-orm'
 import type { Db } from '../client'
-import { autopostRules, games, layoutPresets, series, templates } from '../schema'
+import { autopostRules, editProjects, games, layoutPresets, series, templates } from '../schema'
 import { type Clock, isoNow, NotFoundError } from './common'
 
 /**
@@ -71,7 +71,12 @@ export interface CrudRepo<Row, Insert> {
 type WithTimestamps = { createdAt?: string; updatedAt?: string }
 
 function createCrud<
-  T extends typeof layoutPresets | typeof autopostRules | typeof templates | typeof series
+  T extends
+    | typeof layoutPresets
+    | typeof autopostRules
+    | typeof templates
+    | typeof series
+    | typeof editProjects
 >(
   db: Db,
   clock: Clock,
@@ -190,3 +195,7 @@ export function createSeriesRepo(db: Db, clock: Clock): SeriesRepo {
     }
   }
 }
+
+export type EditProjectRow = typeof editProjects.$inferSelect
+export const createEditProjectsRepo = (db: Db, clock: Clock) =>
+  createCrud(db, clock, editProjects, 'Edit project')
