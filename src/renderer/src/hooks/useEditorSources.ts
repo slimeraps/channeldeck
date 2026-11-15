@@ -1,5 +1,5 @@
-import { useQueries } from '@tanstack/react-query'
-import type { EditorSource, EditorStrips } from '@shared/schemas/editor'
+import { useQueries, useQuery, type UseQueryResult } from '@tanstack/react-query'
+import type { EditorAsset, EditorSource, EditorStrips } from '@shared/schemas/editor'
 import { invoke } from '@renderer/lib/ipc'
 
 export const editorKey = ['editor'] as const
@@ -44,4 +44,11 @@ export function useEditorStrips(paths: readonly string[]): Map<string, EditorStr
     if (r.data) strips.set(unique[i] as string, r.data)
   })
   return strips
+}
+
+export const assetsKey = [...editorKey, 'assets'] as const
+
+/** The sticker and logo library. */
+export function useEditorAssets(): UseQueryResult<EditorAsset[]> {
+  return useQuery({ queryKey: assetsKey, queryFn: () => invoke('editor:listAssets') })
 }

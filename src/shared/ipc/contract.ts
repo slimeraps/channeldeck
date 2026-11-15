@@ -51,6 +51,7 @@ import { importReportSchema } from '../schemas/backup'
 import { analyticsInputSchema, analyticsReportSchema } from '../schemas/analytics'
 import { editSpecSchema } from '../schemas/edit'
 import {
+  editorAssetSchema,
   editorRenderSchema,
   editorSourceSchema,
   editorStripsSchema,
@@ -428,6 +429,18 @@ export const invokeContract = {
   'editor:renameProject': {
     input: z.object({ id: z.number().int().positive(), name: projectNameSchema }).strict(),
     output: editProjectSchema
+  },
+  'editor:listAssets': { input: noInput, output: z.array(editorAssetSchema) },
+  'editor:assetBytes': {
+    input: z
+      .object({ fileName: z.string().regex(/^[0-9a-f]{16,64}\.(png|jpe?g|webp|gif)$/) })
+      .strict(),
+    output: z.instanceof(Uint8Array)
+  },
+  'editor:importAssets': { input: noInput, output: z.array(editorAssetSchema) },
+  'editor:deleteAsset': {
+    input: z.object({ id: z.number().int().positive() }).strict(),
+    output: z.object({ deleted: z.boolean() })
   },
   'editor:deleteProject': {
     input: z.object({ id: z.number().int().positive() }).strict(),

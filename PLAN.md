@@ -238,6 +238,17 @@ A video editor that beats Eklipse's: trim, text, crop and zoom, join clips, swit
 
 **Acceptance:** project storage, autosave thumbnails, export and the posted-clips check are unit-tested; screenshot mode saves a project, posts it, opens Edit video… over the post, shows the project list and joins two clips with Edit together….
 
-### E5–E8
+### E5 — Branding and stickers
+
+- [x] Sticker library (`editor_assets`, migration 0010; files in userData/editor-assets named by content hash, so the same image is stored once): import PNG, JPG, WebP or GIF up to 20 MB, list, delete (refused while a project or an unposted post uses the image)
+- [x] Stickers in the edit (`EditSpec.overlays`, optional so older edits still read): position, size, opacity, start and end; drawn under the text; GIFs play from when the sticker appears and loop
+- [x] Render: one ffmpeg input per sticker (still images looped, GIFs `-stream_loop`), scaled with alpha, `overlay` with `enable=between(t,…)`; a missing image fails with its name
+- [x] Preview: stills through `<img>`, GIF frames decoded with ImageDecoder from bytes sent over IPC (`editor:assetBytes`), so the preview shows the same frame as the render; the media protocol now also serves GIF and WebP
+- [x] Sticker panel (size, opacity, corners kept clear of the Shorts UI, timing, whole video, delete), drag on the preview, a sticker row on the timeline
+- [x] Watermarks: **Logo watermark…** (top right, the whole video, 85 %) and **Channel name watermark** (`{{broadcaster}}`, top left)
+
+**Acceptance:** sticker graph and inputs, the library (import once, wrong type, delete blocked by use), sticker operations and the protocol's file types are unit-tested; real-ffmpeg tests show a still sticker only for its time and a GIF looping; screenshot mode adds a GIF sticker, a logo and a name watermark, and the preview matches the rendered frame.
+
+### E6–E8
 
 E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.

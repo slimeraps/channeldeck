@@ -1,6 +1,14 @@
 import { asc, eq, inArray, sql } from 'drizzle-orm'
 import type { Db } from '../client'
-import { autopostRules, editProjects, games, layoutPresets, series, templates } from '../schema'
+import {
+  autopostRules,
+  editorAssets,
+  editProjects,
+  games,
+  layoutPresets,
+  series,
+  templates
+} from '../schema'
 import { type Clock, isoNow, NotFoundError } from './common'
 
 /**
@@ -77,6 +85,7 @@ function createCrud<
     | typeof templates
     | typeof series
     | typeof editProjects
+    | typeof editorAssets
 >(
   db: Db,
   clock: Clock,
@@ -199,3 +208,18 @@ export function createSeriesRepo(db: Db, clock: Clock): SeriesRepo {
 export type EditProjectRow = typeof editProjects.$inferSelect
 export const createEditProjectsRepo = (db: Db, clock: Clock) =>
   createCrud(db, clock, editProjects, 'Edit project')
+
+export type EditorAssetRow = typeof editorAssets.$inferSelect
+export interface EditorAssetsRepo extends CrudRepo<
+  EditorAssetRow,
+  Omit<typeof editorAssets.$inferInsert, 'id' | 'createdAt' | 'updatedAt'>
+> {
+  findByFile(fileName: string): EditorAssetRow | undefined
+}
+export function createEditorAssetsRepo(db: Db, clock: Clock): EditorAssetsRepo {
+  return {
+    ...createCrud(db, clock, editorAssets, 'Sticker'),
+    findByFile: (fileName) =>
+      db.select().from(editorAssets).where(eq(editorAssets.fileName, fileName)).get()
+  }
+}

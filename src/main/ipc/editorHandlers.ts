@@ -16,6 +16,13 @@ export function registerEditorHandlers(): void {
   handle('editor:getProject', ({ id }) => getEditor().getProject(id))
   handle('editor:saveProject', ({ id, spec }) => getEditor().saveProject(id, spec))
   handle('editor:renameProject', ({ id, name }) => getEditor().renameProject(id, name))
+  handle('editor:listAssets', () => getEditor().listAssets())
+  handle('editor:assetBytes', ({ fileName }) => getEditor().assetBytes(fileName))
+  handle('editor:importAssets', () => getEditor().importAssets())
+  handle('editor:deleteAsset', async ({ id }) => {
+    await getEditor().deleteAsset(id)
+    return { deleted: true }
+  })
   handle('editor:deleteProject', async ({ id }) => {
     await getEditor().deleteProject(id)
     return { deleted: true }

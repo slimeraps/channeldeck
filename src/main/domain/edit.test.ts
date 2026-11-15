@@ -40,7 +40,7 @@ describe('editFilter', () => {
     expect(graph).toContain('[0:a]asetpts=PTS-STARTPTS,aresample=48000')
     expect(graph).toContain('atrim=0:3.000[a0]')
     expect(graph).toContain('[v0]null[vc];[a0]anull[ac]')
-    expect(graph).toMatch(/\[vc\]null\[v\];\[ac\]anull\[a\]$/)
+    expect(graph).toMatch(/\[vc\]format=yuv420p\[v\];\[ac\]anull\[a\]$/)
   })
 
   it('joins segments with concat, using silence for a source without audio', () => {
@@ -93,8 +93,44 @@ describe('editFilter', () => {
       assPath: '/tmp/x/text.ass',
       fontsDir: '/app/fonts'
     })
-    expect(graph).toContain("[vc]ass=filename='/tmp/x/text.ass':fontsdir='/app/fonts'[v]")
+    expect(graph).toContain(
+      "[vc]ass=filename='/tmp/x/text.ass':fontsdir='/app/fonts',format=yuv420p[v]"
+    )
     expect(graph).toContain('[ac]volume=0.5[a]')
+  })
+
+  it('puts stickers over the video, each for its own time, under the text', () => {
+    const sticker = {
+      id: 's1',
+      asset: '0123456789abcdef.png',
+      startSec: 1,
+      endSec: 2.5,
+      x: 0.5,
+      y: 0.25,
+      width: 0.3,
+      opacity: 0.8
+    }
+    const gif = { ...sticker, id: 's2', asset: 'fedcba9876543210.gif', opacity: 1 }
+    const edit = spec({ overlays: [sticker, gif] })
+    const graph = editFilter(edit, [hd], { assPath: '/tmp/t.ass', fontsDir: '/f' })
+    expect(graph).toContain(
+      '[1:v]format=rgba,scale=324:-2,colorchannelmixer=aa=0.8,setpts=PTS-STARTPTS+1.000/TB[st0]'
+    )
+    expect(graph).toContain(
+      "[vc][st0]overlay=x=540-w/2:y=480-h/2:enable='between(t,1.000,2.500)':eof_action=pass[ov0]"
+    )
+    expect(graph).toContain('[2:v]format=rgba,scale=324:-2,setpts=PTS-STARTPTS+1.000/TB[st1]')
+    expect(graph).toContain('[ov0][st1]overlay=')
+    expect(graph).toContain("[ov1]ass=filename='/tmp/t.ass'")
+
+    const args = editArgs({
+      spec: edit,
+      filter: 'F',
+      output: '/o.mp4',
+      stickerPaths: ['/assets/a.png', '/assets/b.gif']
+    })
+    expect(args.join(' ')).toContain('-loop 1 -t 3.000 -i /assets/a.png')
+    expect(args.join(' ')).toContain('-stream_loop -1 -t 3.000 -i /assets/b.gif')
   })
 
   it('needs source info for every segment', () => {

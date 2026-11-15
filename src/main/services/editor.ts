@@ -1,12 +1,21 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { copyFile, rm, stat } from 'node:fs/promises'
-import { dirname, join, resolve } from 'node:path'
-import { type EditSpec, editDuration, fillEditText, renderSources } from '@shared/schemas/edit'
+import { copyFile, mkdir, readFile, rm, stat } from 'node:fs/promises'
+import { basename, dirname, extname, join, resolve } from 'node:path'
+import {
+  type EditSpec,
+  editDuration,
+  fillEditText,
+  isAnimatedAsset,
+  overlaysOf,
+  renderSources,
+  STICKER_EXTENSIONS
+} from '@shared/schemas/edit'
 import type {
   EditorRender,
   EditorSource,
   EditorStrips,
+  EditorAsset,
   EditProject,
   EditProjectSummary
 } from '@shared/schemas/editor'
@@ -45,6 +54,14 @@ export interface EditorService {
   saveProject(id: number, spec: EditSpec): EditProject
   renameProject(id: number, name: string): EditProject
   deleteProject(id: number): Promise<void>
+
+  listAssets(): EditorAsset[]
+  /** A library image's bytes (the preview decodes GIF frames from them). */
+  assetBytes(fileName: string): Promise<Uint8Array<ArrayBuffer>>
+  /** Asks for images and adds them to the sticker library (the same image is kept once). */
+  importAssets(): Promise<EditorAsset[]>
+  /** Removes an image, unless a project or an unfinished post still uses it. */
+  deleteAsset(id: number): Promise<void>
 }
 
 export interface EditorDeps {
@@ -54,6 +71,8 @@ export interface EditorDeps {
   /** Folder for filmstrips and waveforms (also a cdmedia root). */
   cacheDir: string
   fontsDir: string
+  /** The sticker and logo library (userData/editor-assets). */
+  assetsDir: string
   makeFilmstrip: (args: {
     input: string
     output: string
@@ -67,6 +86,7 @@ export interface EditorDeps {
     sources: readonly SourceInfo[]
     output: string
     fontsDir: string
+    assetsDir: string
     signal?: AbortSignal
     onProgress?: (fraction: number) => void
   }) => Promise<void>
@@ -76,6 +96,9 @@ export interface EditorDeps {
   grabFrame: (args: { input: string; atSec: number; output: string }) => Promise<void>
   /** Asks where to save a file; null when canceled. */
   chooseSavePath: (defaultName: string) => Promise<string | null>
+  /** Asks for image files to import; empty when canceled. */
+  chooseImages: () => Promise<string[]>
+  probeImage: (path: string) => Promise<{ width: number; height: number }>
   /** Time zone for {{clip_date}} (default: the Mac's). */
   zone?: string
 }
@@ -138,6 +161,54 @@ export function createEditorService(deps: EditorDeps): EditorService {
     updatedAt: string
   }): EditProject {
     return { id: row.id, name: row.name, spec: row.specJson, updatedAt: row.updatedAt }
+  }
+
+  /** Largest image the sticker library takes. */
+  const MAX_ASSET_BYTES = 20 * 1024 * 1024
+
+  function toAsset(row: {
+    id: number
+    name: string
+    fileName: string
+    width: number
+    height: number
+  }): EditorAsset {
+    return {
+      id: row.id,
+      name: row.name,
+      fileName: row.fileName,
+      url: mediaUrl(join(deps.assetsDir, row.fileName)),
+      width: row.width,
+      height: row.height,
+      animated: isAnimatedAsset(row.fileName)
+    }
+  }
+
+  async function importAsset(path: string): Promise<EditorAsset> {
+    const ext = extname(path).slice(1).toLowerCase()
+    if (!(STICKER_EXTENSIONS as readonly string[]).includes(ext)) {
+      throw new UserFacingError(`${basename(path)}: stickers can be PNG, JPG, WebP or GIF.`)
+    }
+    const info = await stat(path)
+    if (info.size > MAX_ASSET_BYTES) {
+      throw new UserFacingError(`${basename(path)} is over 20 MB, too big for a sticker.`)
+    }
+    const bytes = await readFile(path)
+    const fileName = `${createHash('sha256').update(bytes).digest('hex').slice(0, 24)}.${ext === 'jpeg' ? 'jpg' : ext}`
+    const existing = deps.repos.editorAssets.findByFile(fileName)
+    if (existing) return toAsset(existing)
+    const target = join(deps.assetsDir, fileName)
+    await mkdir(deps.assetsDir, { recursive: true })
+    await copyFile(path, target)
+    const size = await deps.probeImage(target).catch(async (error: unknown) => {
+      await rm(target, { force: true })
+      throw error
+    })
+    const name =
+      basename(path)
+        .replace(/\.[^.]+$/, '')
+        .slice(0, 80) || 'Sticker'
+    return toAsset(deps.repos.editorAssets.create({ name, fileName, ...size }))
   }
 
   /** A name for a new project: the first clip's title, or the first file's name. */
@@ -216,6 +287,7 @@ export function createEditorService(deps: EditorDeps): EditorService {
           sources,
           output,
           fontsDir: deps.fontsDir,
+          assetsDir: deps.assetsDir,
           signal: controller.signal,
           onProgress: (fraction) => {
             // A few updates a second is plenty for a progress bar.
@@ -311,6 +383,54 @@ export function createEditorService(deps: EditorDeps): EditorService {
       deps.repos.editProjects.remove(id)
       thumbFrom.delete(id)
       await rm(thumbPath(id), { force: true })
+    },
+
+    listAssets() {
+      return deps.repos.editorAssets
+        .list()
+        .filter((row) => existsSync(join(deps.assetsDir, row.fileName)))
+        .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+        .map(toAsset)
+    },
+
+    async assetBytes(fileName) {
+      const row = deps.repos.editorAssets.findByFile(fileName)
+      if (!row) throw new UserFacingError("That image isn't in the sticker library.")
+      return Uint8Array.from(await readFile(join(deps.assetsDir, row.fileName)))
+    },
+
+    async importAssets() {
+      const paths = await deps.chooseImages()
+      const added: EditorAsset[] = []
+      const problems: string[] = []
+      for (const path of paths) {
+        try {
+          added.push(await importAsset(path))
+        } catch (error) {
+          problems.push(error instanceof Error ? error.message : String(error))
+        }
+      }
+      if (problems.length > 0 && added.length === 0) throw new UserFacingError(problems.join(' '))
+      return added
+    },
+
+    async deleteAsset(id) {
+      const row = deps.repos.editorAssets.require(id)
+      const inProject = deps.repos.editProjects
+        .list()
+        .find((p) => overlaysOf(p.specJson).some((o) => o.asset === row.fileName))
+      if (inProject) {
+        throw new UserFacingError(
+          `"${row.name}" is used in the project "${inProject.name}". Remove it there first.`
+        )
+      }
+      if (deps.repos.posts.usesSticker(row.fileName)) {
+        throw new UserFacingError(
+          `"${row.name}" is used in a post that isn't published yet, so it stays for now.`
+        )
+      }
+      deps.repos.editorAssets.remove(id)
+      await rm(join(deps.assetsDir, row.fileName), { force: true })
     },
 
     cancelRender() {

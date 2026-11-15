@@ -1,8 +1,10 @@
 import { useEffect, useRef, useState } from 'react'
 import {
   cutPoints,
+  moveOverlay,
   moveSegment,
   moveText,
+  retimeOverlay,
   retimeText,
   snap,
   trimIn,
@@ -31,10 +33,18 @@ const SNAP_PX = 8
 const RULER_H = 22
 const TRACK_H = 72
 const TEXT_ROW_H = 24
-/** Everything below the ruler: the pieces and the text row. */
-const BODY_H = TRACK_H + TEXT_ROW_H + 14
+/** Everything below the ruler: the pieces, the text row and the sticker row. */
+const BODY_H = TRACK_H + 2 * TEXT_ROW_H + 18
 /** Seconds between ruler labels: the first that leaves at least 70 px between them. */
 const STEPS = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
+
+interface LayerDrag {
+  id: string
+  part: 'body' | 'start' | 'end'
+  startX: number
+  startSpec: EditSpec
+  moved: boolean
+}
 
 type Drag =
   | { kind: 'seek' }
@@ -46,30 +56,29 @@ type Drag =
       startSpec: EditSpec
     }
   | { kind: 'move'; index: number; startX: number; moved: boolean; target: number }
-  | {
-      kind: 'text'
-      id: string
-      part: 'body' | 'start' | 'end'
-      startX: number
-      startSpec: EditSpec
-      moved: boolean
-    }
+  | ({ kind: 'text' } & LayerDrag)
+  | ({ kind: 'overlay' } & LayerDrag)
 
 export function Timeline({
   spec,
   sources,
-  strips
+  strips,
+  assetNames
 }: {
   spec: EditSpec
   sources: Map<string, EditorSource>
   strips: Map<string, EditorStrips>
+  /** Sticker file → its name in the library (for the sticker row's labels). */
+  assetNames?: Map<string, string>
 }): React.JSX.Element {
   const pxPerSec = useVideoEditor((s) => s.pxPerSec)
   const playhead = useVideoEditor((s) => s.playhead)
   const playing = useVideoEditor((s) => s.playing)
   const selected = useVideoEditor((s) => s.selected)
   const selectedText = useVideoEditor((s) => s.selectedText)
-  const { select, selectText, seek, change, commit, zoom } = useVideoEditor.getState()
+  const selectedOverlay = useVideoEditor((s) => s.selectedOverlay)
+  const { select, selectText, selectOverlay, seek, change, commit, zoom } =
+    useVideoEditor.getState()
   const scrollRef = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const [dropAt, setDropAt] = useState<number | null>(null)
@@ -128,11 +137,17 @@ export function Timeline({
     return snap(t, cutPoints(spec), SNAP_PX / pxPerSec)
   }
 
-  function onTextDown(e: React.PointerEvent, id: string, part: 'body' | 'start' | 'end'): void {
+  function onLayerDown(
+    e: React.PointerEvent,
+    kind: 'text' | 'overlay',
+    id: string,
+    part: 'body' | 'start' | 'end'
+  ): void {
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
-    selectText(id)
-    drag.current = { kind: 'text', id, part, startX: e.clientX, startSpec: spec, moved: false }
+    if (kind === 'text') selectText(id)
+    else selectOverlay(id)
+    drag.current = { kind, id, part, startX: e.clientX, startSpec: spec, moved: false }
   }
 
   function onHandleDown(e: React.PointerEvent, index: number, edge: 'in' | 'out'): void {
@@ -154,16 +169,21 @@ export function Timeline({
       seek(snapTime(timeAt(e.clientX)))
       return
     }
-    if (d.kind === 'text') {
-      const text = d.startSpec.texts.find((x) => x.id === d.id)
+    if (d.kind === 'text' || d.kind === 'overlay') {
+      const text =
+        d.kind === 'text'
+          ? d.startSpec.texts.find((x) => x.id === d.id)
+          : (d.startSpec.overlays ?? []).find((x) => x.id === d.id)
       if (!text) return
+      const move = d.kind === 'text' ? moveText : moveOverlay
+      const retime = d.kind === 'text' ? retimeText : retimeOverlay
       const dSec = (e.clientX - d.startX) / pxPerSec
       if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return
       d.moved = true
       const targets = [playhead, ...cutPoints(d.startSpec)]
       const tolerance = SNAP_PX / pxPerSec
       if (d.part === 'body') {
-        change(moveText(d.startSpec, d.id, snap(text.startSec + dSec, targets, tolerance)), {
+        change(move(d.startSpec, d.id, snap(text.startSec + dSec, targets, tolerance)), {
           live: true
         })
       } else {
@@ -172,7 +192,7 @@ export function Timeline({
           targets,
           tolerance
         )
-        change(retimeText(d.startSpec, d.id, d.part, at), { live: true })
+        change(retime(d.startSpec, d.id, d.part, at), { live: true })
       }
       return
     }
@@ -217,7 +237,7 @@ export function Timeline({
     drag.current = null
     if (!d) return
     if (d.kind === 'trim') commit()
-    if (d.kind === 'text') {
+    if (d.kind === 'text' || d.kind === 'overlay') {
       if (d.moved) commit()
       return
     }
@@ -396,21 +416,61 @@ export function Timeline({
                   left: text.startSec * pxPerSec,
                   width: Math.max(8, (text.endSec - text.startSec) * pxPerSec)
                 }}
-                onPointerDown={(e) => onTextDown(e, text.id, 'body')}
+                onPointerDown={(e) => onLayerDown(e, 'text', text.id, 'body')}
                 title={text.text}
               >
                 <span className="pointer-events-none truncate">{text.text}</span>
                 <div
                   className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize hover:bg-brand/70"
-                  onPointerDown={(e) => onTextDown(e, text.id, 'start')}
+                  onPointerDown={(e) => onLayerDown(e, 'text', text.id, 'start')}
                   role="separator"
                   aria-label="Change when the text starts"
                 />
                 <div
                   className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize hover:bg-brand/70"
-                  onPointerDown={(e) => onTextDown(e, text.id, 'end')}
+                  onPointerDown={(e) => onLayerDown(e, 'text', text.id, 'end')}
                   role="separator"
                   aria-label="Change when the text ends"
+                />
+              </div>
+            ))}
+          </div>
+
+          {/* Stickers and logos */}
+          <div
+            className="absolute inset-x-0"
+            style={{ top: RULER_H + TRACK_H + 14 + TEXT_ROW_H, height: TEXT_ROW_H }}
+          >
+            {(spec.overlays ?? []).map((o) => (
+              <div
+                key={o.id}
+                className={cn(
+                  'absolute top-0 flex h-full cursor-grab items-center overflow-hidden rounded border px-2 text-[11px] active:cursor-grabbing',
+                  selectedOverlay === o.id
+                    ? 'border-sky-400 bg-sky-400/30 text-foreground'
+                    : 'border-sky-400/40 bg-sky-400/15 text-muted-foreground'
+                )}
+                style={{
+                  left: o.startSec * pxPerSec,
+                  width: Math.max(8, (o.endSec - o.startSec) * pxPerSec)
+                }}
+                onPointerDown={(e) => onLayerDown(e, 'overlay', o.id, 'body')}
+                title={assetNames?.get(o.asset) ?? 'Sticker'}
+              >
+                <span className="pointer-events-none truncate">
+                  {assetNames?.get(o.asset) ?? 'Sticker'}
+                </span>
+                <div
+                  className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize hover:bg-sky-400/70"
+                  onPointerDown={(e) => onLayerDown(e, 'overlay', o.id, 'start')}
+                  role="separator"
+                  aria-label="Change when the sticker starts"
+                />
+                <div
+                  className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize hover:bg-sky-400/70"
+                  onPointerDown={(e) => onLayerDown(e, 'overlay', o.id, 'end')}
+                  role="separator"
+                  aria-label="Change when the sticker ends"
                 />
               </div>
             ))}

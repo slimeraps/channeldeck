@@ -1,6 +1,13 @@
 import { createHash } from 'node:crypto'
 import { CANVAS_SIZES, even, frameRect } from '@shared/geometry'
-import { type EditSegment, type EditSpec, segmentDuration } from '@shared/schemas/edit'
+import {
+  type EditSegment,
+  type EditSpec,
+  editDuration,
+  isAnimatedAsset,
+  overlaysOf,
+  segmentDuration
+} from '@shared/schemas/edit'
 import { renderFilter } from './render'
 
 /**
@@ -129,17 +136,53 @@ export function editFilter(
     parts.push(`${pads}concat=n=${n}:v=1:a=1[vc][ac]`)
   }
 
+  // Stickers and logos, in order, under the text. Each is its own input after the segments,
+  // scaled to its width (alpha kept), faded to its opacity, and shown only for its time. A
+  // GIF starts its animation when the sticker appears.
+  let below = 'vc'
+  overlaysOf(spec).forEach((o, k) => {
+    const input = spec.segments.length + k
+    const w = Math.max(2, Math.round((canvas.width * o.width) / 2) * 2)
+    const alpha = o.opacity < 1 ? `,colorchannelmixer=aa=${o.opacity}` : ''
+    parts.push(
+      `[${input}:v]format=rgba,scale=${w}:-2${alpha},setpts=PTS-STARTPTS+${time(o.startSec)}/TB[st${k}]`
+    )
+    const x = Math.round(o.x * canvas.width)
+    const y = Math.round(o.y * canvas.height)
+    parts.push(
+      `[${below}][st${k}]overlay=x=${x}-w/2:y=${y}-h/2:enable='between(t,${time(o.startSec)},${time(o.endSec)})':eof_action=pass[ov${k}]`
+    )
+    below = `ov${k}`
+  })
+
   parts.push(
     options.assPath
-      ? `[vc]ass=filename=${filterPath(options.assPath)}:fontsdir=${filterPath(options.fontsDir)}[v]`
-      : '[vc]null[v]'
+      ? `[${below}]ass=filename=${filterPath(options.assPath)}:fontsdir=${filterPath(options.fontsDir)},format=yuv420p[v]`
+      : `[${below}]format=yuv420p[v]`
   )
   parts.push(spec.volume === 1 ? '[ac]anull[a]' : `[ac]volume=${spec.volume}[a]`)
   return parts.join(';')
 }
 
 /** The whole ffmpeg command line for an edit. */
-export function editArgs(args: { spec: EditSpec; filter: string; output: string }): string[] {
+export function editArgs(args: {
+  spec: EditSpec
+  filter: string
+  output: string
+  /** Each sticker's image file, in overlay order. */
+  stickerPaths?: readonly string[]
+}): string[] {
+  // A still image becomes a looping frame; a GIF loops. Both stop at the edit's end.
+  const total = time(editDuration(args.spec))
+  const stickers = (args.stickerPaths ?? []).flatMap((path, k) => [
+    ...(isAnimatedAsset(overlaysOf(args.spec)[k]?.asset ?? path)
+      ? ['-stream_loop', '-1']
+      : ['-loop', '1']),
+    '-t',
+    total,
+    '-i',
+    path
+  ])
   const inputs = args.spec.segments.flatMap((s) => [
     '-ss',
     time(s.inSec),
@@ -153,6 +196,7 @@ export function editArgs(args: { spec: EditSpec; filter: string; output: string 
     '-nostdin',
     '-y',
     ...inputs,
+    ...stickers,
     '-filter_complex',
     args.filter,
     '-map',

@@ -36,6 +36,7 @@ function service(o: Partial<EditorDeps> = {}) {
     probe,
     cacheDir: join(dir, 'cache'),
     fontsDir: '/fonts',
+    assetsDir: join(dir, 'assets'),
     filmstripFrames: () => 12,
     makeFilmstrip: vi.fn(async ({ output }) => {
       mkdirSync(join(output, '..'), { recursive: true })
@@ -55,6 +56,8 @@ function service(o: Partial<EditorDeps> = {}) {
       mkdirSync(join(output, '..'), { recursive: true })
       writeFileSync(output, 'jpg')
     }),
+    chooseImages: vi.fn(async () => []),
+    probeImage: vi.fn(async () => ({ width: 200, height: 100 })),
     chooseSavePath: vi.fn(async (name: string) => {
       // A real save dialog only returns folders that exist.
       mkdirSync(join(dir, 'exports'), { recursive: true })
@@ -260,5 +263,46 @@ describe('editor service', () => {
   it('lists which clips already have a post on a channel', () => {
     const { editor } = service()
     expect(editor.postedClips(1, ['a', 'b'])).toEqual([])
+  })
+
+  it('keeps a sticker library: import once, list, and delete when unused', async () => {
+    const logo = join(dir, 'My Logo.png')
+    const copy = join(dir, 'same-logo.png')
+    const notes = join(dir, 'notes.txt')
+    writeFileSync(logo, 'png bytes')
+    writeFileSync(copy, 'png bytes')
+    writeFileSync(notes, 'text')
+    const { editor } = service({ chooseImages: vi.fn(async () => [logo, copy]) })
+
+    const added = await editor.importAssets()
+    // The same image twice is kept once.
+    expect(added.map((a) => a.id)).toEqual([added[0]?.id, added[0]?.id])
+    const asset = added[0]!
+    expect(asset).toMatchObject({ name: 'My Logo', width: 200, height: 100, animated: false })
+    expect(asset.fileName).toMatch(/^[0-9a-f]{24}\.png$/)
+    expect(editor.listAssets()).toHaveLength(1)
+
+    const { editor: wrongType } = service({ chooseImages: vi.fn(async () => [notes]) })
+    await expect(wrongType.importAssets()).rejects.toThrow(/PNG, JPG, WebP or GIF/)
+
+    // In use by a project: stays.
+    const spec = newEdit([{ path: video, durationSec: 12, clipId: null }])
+    spec.overlays = [
+      {
+        id: 'o',
+        asset: asset.fileName,
+        startSec: 0,
+        endSec: 2,
+        x: 0.5,
+        y: 0.5,
+        width: 0.2,
+        opacity: 1
+      }
+    ]
+    const project = await editor.createProject(spec, 'With logo')
+    await expect(editor.deleteAsset(asset.id)).rejects.toThrow(/used in the project "With logo"/)
+    await editor.deleteProject(project.id)
+    await editor.deleteAsset(asset.id)
+    expect(editor.listAssets()).toEqual([])
   })
 })

@@ -1,6 +1,6 @@
 import { Loader2 } from 'lucide-react'
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { locate, setFrame, updateText } from '@shared/editOps'
+import { locate, setFrame, updateOverlay, updateText } from '@shared/editOps'
 import { CANVAS_SIZES, frameRect } from '@shared/geometry'
 import {
   type EditSegment,
@@ -9,10 +9,16 @@ import {
   fillEditText,
   segmentStarts
 } from '@shared/schemas/edit'
-import type { EditorSource } from '@shared/schemas/editor'
+import type { EditorAsset, EditorSource } from '@shared/schemas/editor'
 import { drawSegmentFrame } from '@renderer/lib/drawEdit'
 import { drawTexts, type TextHit } from '@renderer/lib/drawText'
 import { loadEditorFonts } from '@renderer/lib/fonts'
+import {
+  drawStickers,
+  loadSticker,
+  type StickerHit,
+  type StickerImage
+} from '@renderer/lib/stickers'
 import { useVideoEditor } from '@renderer/stores/videoEditor'
 
 /**
@@ -26,8 +32,17 @@ const SHORTS_COVERED = [
   { x: 0, y: 1480, width: 1080, height: 440 }
 ]
 
+interface MoveDrag {
+  id: string
+  startX: number
+  startY: number
+  x: number
+  y: number
+}
+
 type PointerDrag =
-  | { kind: 'text'; id: string; startX: number; startY: number; x: number; y: number }
+  | ({ kind: 'text' } & MoveDrag)
+  | ({ kind: 'sticker' } & MoveDrag)
   | {
       kind: 'pan'
       index: number
@@ -46,12 +61,15 @@ type PointerDrag =
 export function Preview({
   spec,
   sources,
-  values
+  values,
+  assets
 }: {
   spec: EditSpec
   sources: Map<string, EditorSource>
   /** Template values for text variables ({{clip_title}}…), from the first clip. */
   values: Record<string, string>
+  /** The sticker library, by file name (for the stickers' image URLs). */
+  assets: Map<string, EditorAsset>
 }): React.JSX.Element {
   const containerRef = useRef<HTMLDivElement>(null)
   const canvasRef = useRef<HTMLCanvasElement>(null)
@@ -61,6 +79,9 @@ export function Preview({
     valuesRef.current = values
   }, [values])
   const hits = useRef<TextHit[]>([])
+  const stickerHits = useRef<StickerHit[]>([])
+  const stickerImages = useRef(new Map<string, StickerImage>())
+  const selectedOverlay = useVideoEditor((s) => s.selectedOverlay)
   const pointer = useRef<PointerDrag | null>(null)
   const selectedText = useVideoEditor((s) => s.selectedText)
   const showGuides = useVideoEditor((s) => s.showGuides)
@@ -93,6 +114,7 @@ export function Preview({
       current.canvas,
       localT ?? at.offset
     )
+    stickerHits.current = drawStickers(ctx, current, state.playhead, stickerImages.current)
     const filled = fillEditText(current, valuesRef.current)
     hits.current = drawTexts(ctx, filled, filled.texts, state.playhead)
 
@@ -110,7 +132,9 @@ export function Preview({
         ctx.strokeRect(r.x, r.y, r.width, r.height)
       }
     }
-    const chosen = hits.current.find((h) => h.id === state.selectedText)
+    const chosen =
+      hits.current.find((h) => h.id === state.selectedText) ??
+      stickerHits.current.find((h) => h.id === state.selectedOverlay)
     if (chosen && !state.playing) {
       ctx.strokeStyle = '#ffa6c9'
       ctx.lineWidth = 2 / k
@@ -133,7 +157,24 @@ export function Preview({
   // Redraw when the selection or the guides change (while paused).
   useEffect(() => {
     if (!playing) drawNow()
-  }, [selectedText, showGuides, values, playing, drawNow])
+  }, [selectedText, selectedOverlay, showGuides, values, playing, drawNow])
+
+  // Load each sticker's image once; redraw when one arrives.
+  const stickerFiles = [...new Set((spec.overlays ?? []).map((o) => o.asset))]
+  const stickerKey = stickerFiles.join('|')
+  useEffect(() => {
+    for (const file of stickerFiles) {
+      const asset = assets.get(file)
+      if (!asset || stickerImages.current.has(file)) continue
+      loadSticker(file, asset.url)
+        .then((image) => {
+          stickerImages.current.set(file, image)
+          if (!useVideoEditor.getState().playing) drawNow()
+        })
+        .catch((error: unknown) => console.warn(`Sticker ${file} didn't load:`, error))
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- stickerKey stands for stickerFiles
+  }, [stickerKey, assets, drawNow])
 
   /** Output pixels under the pointer. */
   function outputPoint(e: React.PointerEvent): { x: number; y: number } {
@@ -160,6 +201,33 @@ export function Preview({
           at.y <= h.box.y + h.box.height + 12
       )
     e.currentTarget.setPointerCapture(e.pointerId)
+    // Stickers are under the text: only hit when no text was.
+    const sticker = hit
+      ? undefined
+      : [...stickerHits.current]
+          .reverse()
+          .find(
+            (h) =>
+              at.x >= h.box.x &&
+              at.x <= h.box.x + h.box.width &&
+              at.y >= h.box.y &&
+              at.y <= h.box.y + h.box.height
+          )
+    if (sticker) {
+      const overlay = (current.overlays ?? []).find((o) => o.id === sticker.id)
+      if (!overlay) return
+      state.setPlaying(false)
+      state.selectOverlay(sticker.id)
+      pointer.current = {
+        kind: 'sticker',
+        id: sticker.id,
+        startX: at.x,
+        startY: at.y,
+        x: overlay.x,
+        y: overlay.y
+      }
+      return
+    }
     if (hit) {
       const text = current.texts.find((t) => t.id === hit.id)
       if (!text) return
@@ -176,6 +244,7 @@ export function Preview({
       return
     }
     state.selectText(null)
+    state.selectOverlay(null)
     if (current.canvas === 'vertical') return
     // Horizontal and square: dragging the picture moves what part of the video is shown.
     const { index } = locate(current, state.playhead)
@@ -212,12 +281,15 @@ export function Preview({
     if (!drag || !current) return
     const at = outputPoint(e)
     const clamp = (v: number) => Math.min(1, Math.max(0, v))
-    if (drag.kind === 'text') {
+    if (drag.kind === 'text' || drag.kind === 'sticker') {
+      const position = {
+        x: clamp(drag.x + (at.x - drag.startX) / size.width),
+        y: clamp(drag.y + (at.y - drag.startY) / size.height)
+      }
       state.change(
-        updateText(current, drag.id, {
-          x: clamp(drag.x + (at.x - drag.startX) / size.width),
-          y: clamp(drag.y + (at.y - drag.startY) / size.height)
-        }),
+        drag.kind === 'text'
+          ? updateText(current, drag.id, position)
+          : updateOverlay(current, drag.id, position),
         { live: true }
       )
       return
