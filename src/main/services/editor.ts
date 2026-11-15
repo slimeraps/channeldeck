@@ -517,6 +517,15 @@ export function createEditorService(deps: EditorDeps): EditorService {
       }
       const trimmed = name.trim().slice(0, 80)
       const existing = deps.repos.editStyles.list().find((s) => s.name === trimmed)
+      if (
+        existing &&
+        style.canvas !== 'vertical' &&
+        deps.repos.layoutPresets.list().some((l) => l.styleId === existing.id)
+      ) {
+        throw new UserFacingError(
+          'This style is used by a vertical layout. Save the wide style under a different name.'
+        )
+      }
       const row = existing
         ? deps.repos.editStyles.update(existing.id, { styleJson: style })
         : deps.repos.editStyles.create({ name: trimmed, styleJson: style })
@@ -526,6 +535,12 @@ export function createEditorService(deps: EditorDeps): EditorService {
     async deleteStyle(id) {
       const row = deps.repos.editStyles.require(id)
       const using = deps.repos.autopostRules.list().filter((r) => r.styleId === id)
+      const layout = deps.repos.layoutPresets.list().find((l) => l.styleId === id)
+      if (layout) {
+        throw new UserFacingError(
+          `"${row.name}" is used by the layout "${layout.name}". Pick another style there first.`
+        )
+      }
       if (using.length > 0) {
         throw new UserFacingError(
           `"${row.name}" is used by the autopost rule "${using[0]?.name}". Pick another style there first.`

@@ -219,7 +219,11 @@ export function RuleEditor({
     queryKey: ['editor', 'captionModel'],
     queryFn: () => invoke('editor:captionModel')
   })
-  const chosenStyle = (styles.data ?? []).find((s) => s.id === input.styleId)
+  const inheritedStyleId =
+    input.format === 'short'
+      ? (layouts.data ?? []).find((l) => l.id === input.layoutPresetId)?.styleId
+      : null
+  const chosenStyle = (styles.data ?? []).find((s) => s.id === (input.styleId ?? inheritedStyleId))
   const ruleLayouts = (layouts.data ?? []).filter((l) =>
     input.twitchAccountIds.includes(l.twitchAccountId)
   )
@@ -581,8 +585,9 @@ export function RuleEditor({
                     Use Twitch’s own vertical version when a clip has one
                   </label>
                   <p className="text-xs text-muted-foreground">
-                    Off: every Short is made from the horizontal clip with this layout. You can
-                    change any autopost’s format in the editor.
+                    A saved style always renders from the horizontal clip. With no style, turn this
+                    off to use the layout for every Short. You can change any autopost’s format in
+                    the editor.
                   </p>
                 </div>
               ) : null}
@@ -599,7 +604,7 @@ export function RuleEditor({
                     <SelectValue />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value={NONE}>None (the plain clip)</SelectItem>
+                    <SelectItem value={NONE}>Use layout’s style (or plain clip)</SelectItem>
                     {(styles.data ?? []).map((s) => (
                       <SelectItem key={s.id} value={String(s.id)}>
                         {s.name} ({s.canvas === 'vertical' ? 'Short' : 'wide'})

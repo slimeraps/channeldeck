@@ -369,6 +369,17 @@ describe('editor service', () => {
     expect(editor.listStyles()[0]?.usedByRules).toBe(1)
     await expect(editor.deleteStyle(saved.id)).rejects.toThrow(/used by the autopost rule "Daily"/)
     t.repos.autopostRules.update(rule.id, { styleId: null })
+    const layout = t.repos.layoutPresets.create({
+      twitchAccountId: twitch.id,
+      name: 'My branded layout',
+      kind: 'blur_fill',
+      styleId: saved.id
+    })
+    await expect(editor.deleteStyle(saved.id)).rejects.toThrow(/used by the layout/)
+    expect(() => editor.saveStyle('Big title', { ...spec, canvas: 'horizontal' })).toThrow(
+      /vertical layout/
+    )
+    t.repos.layoutPresets.update(layout.id, { styleId: null })
     await editor.deleteStyle(saved.id)
     expect(editor.listStyles()).toEqual([])
   })
