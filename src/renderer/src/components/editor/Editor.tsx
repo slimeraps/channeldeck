@@ -11,6 +11,8 @@ import {
   Scissors,
   Sparkles,
   Trash2,
+  Type,
+  View,
   Undo2,
   X
 } from 'lucide-react'
@@ -19,7 +21,10 @@ import { useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import {
   addSegment,
+  addText,
   locate,
+  newText,
+  removeText,
   removeSegment,
   setCanvas,
   splitAt,
@@ -57,8 +62,10 @@ import { formatClock } from '@renderer/lib/clock'
 import { invoke, onEvent } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/utils'
 import { useVideoEditor } from '@renderer/stores/videoEditor'
+import { FramePanel } from './FramePanel'
 import { LayoutPanel } from './LayoutPanel'
 import { Preview } from './Preview'
+import { TextPanel } from './TextPanel'
 import { Timeline } from './Timeline'
 
 const CANVAS_LABEL: Record<CanvasKind, { label: string; hint: string }> = {
@@ -86,6 +93,8 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
   const selected = useVideoEditor((s) => s.selected)
   const playhead = useVideoEditor((s) => s.playhead)
   const playing = useVideoEditor((s) => s.playing)
+  const showGuides = useVideoEditor((s) => s.showGuides)
+  const selectedTextId = useVideoEditor((s) => s.selectedText)
   const canUndo = useVideoEditor((s) => s.past.length > 0)
   const canRedo = useVideoEditor((s) => s.future.length > 0)
   const store = useVideoEditor.getState()
@@ -139,7 +148,16 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
       } else if (key === 'i' || key === 'o') {
         setPoint(key === 'i' ? 'in' : 'out')
       } else if (key === 'backspace' || key === 'delete') {
-        deletePiece()
+        if (s.selectedText) {
+          s.change(removeText(current, s.selectedText))
+          s.selectText(null)
+        } else {
+          deletePiece()
+        }
+      } else if (key === 't') {
+        addTextHere()
+      } else if (key === 'escape') {
+        s.selectText(null)
       } else if (key === 'home') {
         s.seek(0)
       } else if (key === 'end') {
@@ -159,6 +177,12 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
   const segment = spec.segments[index] as EditSegment
   const source = sources.get(segment.sourcePath)
   const missing = [...errors.entries()]
+  const selectedText = spec.texts.find((t) => t.id === selectedTextId) ?? null
+  // Text variables take the first banked clip's details, as the render does.
+  const clipSource = spec.segments
+    .map((seg) => sources.get(seg.sourcePath))
+    .find((src) => src?.clipId)
+  const values = clipSource?.values ?? {}
 
   function togglePlay(): void {
     const s = useVideoEditor.getState()
@@ -193,6 +217,15 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
     s.change(next)
     s.select(at.index)
     if (edge === 'in') s.seek(segmentStarts(next)[at.index] ?? 0)
+  }
+
+  function addTextHere(): void {
+    const s = useVideoEditor.getState()
+    if (!s.spec) return
+    s.setPlaying(false)
+    const text = newText(s.spec, s.playhead, crypto.randomUUID())
+    s.change(addText(s.spec, text))
+    s.selectText(text.id)
   }
 
   function deletePiece(): void {
@@ -316,6 +349,20 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
             </DropdownMenuItem>
           </DropdownMenuContent>
         </DropdownMenu>
+        <Button variant="outline" size="sm" onClick={addTextHere} title="Add text (T)">
+          <Type aria-hidden /> Text
+        </Button>
+        {spec.canvas === 'vertical' ? (
+          <Button
+            variant={showGuides ? 'secondary' : 'ghost'}
+            size="sm"
+            aria-pressed={showGuides}
+            onClick={() => store.toggleGuides()}
+            title="Show what YouTube's Shorts player covers"
+          >
+            <View aria-hidden /> Guides
+          </Button>
+        ) : null}
         <div className="ml-auto flex items-center gap-2">
           {spec.canvas === 'vertical' && total > SHORT_LIMIT_SEC ? (
             <span className="flex items-center gap-1 text-xs text-amber-400">
@@ -362,7 +409,7 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
       {/* Preview and inspector */}
       <div className="flex min-h-0 flex-1">
         <div className="flex min-w-0 flex-1 flex-col">
-          <Preview spec={spec} sources={sources} />
+          <Preview spec={spec} sources={sources} values={values} />
           <div className="flex items-center justify-center gap-3 pb-2 text-sm">
             <Button
               variant="secondary"
@@ -379,7 +426,10 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
           </div>
         </div>
         <aside className="w-72 shrink-0 space-y-5 overflow-y-auto border-l p-4">
-          <section className="space-y-2">
+          {selectedText ? (
+            <TextPanel spec={spec} text={selectedText} isClip={Boolean(clipSource)} />
+          ) : null}
+          <section className={selectedText ? 'hidden' : 'space-y-2'}>
             <h3 className="text-sm font-medium">Piece {index + 1}</h3>
             <p className="truncate text-xs text-muted-foreground" title={segment.sourcePath}>
               {source?.clipTitle ?? source?.fileName ?? segment.sourcePath}
@@ -413,20 +463,16 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
               </Button>
             </div>
           </section>
-          {spec.canvas === 'vertical' ? (
+          {selectedText ? null : spec.canvas === 'vertical' ? (
             <LayoutPanel spec={spec} index={index} source={source} />
           ) : (
-            <section className="space-y-1">
-              <h3 className="text-sm font-medium">Frame</h3>
-              <p className="text-xs text-muted-foreground">
-                Shows the whole frame for now. Crop and zoom come with the next editor update.
-              </p>
-            </section>
+            <FramePanel spec={spec} index={index} />
           )}
           <section className="space-y-1 text-xs text-muted-foreground">
             <h3 className="text-sm font-medium text-foreground">Shortcuts</h3>
             <p>Space play/pause · J/L ±1 s · ←/→ one frame</p>
-            <p>S split · I/O start/end here · ⌫ delete piece</p>
+            <p>S split · I/O start/end here · ⌫ delete piece or text</p>
+            <p>T add text · Esc deselect text</p>
             <p>⌘Z undo · ⇧⌘Z redo · ⌘ + scroll zooms the timeline</p>
           </section>
         </aside>

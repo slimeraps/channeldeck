@@ -218,6 +218,16 @@ A video editor that beats Eklipse's: trim, text, crop and zoom, join clips, swit
 
 **Acceptance:** edit operations and the editor service are unit-tested; screenshot mode opens the editor on a demo clip, adds a second clip, plays across the join, splits with S, switches to 16:9 and renders.
 
-### E3–E8
+### E3 — Text, crop and zoom
 
-E3 text, crop and zoom · E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.
+- [x] Text layers: add at the playhead (T), type, insert clip details ({{clip_title}}, {{game}}, …), three bundled fonts, size, color, outline or box (with opacity), shadow, alignment, none/fade/pop, Top/Middle/Bottom, drag on the preview, timing on the timeline's text row
+- [x] The preview lays text out exactly like libass: the fonts' OS/2 metrics (shared/fonts.ts, checked against the files by a test), greedy wrapping (ASS WrapStyle 1) inside the side margins (shared/textLayout.ts)
+- [x] Clip details are filled from the first banked clip in the preview, Render now and the upload render
+- [x] Frame panel for 16:9 and 1:1: zoom, a slow zoom over the piece, left/right and top/bottom, every piece, reset; drag the picture to move it
+- [x] Shorts guides: shades where YouTube's player covers a vertical video
+
+**Acceptance:** text operations, layout and variable filling are unit-tested; libass glyph positions were measured with the bundled ffmpeg and match the preview's model to the pixel; screenshot mode adds a text, turns on the guides, zooms a 16:9 piece and renders, and the preview's text matches the rendered frame.
+
+### E4–E8
+
+E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.

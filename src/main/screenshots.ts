@@ -600,10 +600,26 @@ export async function captureScreens(
       // Split at the playhead with S.
       await key('s')
       await shot('data-editor-split')
+      // A text at the playhead (T), without animation so the preview and render line up.
+      await key('t', 600)
+      await click('None')
+      await shot('data-editor-text')
+      await click('Guides')
+      await shot('data-editor-guides')
+      await click('Guides')
+      await key('Escape')
     }
     if (await click('16:9')) {
       await settle(1500)
       await shot('data-editor-horizontal')
+      // Zoom to 150% with the Frame panel's first slider (React listens for "input").
+      await js(`(() => {
+        const el = document.querySelector('aside input[type="range"]'); if (!el) return
+        Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(el, '150')
+        el.dispatchEvent(new Event('input', { bubbles: true }))
+      })()`)
+      await settle(800)
+      await shot('data-editor-zoom')
       await click('9:16')
     }
     if (await click('Render now')) {

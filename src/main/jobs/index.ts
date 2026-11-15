@@ -1,5 +1,5 @@
 import { powerMonitor, powerSaveBlocker } from 'electron'
-import { isEditSpec } from '@shared/schemas/edit'
+import { fillEditText, isEditSpec } from '@shared/schemas/edit'
 import { emitToRenderer } from '../appWindow'
 import { getRepos } from '../db'
 import { logger } from '../logger'
@@ -9,6 +9,7 @@ import { createPowerGuard } from '../power'
 import { renderEdit, renderVertical } from '../media/ffmpeg'
 import { probeVideo } from '../media/ffprobe'
 import { getAutopost, getTwitchAccounts, getYouTubeAccounts, setSyncingProbe } from '../services'
+import { editTemplateValues } from '../services/editValues'
 import { createClipDownloadJob } from './clipDownload'
 import { createClipSyncJob } from './clipSync'
 import { createCleanupJob } from './cleanup'
@@ -43,8 +44,9 @@ export function startJobs(): void {
       if (!spec || !post.filePath) throw new Error('Nothing to render')
       if (isEditSpec(spec)) {
         const sources = await Promise.all(spec.segments.map((s) => probeVideo(s.sourcePath)))
+        const zone = Intl.DateTimeFormat().resolvedOptions().timeZone
         await renderEdit({
-          spec,
+          spec: fillEditText(spec, editTemplateValues(getRepos(), spec, zone)),
           sources,
           output: post.filePath,
           fontsDir: resourcePath('fonts'),

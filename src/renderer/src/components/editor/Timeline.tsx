@@ -1,5 +1,13 @@
 import { useEffect, useRef, useState } from 'react'
-import { cutPoints, moveSegment, snap, trimIn, trimOut } from '@shared/editOps'
+import {
+  cutPoints,
+  moveSegment,
+  moveText,
+  retimeText,
+  snap,
+  trimIn,
+  trimOut
+} from '@shared/editOps'
 import {
   type EditSegment,
   type EditSpec,
@@ -22,6 +30,9 @@ const HANDLE = 8
 const SNAP_PX = 8
 const RULER_H = 22
 const TRACK_H = 72
+const TEXT_ROW_H = 24
+/** Everything below the ruler: the pieces and the text row. */
+const BODY_H = TRACK_H + TEXT_ROW_H + 14
 /** Seconds between ruler labels: the first that leaves at least 70 px between them. */
 const STEPS = [0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600]
 
@@ -35,6 +46,14 @@ type Drag =
       startSpec: EditSpec
     }
   | { kind: 'move'; index: number; startX: number; moved: boolean; target: number }
+  | {
+      kind: 'text'
+      id: string
+      part: 'body' | 'start' | 'end'
+      startX: number
+      startSpec: EditSpec
+      moved: boolean
+    }
 
 export function Timeline({
   spec,
@@ -49,7 +68,8 @@ export function Timeline({
   const playhead = useVideoEditor((s) => s.playhead)
   const playing = useVideoEditor((s) => s.playing)
   const selected = useVideoEditor((s) => s.selected)
-  const { select, seek, change, commit, zoom } = useVideoEditor.getState()
+  const selectedText = useVideoEditor((s) => s.selectedText)
+  const { select, selectText, seek, change, commit, zoom } = useVideoEditor.getState()
   const scrollRef = useRef<HTMLDivElement>(null)
   const drag = useRef<Drag | null>(null)
   const [dropAt, setDropAt] = useState<number | null>(null)
@@ -108,6 +128,13 @@ export function Timeline({
     return snap(t, cutPoints(spec), SNAP_PX / pxPerSec)
   }
 
+  function onTextDown(e: React.PointerEvent, id: string, part: 'body' | 'start' | 'end'): void {
+    e.stopPropagation()
+    e.currentTarget.setPointerCapture(e.pointerId)
+    selectText(id)
+    drag.current = { kind: 'text', id, part, startX: e.clientX, startSpec: spec, moved: false }
+  }
+
   function onHandleDown(e: React.PointerEvent, index: number, edge: 'in' | 'out'): void {
     e.stopPropagation()
     e.currentTarget.setPointerCapture(e.pointerId)
@@ -125,6 +152,28 @@ export function Timeline({
     if (!d) return
     if (d.kind === 'seek') {
       seek(snapTime(timeAt(e.clientX)))
+      return
+    }
+    if (d.kind === 'text') {
+      const text = d.startSpec.texts.find((x) => x.id === d.id)
+      if (!text) return
+      const dSec = (e.clientX - d.startX) / pxPerSec
+      if (!d.moved && Math.abs(e.clientX - d.startX) < 3) return
+      d.moved = true
+      const targets = [playhead, ...cutPoints(d.startSpec)]
+      const tolerance = SNAP_PX / pxPerSec
+      if (d.part === 'body') {
+        change(moveText(d.startSpec, d.id, snap(text.startSec + dSec, targets, tolerance)), {
+          live: true
+        })
+      } else {
+        const at = snap(
+          (d.part === 'start' ? text.startSec : text.endSec) + dSec,
+          targets,
+          tolerance
+        )
+        change(retimeText(d.startSpec, d.id, d.part, at), { live: true })
+      }
       return
     }
     if (d.kind === 'trim') {
@@ -168,6 +217,10 @@ export function Timeline({
     drag.current = null
     if (!d) return
     if (d.kind === 'trim') commit()
+    if (d.kind === 'text') {
+      if (d.moved) commit()
+      return
+    }
     if (d.kind === 'move') {
       setDropAt(null)
       if (!d.moved) {
@@ -231,7 +284,7 @@ export function Timeline({
         onPointerUp={onUp}
         onPointerCancel={onUp}
       >
-        <div className="relative" style={{ width, height: RULER_H + TRACK_H + 8 }}>
+        <div className="relative" style={{ width, height: RULER_H + BODY_H }}>
           {/* Ruler */}
           <div
             className="absolute inset-x-0 top-0 cursor-text border-b border-border/60"
@@ -325,10 +378,48 @@ export function Timeline({
             ) : null}
           </div>
 
+          {/* Text layers */}
+          <div
+            className="absolute inset-x-0"
+            style={{ top: RULER_H + TRACK_H + 10, height: TEXT_ROW_H }}
+          >
+            {spec.texts.map((text) => (
+              <div
+                key={text.id}
+                className={cn(
+                  'absolute top-0 flex h-full cursor-grab items-center overflow-hidden rounded border px-2 text-[11px] active:cursor-grabbing',
+                  selectedText === text.id
+                    ? 'border-brand bg-brand/30 text-foreground'
+                    : 'border-brand/40 bg-brand/15 text-muted-foreground'
+                )}
+                style={{
+                  left: text.startSec * pxPerSec,
+                  width: Math.max(8, (text.endSec - text.startSec) * pxPerSec)
+                }}
+                onPointerDown={(e) => onTextDown(e, text.id, 'body')}
+                title={text.text}
+              >
+                <span className="pointer-events-none truncate">{text.text}</span>
+                <div
+                  className="absolute inset-y-0 left-0 w-1.5 cursor-ew-resize hover:bg-brand/70"
+                  onPointerDown={(e) => onTextDown(e, text.id, 'start')}
+                  role="separator"
+                  aria-label="Change when the text starts"
+                />
+                <div
+                  className="absolute inset-y-0 right-0 w-1.5 cursor-ew-resize hover:bg-brand/70"
+                  onPointerDown={(e) => onTextDown(e, text.id, 'end')}
+                  role="separator"
+                  aria-label="Change when the text ends"
+                />
+              </div>
+            ))}
+          </div>
+
           {/* Playhead */}
           <div
             className="pointer-events-none absolute top-0 w-px bg-brand"
-            style={{ left: playhead * pxPerSec, height: RULER_H + TRACK_H + 8 }}
+            style={{ left: playhead * pxPerSec, height: RULER_H + BODY_H }}
           >
             <div className="absolute -top-0.5 -left-1 size-2.5 rotate-45 rounded-sm bg-brand" />
           </div>
