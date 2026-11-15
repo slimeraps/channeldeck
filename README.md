@@ -238,6 +238,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
 
+### Unreleased
+
+- **Queue filters stay reachable:** if all your posts are published or canceled, the Queue now shows "No active posts" with a **Show finished posts** button instead of the first-run "Nothing in the queue yet" screen, which hid the status filter. The first-run screen appears only when you have no posts at all.
+
 ### 2.0.0 (2026-11-15)
 
 - **Branding on vertical layout presets:** edit an existing preset and choose **Saved branding style** to attach a vertical editor style with logos, text and captions. Each channel's preset can use its own branding.
