@@ -1,6 +1,7 @@
 import { z } from 'zod'
 import { LAYOUT_KINDS } from '../constants/enums'
 import { CANVAS_SIZES, type CanvasKind } from '../geometry'
+import { renderTemplate, type TemplateValues } from '../templates'
 import { layoutCropsSchema } from './autopost'
 
 /**
@@ -212,4 +213,10 @@ export function editFromLegacy(spec: LegacyRenderSpec, durationSec: number): Edi
     texts: [],
     volume: 1
   }
+}
+
+/** Fills {{variables}} in the text layers (clip title, game…). Unknown ones stay as typed. */
+export function fillEditText(spec: EditSpec, values: TemplateValues): EditSpec {
+  if (!spec.texts.some((t) => t.text.includes('{{'))) return spec
+  return { ...spec, texts: spec.texts.map((t) => ({ ...t, text: renderTemplate(t.text, values) })) }
 }

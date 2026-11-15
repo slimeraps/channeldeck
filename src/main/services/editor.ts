@@ -2,7 +2,7 @@ import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
 import { stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { type EditSpec, renderSources } from '@shared/schemas/edit'
+import { type EditSpec, fillEditText, renderSources } from '@shared/schemas/edit'
 import type { EditorRender, EditorSource, EditorStrips } from '@shared/schemas/editor'
 import type { Repos } from '../db/repos'
 import { editFileName, type SourceInfo } from '../domain/edit'
@@ -10,6 +10,7 @@ import { UserFacingError } from '../errors'
 import type { MediaAccess } from '../media/access'
 import type { ProbeResult } from '../media/ffprobe'
 import { mediaUrl } from '../media/mediaUrl'
+import { clipSourceValues, editTemplateValues } from './editValues'
 
 /**
  * The editor's main-process side (PLAN.md → Editor, E2): what it needs about each source
@@ -53,9 +54,12 @@ export interface EditorDeps {
   }) => Promise<void>
   emitProgress: (fraction: number) => void
   showItemInFolder: (path: string) => void
+  /** Time zone for {{clip_date}} (default: the Mac's). */
+  zone?: string
 }
 
 export function createEditorService(deps: EditorDeps): EditorService {
+  const zone = deps.zone ?? Intl.DateTimeFormat().resolvedOptions().timeZone
   let running: AbortController | null = null
   /** Strips being made, so two requests for one file share the work. */
   const making = new Map<string, Promise<EditorStrips>>()
@@ -119,7 +123,8 @@ export function createEditorService(deps: EditorDeps): EditorService {
         previewUrl: mediaUrl(path),
         clipId: clip?.id ?? null,
         clipTitle: clip?.title ?? null,
-        twitchAccountId: clip?.twitchAccountId ?? null
+        twitchAccountId: clip?.twitchAccountId ?? null,
+        values: clip ? (clipSourceValues(deps.repos, clip, zone) as Record<string, string>) : {}
       }
     },
 
@@ -146,7 +151,8 @@ export function createEditorService(deps: EditorDeps): EditorService {
         let last = 0
         deps.emitProgress(0)
         await deps.renderEdit({
-          spec,
+          // Text variables become the first clip's details ({{clip_title}}, {{game}}…).
+          spec: fillEditText(spec, editTemplateValues(deps.repos, spec, zone)),
           sources,
           output,
           fontsDir: deps.fontsDir,

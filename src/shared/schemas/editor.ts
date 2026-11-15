@@ -14,7 +14,9 @@ export const editorSourceSchema = z.object({
   /** Set when the file is a banked Twitch clip (its channel's saved layouts apply). */
   clipId: z.string().nullable(),
   clipTitle: z.string().nullable(),
-  twitchAccountId: z.number().int().nullable()
+  twitchAccountId: z.number().int().nullable(),
+  /** What {{clip_title}}, {{game}}… become for a banked clip (empty for other files). */
+  values: z.record(z.string(), z.string())
 })
 export type EditorSource = z.infer<typeof editorSourceSchema>
 

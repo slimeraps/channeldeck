@@ -3,6 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest'
 import { newEdit } from '@shared/editOps'
+import { DEFAULT_TEXT_STYLE } from '@shared/schemas/edit'
 import { createTestDb, seedClip, seedTwitchAccount, type TestDb } from '../../../tests/helpers/db'
 import { createMediaAccess } from '../media/access'
 import type { ProbeResult } from '../media/ffprobe'
@@ -92,6 +93,33 @@ describe('editor service', () => {
       clipTitle: 'Big play',
       twitchAccountId: twitch.id
     })
+  })
+
+  it('fills text variables with the first clip before rendering', async () => {
+    const twitch = seedTwitchAccount(t.repos)
+    seedClip(t.repos, twitch.id, 'clip7', { title: 'Big play' })
+    t.repos.clips.setDownload('clip7', {
+      downloadStatus: 'downloaded',
+      landscapePath: video,
+      portraitPath: null,
+      fileSize: 1
+    })
+    const { editor, deps } = service()
+    expect((await editor.source(video)).values).toMatchObject({ clip_title: 'Big play' })
+    const spec = newEdit([{ path: video, durationSec: 12, clipId: 'clip7' }])
+    spec.texts.push({
+      id: 't',
+      text: '{{clip_title}} by {{broadcaster}} #{{n}} {{oops}}',
+      startSec: 0,
+      endSec: 2,
+      x: 0.5,
+      y: 0.5,
+      style: DEFAULT_TEXT_STYLE,
+      animation: 'none'
+    })
+    await editor.render(spec)
+    const rendered = vi.mocked(deps.renderEdit).mock.calls[0]?.[0].spec
+    expect(rendered?.texts[0]?.text).toBe(`Big play by ${twitch.displayName} # {{oops}}`)
   })
 
   it('makes the timeline pictures once and shares a request in progress', async () => {

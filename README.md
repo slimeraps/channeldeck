@@ -239,6 +239,10 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 
 ### Unreleased
 
+- Editor, phase E3 (2026-11-14):
+  - **Text:** **Text** (or T) adds text at the playhead. Pick a font (Archivo Black, Anton or Bebas Neue), size, color, an outline or a box, a shadow, alignment, and None, Fade or Pop. Drag it on the preview, and drag it or its ends on the timeline's text row. **Insert a clip detail…** adds `{{clip_title}}`, `{{game}}`, `{{broadcaster}}` and more, filled from the first clip in the edit. The preview places text exactly where the render puts it (same fonts, same sizes, same line wrapping).
+  - **Crop and zoom:** for 16:9 and 1:1, the **Frame** panel zooms in, can zoom slowly over a piece, and moves the picture; you can also drag the picture in the preview.
+  - **Guides** shades the parts of a vertical video that YouTube's Shorts player covers.
 - Editor, phase E2 (2026-11-14): a new **Editor** page. Open a clip from your bank or any video file, then:
   - **Trim** by dragging the edges of a piece on the timeline.
   - **Split** at the playhead (S), **delete** a piece (⌫), or **drag a piece** to reorder.

@@ -1,7 +1,10 @@
 import type { CanvasKind } from './geometry'
 import {
+  DEFAULT_TEXT_STYLE,
   EDIT_SPEC_VERSION,
+  type EditFrame,
   type EditLayout,
+  type EditText,
   type EditSegment,
   type EditSpec,
   editDuration,
@@ -184,4 +187,88 @@ export function snap(value: number, targets: readonly number[], tolerance: numbe
 /** Output times where segments meet (plus the start and end): what trims and the playhead snap to. */
 export function cutPoints(spec: Pick<EditSpec, 'segments'>): number[] {
   return [...segmentStarts(spec), editDuration(spec)]
+}
+
+// ---- text layers --------------------------------------------------------------------------
+
+/** How long a new text stays on screen. */
+export const NEW_TEXT_SECONDS = 3
+
+/**
+ * A new text layer at output time `t`, near the top of the frame, about three seconds long
+ * (less at the end of the edit; it starts earlier rather than fall off the end).
+ */
+export function newText(spec: EditSpec, t: number, id: string): EditText {
+  const total = editDuration(spec)
+  const length = Math.min(NEW_TEXT_SECONDS, total)
+  const startSec = Math.max(0, Math.min(t, total - length))
+  return {
+    id,
+    text: 'Your text',
+    startSec,
+    endSec: Math.min(total, startSec + length),
+    x: 0.5,
+    y: spec.canvas === 'vertical' ? 0.2 : 0.15,
+    style: { ...DEFAULT_TEXT_STYLE, size: spec.canvas === 'vertical' ? 96 : 80 },
+    animation: 'pop'
+  }
+}
+
+export function addText(spec: EditSpec, text: EditText): EditSpec {
+  return { ...spec, texts: [...spec.texts, text] }
+}
+
+export function updateText(
+  spec: EditSpec,
+  id: string,
+  patch: Partial<Omit<EditText, 'id'>>
+): EditSpec {
+  return { ...spec, texts: spec.texts.map((t) => (t.id === id ? { ...t, ...patch } : t)) }
+}
+
+export function removeText(spec: EditSpec, id: string): EditSpec {
+  return { ...spec, texts: spec.texts.filter((t) => t.id !== id) }
+}
+
+/** Moves a text in time, keeping its length and keeping it inside the edit. */
+export function moveText(spec: EditSpec, id: string, startSec: number): EditSpec {
+  const text = spec.texts.find((t) => t.id === id)
+  if (!text) return spec
+  const length = text.endSec - text.startSec
+  const start = Math.max(0, Math.min(startSec, editDuration(spec) - length))
+  return updateText(spec, id, { startSec: start, endSec: start + length })
+}
+
+/** Changes when a text starts or ends; it stays at least 0.1 s long and inside the edit. */
+export function retimeText(
+  spec: EditSpec,
+  id: string,
+  edge: 'start' | 'end',
+  sec: number
+): EditSpec {
+  const text = spec.texts.find((t) => t.id === id)
+  if (!text) return spec
+  const total = editDuration(spec)
+  return edge === 'start'
+    ? updateText(spec, id, {
+        startSec: Math.max(0, Math.min(sec, text.endSec - MIN_SEGMENT_SECONDS))
+      })
+    : updateText(spec, id, {
+        endSec: Math.min(total, Math.max(sec, text.startSec + MIN_SEGMENT_SECONDS))
+      })
+}
+
+/** Texts on screen at output time `t`. */
+export function textsAt(spec: Pick<EditSpec, 'texts'>, t: number): EditText[] {
+  return spec.texts.filter((x) => t >= x.startSec && t < x.endSec)
+}
+
+// ---- frame (horizontal and square canvases) -------------------------------------------------
+
+/** Sets the crop and zoom of one segment, or of every segment. */
+export function setFrame(spec: EditSpec, index: number | 'all', frame: EditFrame): EditSpec {
+  return {
+    ...spec,
+    segments: spec.segments.map((s, i) => (index === 'all' || i === index ? { ...s, frame } : s))
+  }
 }

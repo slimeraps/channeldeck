@@ -1,6 +1,7 @@
 import type { CanvasKind } from '@shared/geometry'
 import { CANVAS_SIZES } from '@shared/geometry'
 import type { EditText, TextStyle } from '@shared/schemas/edit'
+import { boxPadding, TEXT_SIDE_MARGIN } from '@shared/textLayout'
 
 /**
  * Text layers as an ASS subtitle script, rendered onto the video by libass (ffmpeg's `ass`
@@ -12,8 +13,8 @@ import type { EditText, TextStyle } from '@shared/schemas/edit'
  * the alignment. The editor's preview uses the same rule.
  */
 
-/** Horizontal room kept free at each side; long text wraps inside it. */
-export const TEXT_MARGIN = 60
+/** Horizontal room kept free at each side; long text wraps inside it (same as the preview). */
+export const TEXT_MARGIN = TEXT_SIDE_MARGIN
 
 /** "#RRGGBB" or "#RRGGBBAA" → ASS "&HAABBGGRR" (ASS alpha: 00 = opaque, FF = invisible). */
 export function assColor(hex: string): string {
@@ -74,7 +75,7 @@ function styleLine(name: string, style: TextStyle): string {
     0,
     0,
     boxed ? 3 : 1,
-    boxed ? Math.max(8, Math.round(style.size * 0.18)) : style.outlineWidth,
+    boxed ? boxPadding(style.size) : style.outlineWidth,
     style.shadow,
     ALIGN[style.align],
     TEXT_MARGIN,
@@ -106,7 +107,8 @@ export function buildAss(canvas: CanvasKind, texts: readonly EditText[]): string
     `PlayResX: ${width}`,
     `PlayResY: ${height}`,
     'ScaledBorderAndShadow: yes',
-    'WrapStyle: 0',
+    // Greedy word wrap, which the editor's preview reproduces (shared/textLayout.ts).
+    'WrapStyle: 1',
     'YCbCr Matrix: TV.709',
     '',
     '[V4+ Styles]',

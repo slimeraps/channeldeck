@@ -22,6 +22,10 @@ interface VideoEditorState {
   /** The spec before a live drag started (null when not dragging). */
   dragStart: EditSpec | null
   selected: number | null
+  /** The text layer being edited (its panel shows instead of the piece's). */
+  selectedText: string | null
+  /** Shows where YouTube's Shorts buttons and captions cover the video. */
+  showGuides: boolean
   playhead: number
   playing: boolean
   pxPerSec: number
@@ -33,10 +37,16 @@ interface VideoEditorState {
   undo: () => void
   redo: () => void
   select: (index: number | null) => void
+  selectText: (id: string | null) => void
+  toggleGuides: () => void
   seek: (t: number) => void
   setPlaying: (playing: boolean) => void
   zoom: (pxPerSec: number) => void
 }
+
+/** The selected text, if it still exists in this version of the edit. */
+const keepText = (spec: EditSpec, id: string | null): string | null =>
+  id && spec.texts.some((t) => t.id === id) ? id : null
 
 const clampTime = (spec: EditSpec | null, t: number): number =>
   Math.min(Math.max(0, t), spec ? editDuration(spec) : 0)
@@ -47,12 +57,23 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
   future: [],
   dragStart: null,
   selected: null,
+  selectedText: null,
+  showGuides: false,
   playhead: 0,
   playing: false,
   pxPerSec: 60,
 
   open: (spec) =>
-    set({ spec, past: [], future: [], dragStart: null, selected: 0, playhead: 0, playing: false }),
+    set({
+      spec,
+      past: [],
+      future: [],
+      dragStart: null,
+      selected: 0,
+      selectedText: null,
+      playhead: 0,
+      playing: false
+    }),
 
   close: () => set({ spec: null, past: [], future: [], dragStart: null, playing: false }),
 
@@ -70,7 +91,8 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       future: [],
       dragStart: null,
       playhead: clampTime(next, get().playhead),
-      selected: Math.min(get().selected ?? 0, next.segments.length - 1)
+      selected: Math.min(get().selected ?? 0, next.segments.length - 1),
+      selectedText: keepText(next, get().selectedText)
     })
   },
 
@@ -89,7 +111,8 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       past: past.slice(0, -1),
       future: [spec, ...future],
       playhead: clampTime(previous, get().playhead),
-      selected: Math.min(get().selected ?? 0, previous.segments.length - 1)
+      selected: Math.min(get().selected ?? 0, previous.segments.length - 1),
+      selectedText: keepText(previous, get().selectedText)
     })
   },
 
@@ -102,11 +125,14 @@ export const useVideoEditor = create<VideoEditorState>((set, get) => ({
       past: [...past, spec],
       future: future.slice(1),
       playhead: clampTime(next, get().playhead),
-      selected: Math.min(get().selected ?? 0, next.segments.length - 1)
+      selected: Math.min(get().selected ?? 0, next.segments.length - 1),
+      selectedText: keepText(next, get().selectedText)
     })
   },
 
-  select: (index) => set({ selected: index }),
+  select: (index) => set({ selected: index, selectedText: null }),
+  selectText: (id) => set({ selectedText: id }),
+  toggleGuides: () => set({ showGuides: !get().showGuides }),
   seek: (t) => set({ playhead: clampTime(get().spec, t) }),
   setPlaying: (playing) => set({ playing }),
   zoom: (pxPerSec) =>

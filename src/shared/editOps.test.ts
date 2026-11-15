@@ -1,6 +1,14 @@
 import { describe, expect, it } from 'vitest'
 import {
   addSegment,
+  addText,
+  moveText,
+  newText,
+  removeText,
+  retimeText,
+  setFrame,
+  textsAt,
+  updateText,
   cutPoints,
   locate,
   moveSegment,
@@ -109,5 +117,38 @@ describe('snap and cutPoints', () => {
     expect(snap(4.95, [0, 5, 10], 0.1)).toBe(5)
     expect(snap(4.5, [0, 5, 10], 0.1)).toBe(4.5)
     expect(cutPoints(edit())).toEqual([0, 10, 14])
+  })
+})
+
+describe('text layers', () => {
+  it('adds a text at the playhead that stays inside the edit', () => {
+    const spec = edit() // 14 s
+    expect(newText(spec, 5, 't1')).toMatchObject({ startSec: 5, endSec: 8, y: 0.2 })
+    // Near the end it starts earlier rather than run past the end.
+    expect(newText(spec, 13, 't2')).toMatchObject({ startSec: 11, endSec: 14 })
+    expect(newText(newEdit([a], 'horizontal'), 0, 't3').style.size).toBe(80)
+  })
+
+  it('edits, moves, retimes and removes texts', () => {
+    let spec = addText(edit(), newText(edit(), 2, 't1'))
+    expect(editSpecSchema.safeParse(spec).success).toBe(true)
+    spec = updateText(spec, 't1', { text: 'GG', y: 0.8 })
+    expect(spec.texts[0]).toMatchObject({ text: 'GG', y: 0.8 })
+    expect(moveText(spec, 't1', 20).texts[0]).toMatchObject({ startSec: 11, endSec: 14 })
+    expect(moveText(spec, 't1', -3).texts[0]).toMatchObject({ startSec: 0, endSec: 3 })
+    expect(retimeText(spec, 't1', 'end', 99).texts[0]?.endSec).toBe(14)
+    expect(retimeText(spec, 't1', 'start', 4.99).texts[0]?.startSec).toBeCloseTo(4.9)
+    expect(textsAt(spec, 2).map((t) => t.id)).toEqual(['t1'])
+    expect(textsAt(spec, 5)).toEqual([])
+    expect(removeText(spec, 't1').texts).toEqual([])
+  })
+})
+
+describe('setFrame', () => {
+  it('sets the crop and zoom of one piece or every piece', () => {
+    const frame = { zoomStart: 1.2, zoomEnd: 1.6, cx: 0.3, cy: 0.5 }
+    const wide = newEdit([a, b], 'horizontal')
+    expect(setFrame(wide, 1, frame).segments.map((s) => s.frame?.zoomEnd)).toEqual([1, 1.6])
+    expect(setFrame(wide, 'all', frame).segments.every((s) => s.frame === frame)).toBe(true)
   })
 })
