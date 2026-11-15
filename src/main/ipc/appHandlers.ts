@@ -5,7 +5,7 @@ import { getMainWindow } from '../appWindow'
 import { UserFacingError } from '../errors'
 import { APP_NAME } from '@shared/constants/app'
 import { databasePath } from '../db'
-import { getBackup, getStatus } from '../services'
+import { getBackup, getHealth, getStatus } from '../services'
 import { handle } from './handle'
 
 export function registerAppHandlers(): void {
@@ -69,6 +69,7 @@ export function registerAppHandlers(): void {
 
   handle('app:quota', () => getStatus().quotaToday())
   handle('app:storage', () => getStatus().storage())
+  handle('health:get', () => getHealth().snapshot())
 
   handle('app:ping', ({ message }) => ({
     reply: `pong: ${message}`,

@@ -2,7 +2,7 @@ import { join } from 'node:path'
 import { app } from 'electron'
 import { defaultSettings } from '@shared/schemas/settings'
 import { logger } from '../logger'
-import { openDatabase, type OpenedDatabase } from './client'
+import { migrationCount, openDatabase, type OpenedDatabase } from './client'
 import { createRepos, type Repos } from './repos'
 
 export const DB_FILE_NAME = 'channeldeck.db'
@@ -35,6 +35,12 @@ export function initDatabase(): Repos {
 export function getRepos(): Repos {
   if (!repos) throw new Error('Database not initialized; call initDatabase() first')
   return repos
+}
+
+/** The live database's schema version (applied migrations). */
+export function schemaVersion(): number {
+  if (!opened) throw new Error('Database not initialized; call initDatabase() first')
+  return migrationCount(opened.sqlite)
 }
 
 export function closeDatabase(): void {

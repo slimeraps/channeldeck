@@ -13,7 +13,7 @@ import {
   type SQL,
   sql
 } from 'drizzle-orm'
-import type { PickOrder } from '@shared/constants/enums'
+import type { DownloadStatus, PickOrder } from '@shared/constants/enums'
 import type { Db } from '../client'
 import { clips, games, posts } from '../schema'
 import { type Clock, isoNow } from './common'
@@ -97,6 +97,8 @@ export interface ClipsRepo {
   /** Games in these channels' clips (all channels when no ids are given). */
   gamesFor(twitchAccountIds?: number[]): { id: string; name: string }[]
   stats(twitchAccountId: number): ClipStats
+  /** How many clips are in each download status (statuses with none are left out). */
+  countByDownloadStatus(): { status: DownloadStatus; count: number }[]
   /** Clips that should download now: pending, or failed and past their retry time. */
   dueDownloads(
     twitchAccountId: number,
@@ -275,6 +277,14 @@ export function createClipsRepo(db: Db, clock: Clock): ClipsRepo {
         .all()
         .map((g) => ({ id: g.id as string, name: g.name ?? `Game ${g.id}` }))
         .sort((a, b) => a.name.localeCompare(b.name))
+    },
+
+    countByDownloadStatus() {
+      return db
+        .select({ status: clips.downloadStatus, count: sql<number>`count(*)` })
+        .from(clips)
+        .groupBy(clips.downloadStatus)
+        .all()
     },
 
     stats(twitchAccountId) {

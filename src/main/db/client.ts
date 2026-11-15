@@ -23,6 +23,14 @@ export interface OpenDatabaseOptions {
   migrationsFolder: string
 }
 
+/** How many migrations the database has applied (its schema version). */
+export function migrationCount(sqlite: Database.Database): number {
+  const row = sqlite.prepare('SELECT count(*) AS n FROM __drizzle_migrations').get() as {
+    n: number
+  }
+  return row.n
+}
+
 export function openDatabase({ file, migrationsFolder }: OpenDatabaseOptions): OpenedDatabase {
   const sqlite = new Database(file)
   try {

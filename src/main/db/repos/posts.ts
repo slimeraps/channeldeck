@@ -51,6 +51,8 @@ export interface PostsRepo {
   usesSticker(fileName: string): boolean
   /** Clip ids with a post on this channel that isn't canceled (the never-twice set). */
   activeClipIds(accountId: number): Set<string>
+  /** How many posts are in each status (statuses with none are left out). */
+  countByStatus(): { status: PostStatus; count: number }[]
 }
 
 function assertNoStatus(patch: object): void {
@@ -217,6 +219,14 @@ export function createPostsRepo(db: Db, clock: Clock): PostsRepo {
           .limit(1)
           .get() !== undefined
       )
+    },
+
+    countByStatus() {
+      return db
+        .select({ status: posts.status, count: sql<number>`count(*)` })
+        .from(posts)
+        .groupBy(posts.status)
+        .all()
     },
 
     activeClipIds(accountId) {

@@ -13,6 +13,7 @@ import {
   getEditor,
   getTwitchAccounts,
   getYouTubeAccounts,
+  setPausedProbe,
   setSyncingProbe
 } from '../services'
 import { editTemplateValues } from '../services/editValues'
@@ -106,6 +107,7 @@ export function startJobs(): void {
     logger
   })
   setSyncingProbe((id) => clipSync.syncingNow().has(id))
+  setPausedProbe(jobsPaused)
   // Autoposting: fills each rule's empty slots with clips from the bank.
   runner.register(createPlannerJob({ autopost: getAutopost() }))
   // "Delete local files N days after posting" (off unless set in Settings).

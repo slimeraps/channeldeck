@@ -1,8 +1,9 @@
+import { statSync } from 'node:fs'
 import { join } from 'node:path'
 import { app, BrowserWindow, dialog, shell } from 'electron'
 import type { OAuth2Client } from 'google-auth-library'
 import { emitToRenderer } from '../appWindow'
-import { getRepos } from '../db'
+import { databasePath, getRepos, schemaVersion } from '../db'
 import { createClientConfigStore } from '../google/clientConfig'
 import type { YouTubeApi } from '../google/youtube'
 import { demoAnalyticsApi, demoVideoTitles } from '../screenshots'
@@ -28,6 +29,7 @@ import { createClipsService, type ClipsService } from './clips'
 import { createEditorService, type EditorService } from './editor'
 import { createLayoutsService, type LayoutsService } from './layouts'
 import { type BackupService, createBackupService } from './backup'
+import { createHealthService, type HealthService } from './health'
 import { createStatusService, type StatusService } from './status'
 import { createTemplatesService, type TemplatesService } from './templates'
 import { createPostsService, type PostsService } from './posts'
@@ -40,11 +42,13 @@ let mediaAccess: MediaAccess | null = null
 let kickHook: (() => void) | null = null
 let twitchAccounts: TwitchAccountsService | null = null
 let clips: ClipsService | null = null
+let pausedProbe: (() => boolean) | null = null
 let syncingProbe: ((accountId: number) => boolean) | null = null
 let autopost: AutopostService | null = null
 let layouts: LayoutsService | null = null
 let templates: TemplatesService | null = null
 let status: StatusService | null = null
+let health: HealthService | null = null
 let backup: BackupService | null = null
 let analytics: AnalyticsService | null = null
 let editor: EditorService | null = null
@@ -52,6 +56,11 @@ let editor: EditorService | null = null
 /** Lets the Twitch view show "syncing…" without importing the job runner. */
 export function setSyncingProbe(fn: (accountId: number) => boolean): void {
   syncingProbe = fn
+}
+
+/** Lets the Health snapshot say whether jobs are paused without importing the job runner. */
+export function setPausedProbe(fn: () => boolean): void {
+  pausedProbe = fn
 }
 
 /** Lets services poke the job runner without importing it (avoids an import cycle). */
@@ -131,6 +140,27 @@ export function initServices(): void {
   })
 
   status = createStatusService({ repos })
+  health = createHealthService({
+    repos,
+    environment: () => {
+      let dbFileBytes: number | null = null
+      try {
+        dbFileBytes = statSync(databasePath()).size
+      } catch {
+        // unreadable: the tile says so
+      }
+      return {
+        app: {
+          version: app.getVersion(),
+          electron: process.versions.electron,
+          platform: process.platform
+        },
+        schemaVersion: schemaVersion(),
+        dbFileBytes,
+        jobsPaused: pausedProbe?.() ?? false
+      }
+    }
+  })
   backup = createBackupService({ repos })
   analytics = demo
     ? createAnalyticsService({
@@ -238,6 +268,11 @@ export function getBackup(): BackupService {
 export function getStatus(): StatusService {
   if (!status) throw new Error('Services not initialized')
   return status
+}
+
+export function getHealth(): HealthService {
+  if (!health) throw new Error('Services not initialized')
+  return health
 }
 
 export function getTemplates(): TemplatesService {

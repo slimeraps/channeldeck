@@ -3,7 +3,7 @@ import { tmpdir } from 'node:os'
 import { join } from 'node:path'
 import { afterEach, describe, expect, it } from 'vitest'
 import { MIGRATIONS_FOLDER } from '../../../tests/helpers/db'
-import { openDatabase } from './client'
+import { migrationCount, openDatabase } from './client'
 
 const EXPECTED_TABLES = [
   'accounts',
@@ -49,6 +49,15 @@ describe('openDatabase', () => {
       .map((r) => (r as { name: string }).name)
     expect(tables).toEqual(EXPECTED_TABLES)
     close()
+  })
+
+  it('reports its schema version as the number of applied migrations', () => {
+    const opened = openDatabase({ file: ':memory:', migrationsFolder: MIGRATIONS_FOLDER })
+    const journal = JSON.parse(
+      readFileSync(join(MIGRATIONS_FOLDER, 'meta', '_journal.json'), 'utf8')
+    ) as { entries: unknown[] }
+    expect(migrationCount(opened.sqlite)).toBe(journal.entries.length)
+    opened.close()
   })
 
   it('is idempotent: reopening applies nothing twice and keeps data', () => {

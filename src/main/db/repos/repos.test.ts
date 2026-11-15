@@ -178,3 +178,41 @@ describe('event log', () => {
     expect(row.dataJson).toEqual({ refresh_token: '[REDACTED]', channelId: 'UC1' })
   })
 })
+
+describe('read-only counts for the Health page', () => {
+  it('counts posts by status, clips by download status and events by kind', () => {
+    const account = seedAccount(t.repos)
+    t.repos.posts.create({
+      accountId: account.id,
+      status: 'draft',
+      title: 'A',
+      visibilityMode: 'private'
+    })
+    t.repos.posts.create({
+      accountId: account.id,
+      status: 'draft',
+      title: 'B',
+      visibilityMode: 'private'
+    })
+    t.repos.posts.create({
+      accountId: account.id,
+      status: 'queued',
+      title: 'C',
+      visibilityMode: 'private'
+    })
+    expect(t.repos.posts.countByStatus()).toEqual(
+      expect.arrayContaining([
+        { status: 'draft', count: 2 },
+        { status: 'queued', count: 1 }
+      ])
+    )
+
+    const twitch = seedTwitchAccount(t.repos)
+    seedClip(t.repos, twitch.id, 'c1')
+    expect(t.repos.clips.countByDownloadStatus()).toEqual([{ status: 'pending', count: 1 }])
+
+    t.repos.eventLog.write({ kind: 'dryrun.call', message: 'x' })
+    expect(t.repos.eventLog.count('dryrun.call')).toBe(1)
+    expect(t.repos.eventLog.count('nothing.here')).toBe(0)
+  })
+})
