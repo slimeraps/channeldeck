@@ -1,8 +1,9 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { copyFile, mkdir, readFile, rm, stat } from 'node:fs/promises'
+import { copyFile, mkdir, readFile, rm, stat, writeFile } from 'node:fs/promises'
 import { basename, dirname, extname, join, resolve } from 'node:path'
 import {
+  type CaptionWord,
   type EditSpec,
   editDuration,
   fillEditText,
@@ -55,6 +56,17 @@ export interface EditorService {
   renameProject(id: number, name: string): EditProject
   deleteProject(id: number): Promise<void>
 
+  /** Whether the caption model is on this Mac, and its size. */
+  captionModel(): { installed: boolean; sizeBytes: number; downloading: boolean }
+  /** Downloads the caption model (only after the user agreed); progress via emitModelProgress. */
+  downloadCaptionModel(): Promise<void>
+  cancelModelDownload(): { canceled: boolean }
+  /**
+   * Captions for each file: its spoken words in its own time. Each file is transcribed once
+   * (cached by path, size, date and model); progress via emitCaptionProgress.
+   */
+  makeCaptions(paths: string[]): Promise<{ sourcePath: string; words: CaptionWord[] }[]>
+
   listAssets(): EditorAsset[]
   /** A library image's bytes (the preview decodes GIF frames from them). */
   assetBytes(fileName: string): Promise<Uint8Array<ArrayBuffer>>
@@ -96,6 +108,21 @@ export interface EditorDeps {
   grabFrame: (args: { input: string; atSec: number; output: string }) => Promise<void>
   /** Asks where to save a file; null when canceled. */
   chooseSavePath: (defaultName: string) => Promise<string | null>
+  /** Where the caption model lives (userData/models/…). */
+  modelPath: string
+  modelSizeBytes: number
+  downloadModel: (args: {
+    dest: string
+    onProgress?: (fraction: number) => void
+    signal?: AbortSignal
+  }) => Promise<void>
+  transcribe: (args: {
+    input: string
+    model: string
+    signal?: AbortSignal
+  }) => Promise<CaptionWord[]>
+  emitModelProgress: (fraction: number) => void
+  emitCaptionProgress: (progress: { done: number; total: number }) => void
   /** Asks for image files to import; empty when canceled. */
   chooseImages: () => Promise<string[]>
   probeImage: (path: string) => Promise<{ width: number; height: number }>
@@ -161,6 +188,19 @@ export function createEditorService(deps: EditorDeps): EditorService {
     updatedAt: string
   }): EditProject {
     return { id: row.id, name: row.name, spec: row.specJson, updatedAt: row.updatedAt }
+  }
+
+  let downloading: AbortController | null = null
+
+  /** Cached captions for a file, keyed by path, size, date and model. */
+  async function captionCacheFile(path: string): Promise<string> {
+    const info = await stat(path).catch(() => null)
+    if (!info) throw new UserFacingError(`File missing: ${path}`)
+    const key = createHash('sha1')
+      .update(`${path}|${info.size}|${Math.round(info.mtimeMs)}|${basename(deps.modelPath)}`)
+      .digest('hex')
+      .slice(0, 20)
+    return join(deps.cacheDir, 'captions', `${key}.json`)
   }
 
   /** Largest image the sticker library takes. */
@@ -383,6 +423,60 @@ export function createEditorService(deps: EditorDeps): EditorService {
       deps.repos.editProjects.remove(id)
       thumbFrom.delete(id)
       await rm(thumbPath(id), { force: true })
+    },
+
+    captionModel() {
+      return {
+        installed: existsSync(deps.modelPath),
+        sizeBytes: deps.modelSizeBytes,
+        downloading: downloading !== null
+      }
+    },
+
+    async downloadCaptionModel() {
+      if (existsSync(deps.modelPath)) return
+      if (downloading) throw new UserFacingError('The caption model is already downloading.')
+      const controller = new AbortController()
+      downloading = controller
+      try {
+        deps.emitModelProgress(0)
+        await deps.downloadModel({
+          dest: deps.modelPath,
+          signal: controller.signal,
+          onProgress: deps.emitModelProgress
+        })
+      } finally {
+        downloading = null
+      }
+    },
+
+    cancelModelDownload() {
+      if (!downloading) return { canceled: false }
+      downloading.abort()
+      return { canceled: true }
+    },
+
+    async makeCaptions(paths) {
+      if (!existsSync(deps.modelPath)) {
+        throw new UserFacingError('Download the caption model first (Captions panel).')
+      }
+      const unique = [...new Set(paths)]
+      const out: { sourcePath: string; words: CaptionWord[] }[] = []
+      for (const [i, path] of unique.entries()) {
+        deps.emitCaptionProgress({ done: i, total: unique.length })
+        const cache = await captionCacheFile(path)
+        let words: CaptionWord[]
+        if (existsSync(cache)) {
+          words = JSON.parse(await readFile(cache, 'utf8')) as CaptionWord[]
+        } else {
+          words = await deps.transcribe({ input: path, model: deps.modelPath })
+          await mkdir(dirname(cache), { recursive: true })
+          await writeFile(cache, JSON.stringify(words), 'utf8')
+        }
+        out.push({ sourcePath: path, words })
+      }
+      deps.emitCaptionProgress({ done: unique.length, total: unique.length })
+      return out
     },
 
     listAssets() {

@@ -4,6 +4,7 @@ import { mkdir, mkdtemp, rename, rm, writeFile } from 'node:fs/promises'
 import { tmpdir } from 'node:os'
 import { basename, dirname, join } from 'node:path'
 import ffmpegStatic from 'ffmpeg-static'
+import { captionEvents } from '@shared/captions'
 import { type EditSpec, editDuration, overlaysOf } from '@shared/schemas/edit'
 import { buildAss } from '../domain/ass'
 import { editArgs, editFilter, type SourceInfo } from '../domain/edit'
@@ -132,9 +133,19 @@ export async function renderEdit(args: {
   const work = await mkdtemp(join(tmpdir(), 'channeldeck-edit-'))
   try {
     let assPath: string | null = null
-    if (args.spec.texts.length > 0) {
+    const captions = captionEvents(args.spec)
+    if (args.spec.texts.length > 0 || captions.length > 0) {
       assPath = join(work, 'text.ass')
-      await writeFile(assPath, buildAss(args.spec.canvas, args.spec.texts), 'utf8')
+      const style = args.spec.captions?.style
+      await writeFile(
+        assPath,
+        buildAss(
+          args.spec.canvas,
+          args.spec.texts,
+          style && captions.length > 0 ? { events: captions, style } : undefined
+        ),
+        'utf8'
+      )
     }
     const filter = editFilter(args.spec, args.sources, { assPath, fontsDir: args.fontsDir })
     await runFfmpeg(editArgs({ spec: args.spec, filter, output: part, stickerPaths }), {

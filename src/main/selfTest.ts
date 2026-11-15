@@ -1,3 +1,4 @@
+import { execFile } from 'node:child_process'
 import { writeFileSync } from 'node:fs'
 import { join } from 'node:path'
 import { app } from 'electron'
@@ -7,6 +8,7 @@ import { logger } from './logger'
 import { DEFAULT_TEXT_STYLE } from '@shared/schemas/edit'
 import { ffmpegPath, renderEdit, renderVertical, runFfmpeg } from './media/ffmpeg'
 import { ffprobePath, probeVideo } from './media/ffprobe'
+import { whisperPath } from './media/whisper'
 import { editorAssetsDir, resourcePath } from './paths'
 import { getPosts, getYouTubeAccounts, initServices } from './services'
 
@@ -112,6 +114,14 @@ export async function runSelfTest(): Promise<number> {
     const edit = await probeVideo(edited)
     report['edit'] = { size: `${edit.width}x${edit.height}`, durationSec: edit.durationSec }
 
+    // Auto captions: the bundled whisper-cli must run from the installed app (the model
+    // itself is downloaded later, by the user, so it isn't part of this check).
+    const whisper = whisperPath()
+    const whisperRuns = await new Promise<boolean>((resolve) =>
+      execFile(whisper, ['-h'], { timeout: 15_000 }, (error) => resolve(!error))
+    )
+    report['whisper'] = { path: whisper, runs: whisperRuns }
+
     repos.settings.update({ dryRun: true })
     const account = repos.accounts.create({
       channelId: 'UC_CHANNELDECK_SELF_TEST',
@@ -155,6 +165,7 @@ export async function runSelfTest(): Promise<number> {
       rendered.width === 1080 &&
       rendered.height === 1920 &&
       edit.height === 1920 &&
+      whisperRuns &&
       Math.abs(edit.durationSec - 1.2) < 0.2 &&
       row.status === 'processing' &&
       Boolean(row.youtubeVideoId?.startsWith('DRYRUN-'))

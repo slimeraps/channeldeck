@@ -1,3 +1,4 @@
+import { captionEvents, captionTextStyle } from '@shared/captions'
 import { fontBox } from '@shared/fonts'
 import { CANVAS_SIZES } from '@shared/geometry'
 import type { EditSpec, EditText } from '@shared/schemas/edit'
@@ -97,4 +98,60 @@ export function drawTexts(
     hits.push({ id: text.id, box: block.box })
   }
   return hits
+}
+
+/**
+ * Draws the auto captions on screen at `t` (from the same events the render uses), centered
+ * on the caption line: the outline of the whole line, then each word in its color.
+ */
+export function drawCaptions(ctx: CanvasRenderingContext2D, spec: EditSpec, t: number): void {
+  const style = spec.captions?.style
+  if (!style) return
+  const event = captionEvents(spec).find((e) => t >= e.startSec && t < e.endSec)
+  if (!event) return
+  const size = CANVAS_SIZES[spec.canvas]
+  const k = ctx.canvas.width / size.width
+  const textStyle = captionTextStyle(style)
+  const metrics = fontBox(textStyle.font, textStyle.size)
+  const full = event.parts.map((p) => p.text).join(' ')
+  ctx.save()
+  ctx.scale(k, k)
+  ctx.font = `${metrics.emPx}px "${textStyle.font}"`
+  ctx.textBaseline = 'alphabetic'
+  ctx.lineJoin = 'round'
+  const block = layoutText(
+    { text: full, x: 0.5, y: style.y, style: textStyle },
+    spec.canvas,
+    (s) => ctx.measureText(s).width
+  )
+  if (event.pop) {
+    const { scale } = textAnimation(
+      { animation: 'pop', startSec: event.startSec, endSec: event.endSec } as EditText,
+      t
+    )
+    const ax = size.width / 2
+    const ay = style.y * size.height
+    ctx.translate(ax, ay)
+    ctx.scale(scale, scale)
+    ctx.translate(-ax, -ay)
+  }
+  if (style.outlineWidth > 0) {
+    ctx.strokeStyle = style.outlineColor
+    ctx.lineWidth = style.outlineWidth * 2
+    for (const line of block.lines) ctx.strokeText(line.text, line.x, line.baseline)
+  }
+  // Walk the parts across the wrapped lines, word by word, coloring the spoken one.
+  const queue = event.parts.flatMap((p) =>
+    p.text.split(' ').map((word) => ({ word, highlight: p.highlight }))
+  )
+  for (const line of block.lines) {
+    let x = line.x
+    for (const word of line.text.split(' ')) {
+      const part = queue.shift()
+      ctx.fillStyle = part?.highlight ? style.highlightColor : style.color
+      ctx.fillText(word, x, line.baseline)
+      x += ctx.measureText(`${word} `).width
+    }
+  }
+  ctx.restore()
 }

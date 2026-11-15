@@ -3,7 +3,12 @@ import { existsSync, mkdirSync, mkdtempSync, rmSync } from 'node:fs'
 import { tmpdir } from 'node:os'
 import { join, resolve } from 'node:path'
 import { afterAll, beforeAll, describe, expect, it } from 'vitest'
-import { DEFAULT_TEXT_STYLE, type EditSpec, type EditText } from '@shared/schemas/edit'
+import {
+  DEFAULT_CAPTION_STYLE,
+  DEFAULT_TEXT_STYLE,
+  type EditSpec,
+  type EditText
+} from '@shared/schemas/edit'
 import { ffmpegPath, renderEdit, runFfmpeg } from './ffmpeg'
 import { probeVideo } from './ffprobe'
 
@@ -287,6 +292,26 @@ describe('renderEdit', () => {
     expect(await brightness(output, 0.5, middle)).toBeLessThan(25)
     expect(await brightness(output, 1.5, middle)).toBeGreaterThan(40)
     expect(await brightness(output, 0.5, { w: 60, h: 60, x: 162, y: 132 })).toBeGreaterThan(40)
+  }, 120_000)
+
+  it('draws captions only while their words are on screen', async () => {
+    const output = await render(
+      spec({
+        canvas: 'horizontal',
+        segments: [
+          { sourcePath: black, clipId: null, inSec: 0, outSec: 2, layout: null, frame: null }
+        ],
+        captions: {
+          enabled: true,
+          style: { ...DEFAULT_CAPTION_STYLE, size: 200, y: 0.5, outlineWidth: 0 },
+          sources: [{ sourcePath: black, words: [{ text: 'GG', startSec: 1, endSec: 1.6 }] }]
+        }
+      }),
+      'captions'
+    )
+    const middle = { w: 300, h: 160, x: 810, y: 460 }
+    expect(await brightness(output, 0.5, middle)).toBeLessThan(25)
+    expect(await brightness(output, 1.3, middle)).toBeGreaterThan(60)
   }, 120_000)
 
   it('names a sticker that is missing from the library', async () => {

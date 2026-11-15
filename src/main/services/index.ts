@@ -9,6 +9,7 @@ import { demoAnalyticsApi, demoVideoTitles } from '../screenshots'
 import { logger } from '../logger'
 import { createMediaAccess, type MediaAccess } from '../media/access'
 import { probeImage, probeVideo } from '../media/ffprobe'
+import { CAPTION_MODEL, downloadModel, transcribe } from '../media/whisper'
 import { notify } from '../notify'
 import { secrets } from '../secrets'
 import { isSafeExternalUrl } from '../security'
@@ -190,7 +191,13 @@ export function initServices(): void {
         : await dialog.showOpenDialog(options)
       return result.canceled ? [] : result.filePaths
     },
-    probeImage
+    probeImage,
+    modelPath: join(app.getPath('userData'), 'models', CAPTION_MODEL.name),
+    modelSizeBytes: CAPTION_MODEL.sizeBytes,
+    downloadModel,
+    transcribe,
+    emitModelProgress: (fraction) => emitToRenderer('editor:modelProgress', { fraction }),
+    emitCaptionProgress: (progress) => emitToRenderer('editor:captionProgress', progress)
   })
 
   layouts = createLayoutsService({

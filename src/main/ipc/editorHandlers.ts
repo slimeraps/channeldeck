@@ -16,6 +16,13 @@ export function registerEditorHandlers(): void {
   handle('editor:getProject', ({ id }) => getEditor().getProject(id))
   handle('editor:saveProject', ({ id, spec }) => getEditor().saveProject(id, spec))
   handle('editor:renameProject', ({ id, name }) => getEditor().renameProject(id, name))
+  handle('editor:captionModel', () => getEditor().captionModel())
+  handle('editor:downloadCaptionModel', async () => {
+    await getEditor().downloadCaptionModel()
+    return { ready: true }
+  })
+  handle('editor:cancelModelDownload', () => getEditor().cancelModelDownload())
+  handle('editor:makeCaptions', ({ paths }) => getEditor().makeCaptions(paths))
   handle('editor:listAssets', () => getEditor().listAssets())
   handle('editor:assetBytes', ({ fileName }) => getEditor().assetBytes(fileName))
   handle('editor:importAssets', () => getEditor().importAssets())

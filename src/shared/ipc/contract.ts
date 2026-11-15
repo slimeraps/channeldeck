@@ -49,7 +49,7 @@ import {
 } from '../schemas/templates'
 import { importReportSchema } from '../schemas/backup'
 import { analyticsInputSchema, analyticsReportSchema } from '../schemas/analytics'
-import { editSpecSchema } from '../schemas/edit'
+import { captionWordSchema, editSpecSchema } from '../schemas/edit'
 import {
   editorAssetSchema,
   editorRenderSchema,
@@ -430,6 +430,16 @@ export const invokeContract = {
     input: z.object({ id: z.number().int().positive(), name: projectNameSchema }).strict(),
     output: editProjectSchema
   },
+  'editor:captionModel': {
+    input: noInput,
+    output: z.object({ installed: z.boolean(), sizeBytes: z.number(), downloading: z.boolean() })
+  },
+  'editor:downloadCaptionModel': { input: noInput, output: z.object({ ready: z.boolean() }) },
+  'editor:cancelModelDownload': { input: noInput, output: z.object({ canceled: z.boolean() }) },
+  'editor:makeCaptions': {
+    input: z.object({ paths: z.array(z.string().min(1)).min(1).max(100) }).strict(),
+    output: z.array(z.object({ sourcePath: z.string(), words: z.array(captionWordSchema) }))
+  },
   'editor:listAssets': { input: noInput, output: z.array(editorAssetSchema) },
   'editor:assetBytes': {
     input: z
@@ -517,6 +527,10 @@ export const eventContract = {
   /** Device Code sign-in: show this code to type at twitch.tv/activate. */
   'twitch:deviceCode': deviceCodeEventSchema,
   /** Live upload progress (not every byte; throttled in main). */
+  /** The caption model's download: 0..1. */
+  'editor:modelProgress': z.object({ fraction: z.number().min(0).max(1) }),
+  /** Making captions: files done out of the total. */
+  'editor:captionProgress': z.object({ done: z.number().int(), total: z.number().int() }),
   /** "Render now" in the editor: 0..1 as the render advances. */
   'editor:renderProgress': z.object({ fraction: z.number().min(0).max(1) }),
   'posts:progress': z.object({

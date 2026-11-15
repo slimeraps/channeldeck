@@ -1,6 +1,7 @@
 import type { CanvasKind } from '@shared/geometry'
 import { CANVAS_SIZES } from '@shared/geometry'
-import type { EditText, TextStyle } from '@shared/schemas/edit'
+import { captionTextStyle, type CaptionEvent } from '@shared/captions'
+import type { CaptionStyle, EditText, TextStyle } from '@shared/schemas/edit'
 import { boxPadding, TEXT_SIDE_MARGIN } from '@shared/textLayout'
 
 /**
@@ -86,20 +87,46 @@ function styleLine(name: string, style: TextStyle): string {
   return `Style: ${fields.join(',')}`
 }
 
+/** Starts small, overshoots, settles: 0.2 s. */
+const POP = '\\fscx70\\fscy70\\t(0,120,\\fscx112\\fscy112)\\t(120,200,\\fscx100\\fscy100)'
+
 function effects(text: EditText): string {
   switch (text.animation) {
     case 'fade':
       return '\\fad(250,250)'
     case 'pop':
-      // Starts small, overshoots, settles: 0.2 s.
-      return '\\fscx70\\fscy70\\t(0,120,\\fscx112\\fscy112)\\t(120,200,\\fscx100\\fscy100)'
+      return POP
     default:
       return ''
   }
 }
 
-/** The whole .ass file for these text layers on this canvas. */
-export function buildAss(canvas: CanvasKind, texts: readonly EditText[]): string {
+/** "#RRGGBB[AA]" as an inline color override (\\c) plus its alpha (\\1a). */
+function inlineColor(hex: string): string {
+  const full = assColor(hex) // &HAABBGGRR
+  return `\\c&H${full.slice(4)}&\\1a&H${full.slice(2, 4)}&`
+}
+
+/** One caption line: the spoken word in the highlight color, the rest in the line color. */
+function captionText(event: CaptionEvent, style: CaptionStyle): string {
+  return event.parts
+    .map((part) =>
+      part.highlight
+        ? `{${inlineColor(style.highlightColor)}}${assText(part.text)}{${inlineColor(style.color)}}`
+        : assText(part.text)
+    )
+    .join(' ')
+}
+
+/**
+ * The whole .ass file for these text layers on this canvas, plus auto captions (drawn under
+ * the text layers).
+ */
+export function buildAss(
+  canvas: CanvasKind,
+  texts: readonly EditText[],
+  captions?: { events: readonly CaptionEvent[]; style: CaptionStyle }
+): string {
   const { width, height } = CANVAS_SIZES[canvas]
   const lines = [
     '[Script Info]',
@@ -114,16 +141,27 @@ export function buildAss(canvas: CanvasKind, texts: readonly EditText[]): string
     '[V4+ Styles]',
     'Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding',
     ...texts.map((t, i) => styleLine(`T${i}`, t.style)),
+    ...(captions ? [styleLine('Captions', captionTextStyle(captions.style))] : []),
     '',
     '[Events]',
     'Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text'
   ]
+  if (captions) {
+    const y = Math.round(captions.style.y * height)
+    for (const event of captions.events) {
+      const pop = event.pop ? POP : ''
+      lines.push(
+        `Dialogue: 0,${assTime(event.startSec)},${assTime(event.endSec)},Captions,,0,0,0,,{\\an5\\pos(${Math.round(width / 2)},${y})${pop}}${captionText(event, captions.style)}`
+      )
+    }
+  }
+  // Text layers sit above the captions (higher layer).
   texts.forEach((t, i) => {
     const x = Math.round(t.x * width)
     const y = Math.round(t.y * height)
     const overrides = `{\\an${ALIGN[t.style.align]}\\pos(${x},${y})${effects(t)}}`
     lines.push(
-      `Dialogue: ${i},${assTime(t.startSec)},${assTime(t.endSec)},T${i},,0,0,0,,${overrides}${assText(t.text)}`
+      `Dialogue: ${10 + i},${assTime(t.startSec)},${assTime(t.endSec)},T${i},,0,0,0,,${overrides}${assText(t.text)}`
     )
   })
   return `${lines.join('\n')}\n`

@@ -11,7 +11,7 @@ import {
 } from '@shared/schemas/edit'
 import type { EditorAsset, EditorSource } from '@shared/schemas/editor'
 import { drawSegmentFrame } from '@renderer/lib/drawEdit'
-import { drawTexts, type TextHit } from '@renderer/lib/drawText'
+import { drawCaptions, drawTexts, type TextHit } from '@renderer/lib/drawText'
 import { loadEditorFonts } from '@renderer/lib/fonts'
 import {
   drawStickers,
@@ -115,6 +115,7 @@ export function Preview({
       localT ?? at.offset
     )
     stickerHits.current = drawStickers(ctx, current, state.playhead, stickerImages.current)
+    drawCaptions(ctx, current, state.playhead)
     const filled = fillEditText(current, valuesRef.current)
     hits.current = drawTexts(ctx, filled, filled.texts, state.playhead)
 
