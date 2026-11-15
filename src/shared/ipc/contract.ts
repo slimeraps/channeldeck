@@ -50,7 +50,14 @@ import {
 import { importReportSchema } from '../schemas/backup'
 import { analyticsInputSchema, analyticsReportSchema } from '../schemas/analytics'
 import { editSpecSchema } from '../schemas/edit'
-import { editorRenderSchema, editorSourceSchema, editorStripsSchema } from '../schemas/editor'
+import {
+  editorRenderSchema,
+  editorSourceSchema,
+  editorStripsSchema,
+  editProjectSchema,
+  editProjectSummarySchema,
+  projectNameSchema
+} from '../schemas/editor'
 import type { EventChannel, InvokeChannel } from './channels'
 
 /**
@@ -392,6 +399,40 @@ export const invokeContract = {
   },
   'editor:cancelRender': { input: noInput, output: z.object({ canceled: z.boolean() }) },
   'editor:reveal': { input: pathInput, output: z.object({ revealed: z.boolean() }) },
+  'editor:export': {
+    input: z.object({ spec: editSpecSchema }).strict(),
+    output: z.object({ savedTo: z.string().nullable() })
+  },
+  'editor:postedClips': {
+    input: z
+      .object({
+        accountId: z.number().int().positive(),
+        clipIds: z.array(z.string().min(1)).max(100)
+      })
+      .strict(),
+    output: z.array(z.string())
+  },
+  'editor:listProjects': { input: noInput, output: z.array(editProjectSummarySchema) },
+  'editor:createProject': {
+    input: z.object({ spec: editSpecSchema, name: projectNameSchema.optional() }).strict(),
+    output: editProjectSchema
+  },
+  'editor:getProject': {
+    input: z.object({ id: z.number().int().positive() }).strict(),
+    output: editProjectSchema
+  },
+  'editor:saveProject': {
+    input: z.object({ id: z.number().int().positive(), spec: editSpecSchema }).strict(),
+    output: editProjectSchema
+  },
+  'editor:renameProject': {
+    input: z.object({ id: z.number().int().positive(), name: projectNameSchema }).strict(),
+    output: editProjectSchema
+  },
+  'editor:deleteProject': {
+    input: z.object({ id: z.number().int().positive() }).strict(),
+    output: z.object({ deleted: z.boolean() })
+  },
   'autopost:sync': {
     input: z.object({ id: ruleId }).strict(),
     output: z.object({ requeued: z.number().int(), onYouTube: z.number().int() })

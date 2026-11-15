@@ -1,4 +1,13 @@
-import { Check, CloudDownload, Eye, EyeOff, Send, Star, TriangleAlert } from 'lucide-react'
+import {
+  Check,
+  CloudDownload,
+  Eye,
+  EyeOff,
+  Scissors,
+  Send,
+  Star,
+  TriangleAlert
+} from 'lucide-react'
 import type { ClipView } from '@shared/schemas/twitch'
 import { Badge } from '@renderer/components/ui/badge'
 import { formatDuration, STATUS_LABELS } from '@renderer/lib/status'
@@ -20,6 +29,7 @@ export function ClipCard({
   onToggle,
   onOpen,
   onPost,
+  onEdit,
   showChannel = false
 }: {
   clip: ClipView
@@ -28,6 +38,8 @@ export function ClipCard({
   onOpen: () => void
   /** Open the post editor with this clip. */
   onPost: () => void
+  /** Open this clip in the video editor. */
+  onEdit: () => void
   /** Label the Twitch channel (the All channels view). */
   showChannel?: boolean
 }): React.JSX.Element {
@@ -68,16 +80,28 @@ export function ClipCard({
           {formatDuration(clip.durationSec)}
         </span>
         {clip.landscapePath || clip.portraitPath ? (
-          <button
-            type="button"
-            onClick={(e) => {
-              e.stopPropagation()
-              onPost()
-            }}
-            className="absolute right-1.5 bottom-7 flex items-center gap-1 rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground opacity-0 shadow transition-opacity group-hover:opacity-100 focus-visible:opacity-100"
-          >
-            <Send className="size-3" aria-hidden /> Post…
-          </button>
+          <div className="absolute right-1.5 bottom-7 flex gap-1 opacity-0 transition-opacity group-focus-within:opacity-100 group-hover:opacity-100">
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onEdit()
+              }}
+              className="flex items-center gap-1 rounded bg-black/80 px-2 py-1 text-[11px] font-medium text-white shadow"
+            >
+              <Scissors className="size-3" aria-hidden /> Edit…
+            </button>
+            <button
+              type="button"
+              onClick={(e) => {
+                e.stopPropagation()
+                onPost()
+              }}
+              className="flex items-center gap-1 rounded bg-primary px-2 py-1 text-[11px] font-medium text-primary-foreground shadow"
+            >
+              <Send className="size-3" aria-hidden /> Post…
+            </button>
+          </div>
         ) : null}
         {clip.isFeatured ? (
           <span

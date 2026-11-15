@@ -1,6 +1,8 @@
 import {
   AlertTriangle,
+  Check,
   Clapperboard,
+  Download,
   FileVideo,
   FolderOpen,
   Loader2,
@@ -9,6 +11,7 @@ import {
   Plus,
   Redo2,
   Scissors,
+  Send,
   Sparkles,
   Trash2,
   Type,
@@ -35,6 +38,7 @@ import type { CanvasKind } from '@shared/geometry'
 import {
   CANVAS_KINDS,
   type EditSegment,
+  type EditSpec,
   editDuration,
   segmentDuration,
   segmentStarts
@@ -64,6 +68,7 @@ import { cn } from '@renderer/lib/utils'
 import { useVideoEditor } from '@renderer/stores/videoEditor'
 import { FramePanel } from './FramePanel'
 import { LayoutPanel } from './LayoutPanel'
+import { postClipId } from '@renderer/lib/editPost'
 import { Preview } from './Preview'
 import { TextPanel } from './TextPanel'
 import { Timeline } from './Timeline'
@@ -88,7 +93,20 @@ function typingIn(target: EventTarget | null): boolean {
   return Boolean(el && (el.isContentEditable || /^(INPUT|TEXTAREA|SELECT)$/.test(el.tagName)))
 }
 
-export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element | null {
+export function Editor({
+  mode,
+  title,
+  onClose,
+  onPost,
+  onDone
+}: {
+  /** project: the Editor page (Post…, Export…, close). post: editing a post's video (Done, Cancel). */
+  mode: 'project' | 'post'
+  title?: string
+  onClose: () => void
+  onPost?: (spec: EditSpec, clipId: string | null) => void
+  onDone?: (spec: EditSpec) => void
+}): React.JSX.Element | null {
   const spec = useVideoEditor((s) => s.spec)
   const selected = useVideoEditor((s) => s.selected)
   const playhead = useVideoEditor((s) => s.playhead)
@@ -270,6 +288,22 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
     addFromPath(path).catch((e: Error) => toast.error(e.message))
   }
 
+  async function exportNow(): Promise<void> {
+    const current = useVideoEditor.getState().spec
+    if (!current) return
+    useVideoEditor.getState().setPlaying(false)
+    setRender({ status: 'rendering', fraction: 0 })
+    try {
+      const { savedTo } = await invoke('editor:export', { spec: current })
+      if (savedTo) toast.success(`Saved to ${savedTo}`)
+    } catch (e) {
+      const message = (e as Error).message
+      if (message !== 'Render canceled.') toast.error(message)
+    } finally {
+      setRender({ status: 'idle' })
+    }
+  }
+
   async function renderNow(): Promise<void> {
     const current = useVideoEditor.getState().spec
     if (!current) return
@@ -290,8 +324,9 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
       {/* Top bar */}
       <div className="flex flex-wrap items-center gap-2 border-b px-4 py-2">
         <Scissors className="size-4 text-brand" aria-hidden />
-        <span className="mr-2 max-w-64 truncate text-sm font-medium">
-          {sources.get(spec.segments[0]?.sourcePath ?? '')?.clipTitle ??
+        <span className="mr-2 max-w-48 truncate text-sm font-medium">
+          {title ??
+            sources.get(spec.segments[0]?.sourcePath ?? '')?.clipTitle ??
             sources.get(spec.segments[0]?.sourcePath ?? '')?.fileName ??
             'Edit'}
         </span>
@@ -385,13 +420,61 @@ export function Editor({ onClose }: { onClose: () => void }): React.JSX.Element 
               </Button>
             </div>
           ) : (
-            <Button size="sm" onClick={() => void renderNow()} disabled={missing.length > 0}>
-              <Sparkles aria-hidden /> Render now
+            <>
+              {mode === 'project' ? (
+                <Button
+                  variant="outline"
+                  size="icon"
+                  onClick={() => void exportNow()}
+                  disabled={missing.length > 0}
+                  aria-label="Export…"
+                  title="Export: render and save a copy where you choose"
+                >
+                  <Download aria-hidden />
+                </Button>
+              ) : null}
+              <Button
+                variant={mode === 'project' ? 'outline' : 'default'}
+                size="sm"
+                onClick={() => void renderNow()}
+                disabled={missing.length > 0}
+              >
+                <Sparkles aria-hidden /> Render now
+              </Button>
+              {mode === 'project' && onPost ? (
+                <Button
+                  size="sm"
+                  disabled={missing.length > 0}
+                  onClick={() => {
+                    const current = useVideoEditor.getState().spec
+                    if (current) onPost(current, postClipId(current, sources))
+                  }}
+                >
+                  <Send aria-hidden /> Post…
+                </Button>
+              ) : null}
+            </>
+          )}
+          {mode === 'post' ? (
+            <>
+              <Button variant="ghost" size="sm" onClick={onClose} aria-label="Cancel editing">
+                Cancel
+              </Button>
+              <Button
+                size="sm"
+                onClick={() => {
+                  const current = useVideoEditor.getState().spec
+                  if (current && onDone) onDone(current)
+                }}
+              >
+                <Check aria-hidden /> Done
+              </Button>
+            </>
+          ) : (
+            <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close the editor">
+              <X aria-hidden />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={onClose} aria-label="Close the editor">
-            <X aria-hidden />
-          </Button>
         </div>
       </div>
 

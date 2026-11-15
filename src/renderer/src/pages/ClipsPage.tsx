@@ -1,4 +1,14 @@
-import { CheckSquare, Clapperboard, ExternalLink, Filter, Search, Send, X } from 'lucide-react'
+import {
+  CheckSquare,
+  Clapperboard,
+  ExternalLink,
+  Filter,
+  Scissors,
+  Search,
+  Send,
+  X
+} from 'lucide-react'
+import { toast } from 'sonner'
 import { useMemo, useState } from 'react'
 import type { PickOrder } from '@shared/constants/enums'
 import type { ClipSearchInput, ClipView } from '@shared/schemas/twitch'
@@ -36,6 +46,7 @@ import { useClipSearch, useTwitchAccounts, useTwitchAction } from '@renderer/hoo
 import { invoke } from '@renderer/lib/ipc'
 import { formatBytes, formatDuration } from '@renderer/lib/status'
 import { cn } from '@renderer/lib/utils'
+import { editClips } from '@renderer/hooks/useEditProjects'
 import { useUiStore } from '@renderer/stores/ui'
 
 const PAGE = 60
@@ -61,11 +72,13 @@ function numberOrUndefined(value: string): number | undefined {
 function ClipPreview({
   clip,
   onClose,
-  onPost
+  onPost,
+  onEdit
 }: {
   clip: ClipView
   onClose: () => void
   onPost: () => void
+  onEdit: () => void
 }): React.JSX.Element {
   const video = clip.portraitUrl ?? clip.landscapeUrl
   return (
@@ -107,6 +120,14 @@ function ClipPreview({
             <a href={clip.url} target="_blank" rel="noreferrer">
               Open on Twitch <ExternalLink aria-hidden />
             </a>
+          </Button>
+          <Button
+            size="sm"
+            variant="outline"
+            onClick={onEdit}
+            disabled={!clip.landscapePath && !clip.portraitPath}
+          >
+            <Scissors aria-hidden /> Edit…
           </Button>
           <Button size="sm" onClick={onPost} disabled={!clip.landscapePath && !clip.portraitPath}>
             <Send aria-hidden /> Post this clip…
@@ -519,6 +540,19 @@ export function ClipsPage(): React.JSX.Element {
           </Button>
           <Button
             size="sm"
+            variant="outline"
+            onClick={() => {
+              const chosen = items.filter((c) => selected.has(c.id))
+              editClips(chosen)
+                .then(clear)
+                .catch((e: Error) => toast.error(e.message))
+            }}
+            title="Join the selected clips, oldest first, in a new edit"
+          >
+            <Scissors aria-hidden /> Edit together…
+          </Button>
+          <Button
+            size="sm"
             variant="ghost"
             onClick={() => hide.mutate({ ids, hidden: true }, { onSuccess: clear })}
           >
@@ -575,6 +609,7 @@ export function ClipsPage(): React.JSX.Element {
               showChannel={view === 'all'}
               onOpen={() => setPreview(clip)}
               onPost={() => openNewPost(undefined, undefined, clip.id)}
+              onEdit={() => void editClips([clip]).catch((e: Error) => toast.error(e.message))}
               onToggle={() =>
                 setSelected((s) => {
                   const next = new Set(s)
@@ -607,6 +642,10 @@ export function ClipsPage(): React.JSX.Element {
           onPost={() => {
             setPreview(null)
             openNewPost(undefined, undefined, preview.id)
+          }}
+          onEdit={() => {
+            setPreview(null)
+            void editClips([preview]).catch((e: Error) => toast.error(e.message))
           }}
         />
       ) : null}

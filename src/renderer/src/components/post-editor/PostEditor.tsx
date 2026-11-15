@@ -1,5 +1,5 @@
 import { useMutation, useQuery, useQueryClient } from '@tanstack/react-query'
-import { ChevronDown, Clapperboard, Copy, Loader2, RefreshCw } from 'lucide-react'
+import { ChevronDown, Clapperboard, Copy, Loader2, RefreshCw, Scissors } from 'lucide-react'
 import { useState } from 'react'
 import { toast } from 'sonner'
 import { DESCRIPTION_MAX_BYTES, TITLE_MAX_CHARS } from '@shared/constants/limits'
@@ -18,11 +18,13 @@ import {
   titleLength,
   validatePost
 } from '@shared/schemas/post'
+import type { EditSpec } from '@shared/schemas/edit'
 import type { ClipView } from '@shared/schemas/twitch'
 import { MediaPanel } from '@renderer/components/post-editor/MediaPanel'
 import { PublishTimeField } from '@renderer/components/post-editor/PublishTimeField'
 import { TagInput } from '@renderer/components/post-editor/TagInput'
 import { ClipLibraryDialog } from '@renderer/components/post-editor/ClipLibraryDialog'
+import { EditedVideoCard, VideoEditorOverlay } from '@renderer/components/post-editor/EditedVideo'
 import { FormatPicker } from '@renderer/components/post-editor/FormatPicker'
 import { TemplatePicker } from '@renderer/components/post-editor/TemplatePicker'
 import { ThumbnailPicker } from '@renderer/components/post-editor/ThumbnailPicker'
@@ -55,6 +57,8 @@ import { Switch } from '@renderer/components/ui/switch'
 import { Textarea } from '@renderer/components/ui/textarea'
 import { accountsKey, useAccounts } from '@renderer/hooks/useAccounts'
 import { postsKey, useDuplicatePost, usePostDetail } from '@renderer/hooks/usePosts'
+import { useLayouts } from '@renderer/hooks/useAutopost'
+import { startingEdit } from '@renderer/lib/editPost'
 import { invoke } from '@renderer/lib/ipc'
 import { STATUS_LABELS, VISIBILITY_LABELS } from '@renderer/lib/status'
 import { cn } from '@renderer/lib/utils'
@@ -209,6 +213,8 @@ interface FormProps {
   initialClip: ClipView | null
   /** A publish time picked in the calendar. */
   initialPublishAtUtc: string | null
+  /** An edit from the video editor (Post…). */
+  initialEdit: EditSpec | null
   onClose: () => void
 }
 
@@ -217,7 +223,8 @@ function initialInput(
   usable: AccountView[],
   initialMedia: MediaInfo | null,
   initialPublishAtUtc: string | null,
-  initialClip: ClipView | null
+  initialClip: ClipView | null,
+  initialEdit: EditSpec | null
 ): PostInput {
   if (detail) return detail.input
   let input = emptyInput()
@@ -231,6 +238,7 @@ function initialInput(
       ? withClip(input, initialClip, initialMedia)
       : withVideo(input, initialMedia)
   }
+  if (initialEdit) input = { ...input, render: null, edit: initialEdit }
   return input
 }
 
@@ -241,6 +249,7 @@ function PostEditorForm({
   initialMediaError,
   initialPublishAtUtc,
   initialClip,
+  initialEdit,
   onClose
 }: FormProps): React.JSX.Element {
   const qc = useQueryClient()
@@ -248,8 +257,10 @@ function PostEditorForm({
   const openEditPost = useUiStore((s) => s.openEditPost)
 
   const [input, setInput] = useState<PostInput>(() =>
-    initialInput(detail, usable, initialMedia, initialPublishAtUtc, initialClip)
+    initialInput(detail, usable, initialMedia, initialPublishAtUtc, initialClip, initialEdit)
   )
+  const layouts = useLayouts()
+  const [editingVideo, setEditingVideo] = useState(false)
   const [media, setMedia] = useState<MediaInfo | null>(detail?.media ?? initialMedia)
   /** The linked Twitch clip's files (for the Format switch); null for your own videos. */
   const [clipFiles, setClipFiles] = useState<PostDetail['clip']>(
@@ -417,6 +428,17 @@ function PostEditorForm({
               >
                 <Clapperboard aria-hidden /> From clip library…
               </Button>
+              {!input.edit ? (
+                <Button
+                  size="sm"
+                  variant="outline"
+                  disabled={readOnly || mediaBusy || !media}
+                  onClick={() => setEditingVideo(true)}
+                  title="Trim, join clips, add text, change the layout"
+                >
+                  <Scissors aria-hidden /> Edit video…
+                </Button>
+              ) : null}
               {input.clipId ? (
                 <span className="truncate text-xs text-muted-foreground">
                   Twitch clip · won’t be posted twice to the same channel
@@ -447,7 +469,29 @@ function PostEditorForm({
                 }}
               />
             ) : null}
+            {input.edit ? (
+              <EditedVideoCard
+                edit={input.edit}
+                accountId={input.accountId ?? null}
+                clipId={input.clipId ?? null}
+                disabled={readOnly || mediaBusy}
+                onEdit={() => setEditingVideo(true)}
+                onRemove={() => setInput((prev) => ({ ...prev, edit: null }))}
+              />
+            ) : null}
+            {editingVideo && media ? (
+              <VideoEditorOverlay
+                initial={startingEdit(input, media, layouts.data ?? [])}
+                onCancel={() => setEditingVideo(false)}
+                onDone={(spec) => {
+                  setInput((prev) => ({ ...prev, edit: spec, render: null }))
+                  setTouched((prev) => new Set(prev).add('filePath'))
+                  setEditingVideo(false)
+                }}
+              />
+            ) : null}
             <FormatPicker
+              hidden={Boolean(input.edit)}
               input={input}
               media={media}
               clip={clipFiles}
@@ -911,6 +955,7 @@ export function PostEditor(): React.JSX.Element | null {
             initialClip={fromClip.data?.clip ?? null}
             initialMediaError={dropped.isError ? dropped.error.message : null}
             initialPublishAtUtc={editor.initialPublishAtUtc}
+            initialEdit={editor.initialEdit}
             onClose={close}
           />
         )}

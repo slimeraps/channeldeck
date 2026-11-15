@@ -1,4 +1,5 @@
 import { create } from 'zustand'
+import type { EditSpec } from '@shared/schemas/edit'
 import type { PageId } from '@renderer/app/nav'
 
 export interface EditorState {
@@ -11,6 +12,8 @@ export interface EditorState {
   initialPublishAtUtc: string | null
   /** A clip chosen on the Clips page ("Post…"). */
   initialClipId: string | null
+  /** An edit from the video editor ("Post…"): the post uploads its render. */
+  initialEdit: EditSpec | null
   /** Bumps on every open so the form remounts with fresh state. */
   session: number
 }
@@ -29,7 +32,7 @@ interface UiState {
   deviceCode: DeviceCodeInfo | null
   setDeviceCode: (info: DeviceCodeInfo | null) => void
   setPage: (page: PageId) => void
-  openNewPost: (filePath?: string, publishAtUtc?: string, clipId?: string) => void
+  openNewPost: (filePath?: string, publishAtUtc?: string, clipId?: string, edit?: EditSpec) => void
   openEditPost: (postId: string) => void
   closeEditor: () => void
 }
@@ -40,6 +43,7 @@ const closed: EditorState = {
   initialFilePath: null,
   initialPublishAtUtc: null,
   initialClipId: null,
+  initialEdit: null,
   session: 0
 }
 
@@ -49,14 +53,17 @@ export const useUiStore = create<UiState>()((set) => ({
   deviceCode: null,
   setDeviceCode: (deviceCode) => set({ deviceCode }),
   setPage: (page) => set({ page }),
-  openNewPost: (filePath, publishAtUtc, clipId) =>
+  openNewPost: (filePath, publishAtUtc, clipId, edit) =>
     set((s) => ({
       editor: {
         open: true,
         postId: null,
-        initialFilePath: filePath ?? null,
+        // A post from an edit starts from its first video (or its clip).
+        initialFilePath:
+          filePath ?? (edit && !clipId ? (edit.segments[0]?.sourcePath ?? null) : null),
         initialPublishAtUtc: publishAtUtc ?? null,
         initialClipId: clipId ?? null,
+        initialEdit: edit ?? null,
         session: s.editor.session + 1
       }
     })),
@@ -68,6 +75,7 @@ export const useUiStore = create<UiState>()((set) => ({
         initialFilePath: null,
         initialPublishAtUtc: null,
         initialClipId: null,
+        initialEdit: null,
         session: s.editor.session + 1
       }
     })),

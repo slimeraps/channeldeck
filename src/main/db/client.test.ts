@@ -9,6 +9,7 @@ const EXPECTED_TABLES = [
   'accounts',
   'autopost_rules',
   'clips',
+  'edit_projects',
   'event_log',
   'games',
   'layout_presets',

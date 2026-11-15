@@ -1,9 +1,15 @@
 import { createHash } from 'node:crypto'
 import { existsSync } from 'node:fs'
-import { stat } from 'node:fs/promises'
+import { copyFile, rm, stat } from 'node:fs/promises'
 import { dirname, join, resolve } from 'node:path'
-import { type EditSpec, fillEditText, renderSources } from '@shared/schemas/edit'
-import type { EditorRender, EditorSource, EditorStrips } from '@shared/schemas/editor'
+import { type EditSpec, editDuration, fillEditText, renderSources } from '@shared/schemas/edit'
+import type {
+  EditorRender,
+  EditorSource,
+  EditorStrips,
+  EditProject,
+  EditProjectSummary
+} from '@shared/schemas/editor'
 import type { Repos } from '../db/repos'
 import { editFileName, type SourceInfo } from '../domain/edit'
 import { UserFacingError } from '../errors'
@@ -27,6 +33,18 @@ export interface EditorService {
   cancelRender(): { canceled: boolean }
   /** Shows a finished render in Finder (only files in the renders folder). */
   reveal(path: string): { revealed: boolean }
+  /** Renders the edit (or reuses its render) and saves a copy where you choose. */
+  exportFile(spec: EditSpec): Promise<{ savedTo: string | null }>
+  /** Which of these clips already have a post on this channel (never-twice). */
+  postedClips(accountId: number, clipIds: string[]): string[]
+
+  listProjects(): EditProjectSummary[]
+  createProject(spec: EditSpec, name?: string): Promise<EditProject>
+  getProject(id: number): EditProject
+  /** Autosave: stores the edit and refreshes the thumbnail if the first piece changed. */
+  saveProject(id: number, spec: EditSpec): EditProject
+  renameProject(id: number, name: string): EditProject
+  deleteProject(id: number): Promise<void>
 }
 
 export interface EditorDeps {
@@ -54,6 +72,10 @@ export interface EditorDeps {
   }) => Promise<void>
   emitProgress: (fraction: number) => void
   showItemInFolder: (path: string) => void
+  /** A frame of a video as a JPEG (project thumbnails). */
+  grabFrame: (args: { input: string; atSec: number; output: string }) => Promise<void>
+  /** Asks where to save a file; null when canceled. */
+  chooseSavePath: (defaultName: string) => Promise<string | null>
   /** Time zone for {{clip_date}} (default: the Mac's). */
   zone?: string
 }
@@ -93,6 +115,44 @@ export function createEditorService(deps: EditorDeps): EditorService {
     }
   }
 
+  const thumbPath = (id: number) => join(deps.cacheDir, 'projects', `${id}.jpg`)
+  /** The first piece a thumbnail was made from, per project (so autosave only redoes it on change). */
+  const thumbFrom = new Map<number, string>()
+
+  function makeThumbnail(id: number, spec: EditSpec): Promise<void> {
+    const first = spec.segments[0]
+    if (!first || !existsSync(first.sourcePath)) return Promise.resolve()
+    const key = `${first.sourcePath}|${first.inSec}`
+    if (thumbFrom.get(id) === key && existsSync(thumbPath(id))) return Promise.resolve()
+    thumbFrom.set(id, key)
+    const atSec = first.inSec + Math.min(1, (first.outSec - first.inSec) / 2)
+    return deps
+      .grabFrame({ input: first.sourcePath, atSec, output: thumbPath(id) })
+      .catch(() => undefined)
+  }
+
+  function toProject(row: {
+    id: number
+    name: string
+    specJson: EditSpec
+    updatedAt: string
+  }): EditProject {
+    return { id: row.id, name: row.name, spec: row.specJson, updatedAt: row.updatedAt }
+  }
+
+  /** A name for a new project: the first clip's title, or the first file's name. */
+  function defaultName(spec: EditSpec): string {
+    const first = spec.segments[0]
+    if (!first) return 'Untitled edit'
+    const clip = first.clipId
+      ? deps.repos.clips.get(first.clipId)
+      : deps.repos.clips.findByPath(first.sourcePath)
+    const base =
+      clip?.title ?? (first.sourcePath.split('/').pop() ?? 'Untitled edit').replace(/\.[^.]+$/, '')
+    const name = spec.segments.length > 1 ? `${base} + ${spec.segments.length - 1} more` : base
+    return name.slice(0, 80)
+  }
+
   async function renderInfo(path: string, reused: boolean): Promise<EditorRender> {
     const probe = await deps.probe(path)
     deps.media.grant(path)
@@ -107,7 +167,7 @@ export function createEditorService(deps: EditorDeps): EditorService {
     }
   }
 
-  return {
+  const service: EditorService = {
     async source(path) {
       const probe = await deps.probe(path)
       deps.media.grant(path)
@@ -183,10 +243,81 @@ export function createEditorService(deps: EditorDeps): EditorService {
       return { revealed: true }
     },
 
+    async exportFile(spec) {
+      const rendered = await service.render(spec)
+      const name = `${
+        defaultName(spec)
+          .replace(/[/\\:*?"<>|]+/g, ' ')
+          .trim() || 'edit'
+      }.mp4`
+      const target = await deps.chooseSavePath(name)
+      if (!target) return { savedTo: null }
+      await copyFile(rendered.path, target)
+      return { savedTo: target }
+    },
+
+    postedClips(accountId, clipIds) {
+      const active = deps.repos.posts.activeClipIds(accountId)
+      return clipIds.filter((id) => active.has(id))
+    },
+
+    listProjects() {
+      return deps.repos.editProjects
+        .list()
+        .sort((a, b) => b.updatedAt.localeCompare(a.updatedAt))
+        .map((row) => {
+          const thumb = thumbPath(row.id)
+          return {
+            id: row.id,
+            name: row.name,
+            canvas: row.specJson.canvas,
+            pieces: row.specJson.segments.length,
+            durationSec: editDuration(row.specJson),
+            thumbnailUrl: existsSync(thumb) ? mediaUrl(thumb) : null,
+            updatedAt: row.updatedAt,
+            missingFiles: renderSources(row.specJson).some((f) => !existsSync(f))
+          }
+        })
+    },
+
+    async createProject(spec, name) {
+      const row = deps.repos.editProjects.create({
+        name: (name ?? defaultName(spec)).trim().slice(0, 80) || 'Untitled edit',
+        specJson: spec
+      })
+      await makeThumbnail(row.id, spec)
+      return toProject(row)
+    },
+
+    getProject(id) {
+      const project = toProject(deps.repos.editProjects.require(id))
+      for (const path of renderSources(project.spec)) {
+        if (existsSync(path)) deps.media.grant(path)
+      }
+      return project
+    },
+
+    saveProject(id, spec) {
+      const row = deps.repos.editProjects.update(id, { specJson: spec })
+      void makeThumbnail(id, spec)
+      return toProject(row)
+    },
+
+    renameProject(id, name) {
+      return toProject(deps.repos.editProjects.update(id, { name: name.trim().slice(0, 80) }))
+    },
+
+    async deleteProject(id) {
+      deps.repos.editProjects.remove(id)
+      thumbFrom.delete(id)
+      await rm(thumbPath(id), { force: true })
+    },
+
     cancelRender() {
       if (!running) return { canceled: false }
       running.abort()
       return { canceled: true }
     }
   }
+  return service
 }

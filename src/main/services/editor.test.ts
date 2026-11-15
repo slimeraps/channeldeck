@@ -51,6 +51,15 @@ function service(o: Partial<EditorDeps> = {}) {
     }),
     emitProgress: vi.fn(),
     showItemInFolder: vi.fn(),
+    grabFrame: vi.fn(async ({ output }) => {
+      mkdirSync(join(output, '..'), { recursive: true })
+      writeFileSync(output, 'jpg')
+    }),
+    chooseSavePath: vi.fn(async (name: string) => {
+      // A real save dialog only returns folders that exist.
+      mkdirSync(join(dir, 'exports'), { recursive: true })
+      return join(dir, 'exports', name)
+    }),
     ...o
   }
   return { editor: createEditorService(deps), deps }
@@ -189,5 +198,67 @@ describe('editor service', () => {
       revealed: false
     })
     expect(deps.showItemInFolder).toHaveBeenCalledTimes(1)
+  })
+
+  it('keeps projects: create, list, autosave, rename and delete', async () => {
+    const { editor, deps } = service()
+    const spec = newEdit([{ path: video, durationSec: 12, clipId: null }])
+    const project = await editor.createProject(spec)
+    expect(project).toMatchObject({ name: 'clip_landscape', spec })
+    expect(deps.grabFrame).toHaveBeenCalledTimes(1)
+
+    const list = editor.listProjects()
+    expect(list).toEqual([
+      expect.objectContaining({
+        id: project.id,
+        canvas: 'vertical',
+        pieces: 1,
+        durationSec: 12,
+        thumbnailUrl: expect.stringMatching(/^cdmedia:/),
+        missingFiles: false
+      })
+    ])
+
+    // Autosave: a change after the first piece's start keeps the thumbnail; trimming the
+    // start makes a new one.
+    editor.saveProject(project.id, { ...spec, volume: 0.5 })
+    expect(editor.getProject(project.id).spec.volume).toBe(0.5)
+    editor.saveProject(project.id, {
+      ...spec,
+      segments: [{ ...spec.segments[0]!, inSec: 4 }]
+    })
+    await vi.waitFor(() => expect(deps.grabFrame).toHaveBeenCalledTimes(2))
+
+    expect(editor.renameProject(project.id, '  Best of  ').name).toBe('Best of')
+    await editor.deleteProject(project.id)
+    expect(editor.listProjects()).toEqual([])
+    expect(() => editor.getProject(project.id)).toThrow()
+  })
+
+  it('names a joined project after its first clip', async () => {
+    const twitch = seedTwitchAccount(t.repos)
+    seedClip(t.repos, twitch.id, 'clip3', { title: 'Clutch' })
+    const { editor } = service()
+    const project = await editor.createProject(
+      newEdit([
+        { path: video, durationSec: 12, clipId: 'clip3' },
+        { path: video, durationSec: 12, clipId: null }
+      ])
+    )
+    expect(project.name).toBe('Clutch + 1 more')
+  })
+
+  it('exports a copy of the render where you choose, or nothing when canceled', async () => {
+    const spec = newEdit([{ path: video, durationSec: 12, clipId: null }])
+    const { editor } = service()
+    const out = await editor.exportFile(spec)
+    expect(out.savedTo).toBe(join(dir, 'exports', 'clip_landscape.mp4'))
+    const { editor: canceled } = service({ chooseSavePath: async () => null })
+    expect(await canceled.exportFile(spec)).toEqual({ savedTo: null })
+  })
+
+  it('lists which clips already have a post on a channel', () => {
+    const { editor } = service()
+    expect(editor.postedClips(1, ['a', 'b'])).toEqual([])
   })
 })

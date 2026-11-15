@@ -1,4 +1,6 @@
 import { z } from 'zod'
+import type { CanvasKind } from '../geometry'
+import { CANVAS_KINDS, editSpecSchema } from './edit'
 
 /** What the editor needs about a video it edits (editor:source). */
 export const editorSourceSchema = z.object({
@@ -43,3 +45,30 @@ export const editorRenderSchema = z.object({
   reused: z.boolean()
 })
 export type EditorRender = z.infer<typeof editorRenderSchema>
+
+const projectId = z.number().int().positive()
+
+/** A saved edit on the Editor page's list. */
+export const editProjectSummarySchema = z.object({
+  id: projectId,
+  name: z.string(),
+  canvas: z.enum(CANVAS_KINDS as [CanvasKind, ...CanvasKind[]]),
+  pieces: z.number().int(),
+  durationSec: z.number(),
+  /** A frame from the first piece (null until it has been made). */
+  thumbnailUrl: z.string().nullable(),
+  updatedAt: z.string(),
+  /** Some file the edit uses is gone. */
+  missingFiles: z.boolean()
+})
+export type EditProjectSummary = z.infer<typeof editProjectSummarySchema>
+
+export const editProjectSchema = z.object({
+  id: projectId,
+  name: z.string(),
+  spec: editSpecSchema,
+  updatedAt: z.string()
+})
+export type EditProject = z.infer<typeof editProjectSchema>
+
+export const projectNameSchema = z.string().trim().min(1, 'Name the project').max(80)

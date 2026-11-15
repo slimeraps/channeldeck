@@ -228,6 +228,16 @@ A video editor that beats Eklipse's: trim, text, crop and zoom, join clips, swit
 
 **Acceptance:** text operations, layout and variable filling are unit-tested; libass glyph positions were measured with the bundled ffmpeg and match the preview's model to the pixel; screenshot mode adds a text, turns on the guides, zooms a 16:9 piece and renders, and the preview's text matches the rendered frame.
 
-### E4–E8
+### E4 — Projects and entry points
+
+- [x] Projects (`edit_projects`, migration 0009): every edit opened on the Editor page is a project, saved about a second after each change and on close; a list with thumbnails (a frame of the first piece, redone when it changes), canvas, length, pieces, last edit and a warning when a file is gone; Rename… and Delete… (with confirm)
+- [x] Post editor: **Edit video…** opens the editor over the post (Done hands the edit back, Cancel leaves it); an edited post shows an "Edited video" card instead of the Format switch, with Remove edit
+- [x] Editor: **Post…** opens the post editor with the edit (linked to its first clip when all clips are from one Twitch channel), **Export…** renders and saves a copy where you choose
+- [x] Clips page: **Edit…** on a clip and in its preview, **Edit together…** for the selected clips (oldest first); clip lengths come from the files
+- [x] A warning in the post editor when other clips joined into the edit are already posted to the chosen channel
+
+**Acceptance:** project storage, autosave thumbnails, export and the posted-clips check are unit-tested; screenshot mode saves a project, posts it, opens Edit video… over the post, shows the project list and joins two clips with Edit together….
+
+### E5–E8
 
 E4 Editor page, projects and entry points · E5 branding and stickers · E6 auto captions (whisper.cpp, model downloaded with consent) · E7 edit styles for autopost rules · E8 polish, release, and the editor added to the web plan.

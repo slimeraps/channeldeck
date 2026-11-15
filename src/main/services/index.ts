@@ -1,5 +1,5 @@
 import { join } from 'node:path'
-import { app, shell } from 'electron'
+import { app, BrowserWindow, dialog, shell } from 'electron'
 import type { OAuth2Client } from 'google-auth-library'
 import { emitToRenderer } from '../appWindow'
 import { getRepos } from '../db'
@@ -164,7 +164,19 @@ export function initServices(): void {
     makeWaveform,
     renderEdit,
     emitProgress: (fraction) => emitToRenderer('editor:renderProgress', { fraction }),
-    showItemInFolder: (path) => shell.showItemInFolder(path)
+    showItemInFolder: (path) => shell.showItemInFolder(path),
+    grabFrame,
+    chooseSavePath: async (defaultName) => {
+      const options = {
+        defaultPath: join(app.getPath('videos'), defaultName),
+        filters: [{ name: 'Video', extensions: ['mp4'] }]
+      }
+      const window = BrowserWindow.getFocusedWindow()
+      const result = window
+        ? await dialog.showSaveDialog(window, options)
+        : await dialog.showSaveDialog(options)
+      return result.canceled || !result.filePath ? null : result.filePath
+    }
   })
 
   layouts = createLayoutsService({

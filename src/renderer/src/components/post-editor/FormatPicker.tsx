@@ -42,12 +42,15 @@ export function FormatPicker({
   media,
   clip,
   disabled,
+  hidden,
   onChoose
 }: {
   input: PostInput
   media: MediaInfo | null
   clip: PostDetail['clip']
   disabled?: boolean
+  /** Hidden while the post has an edit (the edit has its own layout). */
+  hidden?: boolean
   /** Switch the video (null = keep it) and/or the render. */
   onChoose: (next: { filePath: string | null; render: PostInput['render'] }) => void
 }): React.JSX.Element | null {
@@ -66,7 +69,7 @@ export function FormatPicker({
 
   const source = clip?.landscapePath ?? (media && media.width > media.height ? media.path : null)
   // Nothing to choose: a vertical video of your own, or no video yet.
-  if (!source && !clip?.portraitPath) return null
+  if (hidden || (!source && !clip?.portraitPath)) return null
 
   const presets = (layouts.data ?? []).filter(
     (l) => !clip || l.twitchAccountId === clip.twitchAccountId
