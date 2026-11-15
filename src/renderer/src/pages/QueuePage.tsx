@@ -61,6 +61,7 @@ import {
 import { useAccounts } from '@renderer/hooks/useAccounts'
 import { useAutopostAction, useRules } from '@renderer/hooks/useAutopost'
 import { invoke } from '@renderer/lib/ipc'
+import { queueEmptyView } from '@renderer/lib/queueEmpty'
 import {
   useCancelPost,
   useDeleteDraft,
@@ -267,6 +268,8 @@ export function QueuePage(): React.JSX.Element {
         : {}),
     ...(sourceFilter !== ALL ? { source: sourceFilter } : {})
   })
+  // Unfiltered list (existing posts:list channel) answers "any posts at all?".
+  const allPosts = usePosts({})
   const openEditPost = useUiStore((s) => s.openEditPost)
   const duplicate = useDuplicatePost()
   const cancel = useCancelPost()
@@ -302,7 +305,14 @@ export function QueuePage(): React.JSX.Element {
     return list
   }, [posts.data, newestFirst])
 
-  const filtersActive = accountFilter !== ALL || statusFilter !== 'active' || sourceFilter !== ALL
+  const emptyView = queueEmptyView({
+    loaded: posts.isSuccess && allPosts.isSuccess,
+    rowCount: rows.length,
+    totalPosts: allPosts.data?.length ?? 0,
+    statusFilter,
+    accountFilter,
+    sourceFilter
+  })
 
   // Only rows still in the table count (a post can leave the filter after an action).
   const selectedRows = rows.filter((p) => selected.has(p.id))
@@ -319,7 +329,7 @@ export function QueuePage(): React.JSX.Element {
       return next
     })
 
-  if (posts.isSuccess && rows.length === 0 && !filtersActive) {
+  if (emptyView === 'first-run') {
     return (
       <EmptyState icon={ListVideo} title="Nothing in the queue yet" action={<NewPostButton />}>
         Every post for every channel shows up here with its publish time, status and upload
@@ -775,7 +785,22 @@ export function QueuePage(): React.JSX.Element {
             {rows.length === 0 ? (
               <tr>
                 <td colSpan={8} className="px-3 py-10 text-center text-sm text-muted-foreground">
-                  No posts match these filters.
+                  {emptyView === 'no-active' ? (
+                    <>
+                      <p className="font-medium text-foreground">No active posts</p>
+                      <p className="mt-1">Everything you&apos;ve posted is finished or canceled.</p>
+                      <Button
+                        variant="outline"
+                        size="sm"
+                        className="mt-3"
+                        onClick={() => setStatusFilter(ALL)}
+                      >
+                        Show finished posts
+                      </Button>
+                    </>
+                  ) : (
+                    'No posts match these filters.'
+                  )}
                 </td>
               </tr>
             ) : null}
