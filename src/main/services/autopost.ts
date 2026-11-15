@@ -235,17 +235,26 @@ export function createAutopostService(deps: AutopostDeps) {
     }
   }
 
+  function effectiveStyleId(rule: Pick<RuleInput, 'format' | 'styleId' | 'layoutPresetId'>) {
+    return (
+      rule.styleId ??
+      (rule.format === 'short' && rule.layoutPresetId
+        ? (repos.layoutPresets.get(rule.layoutPresetId)?.styleId ?? null)
+        : null)
+    )
+  }
+
   /**
    * Shorts render the horizontal clip with the rule's layout, unless the rule prefers Twitch's
    * own vertical version and the clip has one (or there's no horizontal file at all).
    */
   function needsRender(
-    rule: Pick<RuleInput, 'format' | 'useTwitchVertical' | 'styleId'>,
+    rule: Pick<RuleInput, 'format' | 'useTwitchVertical' | 'styleId' | 'layoutPresetId'>,
     clip: ClipRow
   ): boolean {
     const hasLandscape = Boolean(clip.landscapePath && existsSync(clip.landscapePath))
     // A style (text, stickers, captions) is laid over the landscape file, so it always renders.
-    if (rule.styleId && hasLandscape) return true
+    if (effectiveStyleId(rule) && hasLandscape) return true
     if (rule.format !== 'short') return false
     const hasPortrait = Boolean(clip.portraitPath && existsSync(clip.portraitPath))
     if (!hasLandscape) return false
@@ -284,7 +293,8 @@ export function createAutopostService(deps: AutopostDeps) {
       isShort: boolean
       renderJson: RenderJson | null
     }
-    const style = rule.styleId ? repos.editStyles.get(rule.styleId) : undefined
+    const styleId = effectiveStyleId(rule)
+    const style = styleId ? repos.editStyles.get(styleId) : undefined
     if (style && needsRender(toRuleInput(rule), clip)) {
       // The style's look over the clip; captions are made when it renders.
       const source = clip.landscapePath as string

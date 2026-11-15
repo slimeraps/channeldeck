@@ -140,6 +140,7 @@ export const clips = sqliteTable(
 )
 
 export const layoutPresets = sqliteTable('layout_presets', {
+  styleId: integer('style_id').references(() => editStyles.id, { onDelete: 'set null' }),
   id: integer('id').primaryKey({ autoIncrement: true }),
   twitchAccountId: integer('twitch_account_id')
     .notNull()

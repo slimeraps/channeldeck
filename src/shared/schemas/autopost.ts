@@ -164,7 +164,8 @@ export const layoutInputSchema = z
     twitchAccountId: id,
     name: z.string().trim().min(1, 'Name the layout').max(60),
     kind: z.enum(LAYOUT_KINDS),
-    crops: layoutCropsSchema
+    crops: layoutCropsSchema,
+    styleId: id.nullable().optional()
   })
   .strict()
   .refine((l) => l.kind !== 'facecam_split' || (l.crops.facecam && l.crops.gameplay), {
@@ -181,6 +182,7 @@ export const layoutViewSchema = z.object({
   name: z.string(),
   kind: z.enum(LAYOUT_KINDS),
   crops: layoutCropsSchema,
+  styleId: id.nullable().optional(),
   usedByRules: z.number().int()
 })
 export type LayoutView = z.infer<typeof layoutViewSchema>

@@ -47,6 +47,7 @@ export function createLayoutsService(deps: LayoutsDeps) {
       name: row.name,
       kind: row.kind,
       crops: row.cropsJson,
+      styleId: row.styleId,
       usedByRules: repos.autopostRules.list().filter((r) => r.layoutPresetId === row.id).length
     }
   }
@@ -80,7 +81,12 @@ export function createLayoutsService(deps: LayoutsDeps) {
       if (!repos.twitchAccounts.get(input.twitchAccountId)) {
         throw new UserFacingError('That Twitch channel is no longer connected.')
       }
+      const style = input.styleId ? repos.editStyles.require(input.styleId) : null
+      if (style && style.styleJson.canvas !== 'vertical') {
+        throw new UserFacingError('Choose a vertical style for this layout.')
+      }
       const row = {
+        styleId: input.styleId ?? null,
         twitchAccountId: input.twitchAccountId,
         name: input.name.trim(),
         kind: input.kind,

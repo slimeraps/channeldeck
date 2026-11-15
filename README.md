@@ -11,7 +11,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.9.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 2.0.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -237,6 +237,13 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
+
+### 2.0.0 (2026-11-15)
+
+- **Branding on vertical layout presets:** edit an existing preset and choose **Saved branding style** to attach a vertical editor style with logos, text and captions. Each channel's preset can use its own branding.
+- New autoposts inherit the selected layout's style. An explicit style on the rule takes priority. Styled posts render from the horizontal clip, even when the rule prefers Twitch's vertical version.
+- Only vertical styles can be attached to layouts. Styles attached to a layout cannot be deleted or overwritten with a nonvertical style until detached.
+- Existing queued posts keep their saved appearance. Layout previews and test renders show crops only; branding is applied during autopost rendering. Styles and their layout associations are not included in configuration backups yet.
 
 ### 1.9.0 (2026-11-14)
 

@@ -25,6 +25,7 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { useSaveLayout } from '@renderer/hooks/useAutopost'
+import { useEditStyles } from '@renderer/hooks/useEditStyles'
 import { useTwitchAccounts } from '@renderer/hooks/useTwitch'
 import { invoke } from '@renderer/lib/ipc'
 import { cn } from '@renderer/lib/utils'
@@ -277,6 +278,8 @@ export function LayoutEditor({
 }): React.JSX.Element {
   const twitch = useTwitchAccounts()
   const save = useSaveLayout()
+  const styles = useEditStyles()
+  const [styleId, setStyleId] = useState<number | null>(layout?.styleId ?? null)
   const [twitchAccountId, setTwitchAccountId] = useState<number | null>(
     layout?.twitchAccountId ?? defaultTwitchAccountId ?? null
   )
@@ -317,6 +320,7 @@ export function LayoutEditor({
 
   const parsed = layoutInputSchema.safeParse({
     twitchAccountId: accountId ?? 0,
+    styleId,
     name,
     kind,
     crops: kind === 'facecam_split' ? crops : {}
@@ -383,6 +387,37 @@ export function LayoutEditor({
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+
+            <div className="grid gap-1.5">
+              <Label>Saved branding style</Label>
+              <Select
+                value={styleId ? String(styleId) : 'none'}
+                onValueChange={(v) => setStyleId(v === 'none' ? null : Number(v))}
+              >
+                <SelectTrigger>
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="none">None</SelectItem>
+                  {(styles.data ?? [])
+                    .filter((s) => s.canvas === 'vertical')
+                    .map((s) => (
+                      <SelectItem key={s.id} value={String(s.id)}>
+                        {s.name}
+                      </SelectItem>
+                    ))}
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-muted-foreground">
+                Autoposts using this layout include this style’s logos, text and captions. A style
+                selected on the rule overrides it. Create vertical styles with Save as style in the
+                Editor.
+              </p>
+              <p className="text-xs text-muted-foreground">
+                The preview below shows the crop layout only. Branding is applied when the autopost
+                renders.
+              </p>
             </div>
 
             <RadioGroup

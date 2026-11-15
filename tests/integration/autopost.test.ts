@@ -297,52 +297,75 @@ describe('planner', () => {
     })
   })
 
-  it('plans a styled edit: the style over the clip, captions made later', async () => {
-    bankClip(0, { portrait: true }) // has a portrait file, but a style always renders the landscape
-    const style = t.repos.editStyles.create({
-      name: 'Title + captions',
-      styleJson: {
-        canvas: 'vertical',
-        durationSec: 10,
-        texts: [
-          {
-            id: 'title',
-            text: '{{clip_title}}',
-            startSec: 0,
-            endSec: 10,
-            x: 0.5,
-            y: 0.15,
-            style: DEFAULT_TEXT_STYLE,
-            animation: 'none'
-          }
-        ],
-        overlays: [],
-        captions: DEFAULT_CAPTION_STYLE
+  it.each(['rule', 'layout', 'override'] as const)(
+    'plans a styled edit from %s, with captions made later',
+    async (source) => {
+      bankClip(0, { portrait: true }) // has a portrait file, but a style always renders the landscape
+      const style = t.repos.editStyles.create({
+        name: 'Title + captions',
+        styleJson: {
+          canvas: 'vertical',
+          durationSec: 10,
+          texts: [
+            {
+              id: 'title',
+              text: '{{clip_title}}',
+              startSec: 0,
+              endSec: 10,
+              x: 0.5,
+              y: 0.15,
+              style: DEFAULT_TEXT_STYLE,
+              animation: 'none'
+            }
+          ],
+          overlays: [],
+          captions: DEFAULT_CAPTION_STYLE
+        }
+      })
+      const otherStyle = t.repos.editStyles.create({
+        name: 'Other branding',
+        styleJson: { ...style.styleJson, texts: [] }
+      })
+      const layout = t.repos.layoutPresets.create({
+        twitchAccountId: twitchId,
+        name: 'Branded crop',
+        kind: 'center_crop',
+        cropsJson: {},
+        styleId: source === 'override' ? otherStyle.id : style.id
+      })
+      const { id } = autopost.save(
+        rule({
+          slots: ['18:00'],
+          lookaheadDays: 1,
+          styleId: source === 'layout' ? null : style.id,
+          layoutPresetId: source === 'rule' ? null : layout.id,
+          useTwitchVertical: true
+        })
+      )
+      await autopost.planRule(id)
+      const post = rulePosts(id)[0]
+      expect(post).toMatchObject({
+        filePath: expect.stringMatching(
+          new RegExp(`^${dir}/_renders/clip00_edit_[0-9a-f]{10}\\.mp4$`)
+        ),
+        width: 1080,
+        height: 1920,
+        isShort: true
+      })
+      const spec = post?.renderJson as EditSpec
+      expect(spec.version).toBe(EDIT_SPEC_VERSION)
+      expect(spec.segments[0]).toMatchObject({
+        sourcePath: join(dir, 'clip00_landscape.mp4'),
+        clipId: 'clip00',
+        outSec: 30
+      })
+      if (source !== 'rule') {
+        expect(spec.segments[0]?.layout).toMatchObject({ kind: 'center_crop', presetId: layout.id })
       }
-    })
-    const { id } = autopost.save(
-      rule({ slots: ['18:00'], lookaheadDays: 1, styleId: style.id, useTwitchVertical: true })
-    )
-    await autopost.planRule(id)
-    const post = rulePosts(id)[0]
-    expect(post).toMatchObject({
-      filePath: expect.stringMatching(
-        new RegExp(`^${dir}/_renders/clip00_edit_[0-9a-f]{10}\\.mp4$`)
-      ),
-      width: 1080,
-      height: 1920,
-      isShort: true
-    })
-    const spec = post?.renderJson as EditSpec
-    expect(spec.version).toBe(EDIT_SPEC_VERSION)
-    expect(spec.segments[0]).toMatchObject({
-      sourcePath: join(dir, 'clip00_landscape.mp4'),
-      clipId: 'clip00',
-      outSec: 30
-    })
-    expect(spec.texts[0]).toMatchObject({ text: '{{clip_title}}', endSec: 30 })
-    expect(spec.captions).toMatchObject({ enabled: true, sources: [] })
-  })
+      expect(spec.texts[0]).toMatchObject({ text: '{{clip_title}}', endSec: 30 })
+      expect(spec.captions).toMatchObject({ enabled: true, sources: [] })
+    }
+  )
 
   it('refuses a rule whose style was deleted', () => {
     expect(() => autopost.save(rule({ styleId: 999 }))).toThrow(/style was deleted/)
