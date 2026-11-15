@@ -1,4 +1,4 @@
-import { PAGES } from '@renderer/app/nav'
+import { visiblePages } from '@renderer/app/nav'
 import { BrandLogo } from '@renderer/components/brand/BrandLogo'
 import { NewPostButton } from '@renderer/components/NewPostButton'
 import { QuotaMeter } from '@renderer/components/QuotaMeter'
@@ -26,26 +26,28 @@ export function AppSidebar(): React.JSX.Element {
       </div>
 
       <nav aria-label="Main" className="flex-1 space-y-0.5 px-3">
-        {PAGES.map(({ id, label, icon: Icon }) => {
-          const active = id === page
-          return (
-            <button
-              key={id}
-              type="button"
-              onClick={() => setPage(id)}
-              aria-current={active ? 'page' : undefined}
-              className={cn(
-                'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors',
-                active
-                  ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
-                  : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
-              )}
-            >
-              <Icon className={cn('size-4', active && 'text-primary')} aria-hidden />
-              {label}
-            </button>
-          )
-        })}
+        {visiblePages({ showHealth: settings.data?.settings.showHealth ?? false }).map(
+          ({ id, label, icon: Icon }) => {
+            const active = id === page
+            return (
+              <button
+                key={id}
+                type="button"
+                onClick={() => setPage(id)}
+                aria-current={active ? 'page' : undefined}
+                className={cn(
+                  'flex w-full items-center gap-2.5 rounded-md px-2 py-1.5 text-sm transition-colors',
+                  active
+                    ? 'bg-sidebar-accent font-medium text-sidebar-accent-foreground'
+                    : 'text-sidebar-foreground/70 hover:bg-sidebar-accent/60 hover:text-sidebar-foreground'
+                )}
+              >
+                <Icon className={cn('size-4', active && 'text-primary')} aria-hidden />
+                {label}
+              </button>
+            )
+          }
+        )}
       </nav>
 
       {settings.data?.settings.dryRun ? (

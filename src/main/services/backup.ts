@@ -167,7 +167,13 @@ export function createBackupService(deps: { repos: Repos; clock?: Clock }) {
 
     // Settings that decide whether anything is really uploaded or deleted stay as they are
     // on this Mac: an old backup must never quietly turn Dry Run off or start deleting files.
-    const { dryRun: _dryRun, deleteLocalAfterPostingDays: _deleteDays, ...restored } = b.settings
+    // Show Health is also per-Mac, so a backup never switches it on or off.
+    const {
+      dryRun: _dryRun,
+      deleteLocalAfterPostingDays: _deleteDays,
+      showHealth: _showHealth,
+      ...restored
+    } = b.settings
     repos.settings.update(restored)
 
     const accountId = new Map<string, number>()

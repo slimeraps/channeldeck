@@ -13,6 +13,7 @@ import { postsKey } from '@renderer/hooks/usePosts'
 import { clipsKey, twitchKey } from '@renderer/hooks/useTwitch'
 import { onEvent } from '@renderer/lib/ipc'
 import { autopostKey, layoutsKey } from '@renderer/hooks/useAutopost'
+import { useSettings } from '@renderer/hooks/useSettings'
 import { statusKey } from '@renderer/hooks/useStatus'
 import { templatesKey } from '@renderer/hooks/useTemplates'
 import { AnalyticsPage } from '@renderer/pages/AnalyticsPage'
@@ -24,6 +25,7 @@ import { ClipsPage } from '@renderer/pages/ClipsPage'
 import { EditorPage } from '@renderer/pages/EditorPage'
 import { PlaceholderPage } from '@renderer/pages/PlaceholderPage'
 import { QueuePage } from '@renderer/pages/QueuePage'
+import { HealthPage } from '@renderer/pages/HealthPage'
 import { SettingsPage } from '@renderer/pages/SettingsPage'
 import { useProgressStore } from '@renderer/stores/progress'
 import { useUiStore } from '@renderer/stores/ui'
@@ -57,6 +59,8 @@ function PageContent({ id }: { id: ReturnType<typeof getPage>['id'] }): React.JS
       return <AnalyticsPage />
     case 'settings':
       return <SettingsPage />
+    case 'health':
+      return <HealthPage />
     default:
       return <PlaceholderPage page={getPage(id)} />
   }
@@ -70,9 +74,17 @@ export function App(): React.JSX.Element {
   const pageId = useUiStore((s) => s.page)
   const openNewPost = useUiStore((s) => s.openNewPost)
   const editorOpen = useUiStore((s) => s.editor.open)
+  const setPage = useUiStore((s) => s.setPage)
+  const settings = useSettings()
+  const showHealth = settings.data?.settings.showHealth
   const queryClient = useQueryClient()
   const page = getPage(pageId)
   const [dragging, setDragging] = useState(false)
+
+  // Turning Show Health off while on the Health page sends you back to the Queue.
+  useEffect(() => {
+    if (pageId === 'health' && showHealth === false) setPage('queue')
+  }, [pageId, showHealth, setPage])
 
   // Cmd+N comes from the app menu in main, so it works whatever has focus.
   useEffect(() => onEvent('ui:newPost', () => openNewPost()), [openNewPost])

@@ -18,6 +18,8 @@ describe('settings store', () => {
     expect(defaults.dailySyncTime).toBe('04:00')
     expect(defaults.uploadConcurrency).toBe(1)
     expect(defaults.dryRun).toBe(false)
+    expect(defaults.showHealth).toBe(false)
+    expect(t.repos.settings.get().showHealth).toBe(false)
   })
 
   it('round-trips updates and keeps other keys at their defaults', () => {

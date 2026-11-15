@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import { PAGE_IDS, PAGES, getPage } from './nav'
+import { PAGE_IDS, PAGES, getPage, visiblePages } from './nav'
 
 describe('sidebar pages', () => {
   it('lists the sidebar pages in the order from the brief', () => {
@@ -12,7 +12,8 @@ describe('sidebar pages', () => {
       'Autopost',
       'Channels',
       'Templates',
-      'Settings'
+      'Settings',
+      'Health'
     ])
   })
 
@@ -25,6 +26,18 @@ describe('sidebar pages', () => {
       expect(page.emptyTitle.length, page.id).toBeGreaterThan(0)
       expect(page.emptyBody.length, page.id).toBeGreaterThan(0)
     }
+  })
+
+  it('hides Health until Show Health is on', () => {
+    const labels = visiblePages({ showHealth: false }).map((p) => p.label)
+    expect(labels).not.toContain('Health')
+    expect(labels).toHaveLength(PAGES.length - 1)
+  })
+
+  it('lists Health last, after Settings, when Show Health is on', () => {
+    const labels = visiblePages({ showHealth: true }).map((p) => p.label)
+    expect(labels.slice(-2)).toEqual(['Settings', 'Health'])
+    expect(labels).toHaveLength(PAGES.length)
   })
 
   it('looks pages up by id', () => {

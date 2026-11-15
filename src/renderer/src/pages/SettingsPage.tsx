@@ -396,6 +396,20 @@ export function SettingsPage(): React.JSX.Element {
         </SettingRow>
       </Section>
 
+      <Section title="Advanced">
+        <SettingRow
+          title="Show Health page"
+          hint="Adds a Health page to the sidebar. It is still being built, so most people can leave this off."
+        >
+          <Switch
+            checked={s?.showHealth ?? false}
+            disabled={!s}
+            onCheckedChange={(showHealth) => update.mutate({ showHealth })}
+            aria-label="Show Health page"
+          />
+        </SettingRow>
+      </Section>
+
       <Section
         title="Backup"
         hint="A JSON file with your settings, channels, Twitch channels, templates, series, layouts, rules and unposted posts. Never any sign-in token or secret."

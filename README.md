@@ -240,6 +240,7 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 
 ### Unreleased
 
+- **Health page (early):** a new **Show Health page** switch under Settings → Advanced adds a Health page to the sidebar. It's off by default, and for now the page is only a placeholder. The switch is per Mac and isn't changed by importing a backup.
 - **Queue filters stay reachable:** if all your posts are published or canceled, the Queue now shows "No active posts" with a **Show finished posts** button instead of the first-run "Nothing in the queue yet" screen, which hid the status filter. The first-run screen appears only when you have no posts at all.
 
 ### 2.0.0 (2026-11-15)
