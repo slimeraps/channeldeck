@@ -11,7 +11,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 1.8.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 1.9.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -238,13 +238,14 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
 
-### Unreleased
+### 1.9.0 (2026-11-14)
 
-- Editor, phase E7 (2026-11-15):
+- Editor, phase E7 (2026-11-14):
   - **Edit styles for autoposts:** the Editor's **Save as style** button saves an edit's text layers, stickers and caption look (no footage) under a name. Same name updates the style.
   - A rule's new **Style** section picks one. Every autopost of that rule is then rendered from the horizontal clip with the rule's layout and the style on top: text with `{{clip_title}}` and the other variables filled in, stickers, and **auto captions**. Layers that ran to the end of the style's edit run to the end of each clip; shorter clips drop layers that would start after they end.
   - Captions are made on your Mac for each clip just before it uploads (each file is transcribed once). If the caption model isn't downloaded, the post fails with a message saying so, and the rule editor warns about it.
   - A style a rule uses can't be deleted, and stickers a style uses stay in the library. A rule without a style behaves exactly as before.
+  - **Save as style** also lists your styles, so you can replace or delete one (with a confirmation).
   - Not in backups yet: a restored rule comes back without its style.
 
 ### 1.8.0 (2026-11-14)
