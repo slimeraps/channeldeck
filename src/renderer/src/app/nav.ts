@@ -3,6 +3,7 @@ import {
   CalendarDays,
   Clapperboard,
   FileText,
+  HeartPulse,
   ListVideo,
   type LucideIcon,
   MonitorPlay,
@@ -20,7 +21,8 @@ export const PAGE_IDS = [
   'autopost',
   'channels',
   'templates',
-  'settings'
+  'settings',
+  'health'
 ] as const
 export type PageId = (typeof PAGE_IDS)[number]
 
@@ -125,8 +127,22 @@ export const PAGES: readonly PageDef[] = [
     emptyBody: 'Google and Twitch credentials, clip folder, sync time, Dry Run and backups.',
     phase: 9,
     offersNewPost: false
+  },
+  {
+    id: 'health',
+    label: 'Health',
+    icon: HeartPulse,
+    emptyTitle: 'Health',
+    emptyBody: 'Health dashboard — more coming soon',
+    phase: 0,
+    offersNewPost: false
   }
 ]
+
+/** The pages the sidebar lists. Health is an Advanced setting and hidden until it is on. */
+export function visiblePages({ showHealth }: { showHealth: boolean }): PageDef[] {
+  return PAGES.filter((p) => p.id !== 'health' || showHealth)
+}
 
 export function getPage(id: PageId): PageDef {
   const page = PAGES.find((p) => p.id === id)

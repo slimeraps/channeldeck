@@ -29,6 +29,8 @@ export const settingsShape = {
   hidePostTitles: z.boolean(),
   /** Log YouTube calls instead of making them. Twitch sync and downloads still run. */
   dryRun: z.boolean(),
+  /** Show the Health page in the sidebar (Settings → Advanced). Per-Mac: not restored from backups. */
+  showHealth: z.boolean(),
   /** Delete a clip's local files this many days after it's posted; null = keep forever. */
   deleteLocalAfterPostingDays: z.number().int().min(1).max(3650).nullable(),
   /** Twitch app Client ID (public). The client secret is stored separately, encrypted. */
@@ -60,6 +62,7 @@ export function defaultSettings({ homeDir }: { homeDir: string }): Settings {
     keepInTray: true,
     hidePostTitles: false,
     dryRun: false,
+    showHealth: false,
     deleteLocalAfterPostingDays: null,
     twitchClientId: null,
     setupDismissed: false,

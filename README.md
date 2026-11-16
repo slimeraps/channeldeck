@@ -240,6 +240,7 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 
 ### Unreleased
 
+- **Health page (early):** a new **Show Health page** switch under Settings → Advanced adds a read-only Health page to the sidebar. It's off by default and per Mac, and importing a backup doesn't change it. The page shows tiles for the app (version, database version and size), Dry Run and background jobs (running or paused), today's YouTube quota, post counts for every status, clip download counts, whether each connected channel is signed in, and the latest 50 events. It never shows tokens or secrets, and events hide file paths (and post titles when **Hide post titles** is on).
 - **Queue filters stay reachable:** if all your posts are published or canceled, the Queue now shows "No active posts" with a **Show finished posts** button instead of the first-run "Nothing in the queue yet" screen, which hid the status filter. The first-run screen appears only when you have no posts at all.
 
 ### 2.0.0 (2026-11-15)

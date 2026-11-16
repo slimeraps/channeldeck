@@ -154,16 +154,29 @@ describe('backup', () => {
     })
   })
 
-  it('never changes Dry Run or file deletion on the Mac it is imported into', () => {
-    target.repos.settings.update({ dryRun: true, deleteLocalAfterPostingDays: 30 })
-    source.repos.settings.update({ dryRun: false, deleteLocalAfterPostingDays: 1 })
+  it('never changes Dry Run, file deletion or Show Health on the Mac it is imported into', () => {
+    target.repos.settings.update({
+      dryRun: true,
+      deleteLocalAfterPostingDays: 30,
+      showHealth: true
+    })
+    source.repos.settings.update({
+      dryRun: false,
+      deleteLocalAfterPostingDays: 1,
+      showHealth: false
+    })
     const exported = createBackupService({ repos: source.repos }).exportBackup()
-    expect(exported.settings).toMatchObject({ dryRun: false, deleteLocalAfterPostingDays: 1 })
+    expect(exported.settings).toMatchObject({
+      dryRun: false,
+      deleteLocalAfterPostingDays: 1,
+      showHealth: false
+    })
 
     createBackupService({ repos: target.repos }).importBackup(JSON.parse(JSON.stringify(exported)))
     expect(target.repos.settings.get()).toMatchObject({
       dryRun: true,
       deleteLocalAfterPostingDays: 30,
+      showHealth: true,
       twitchClientId: 'public-client-id'
     })
   })

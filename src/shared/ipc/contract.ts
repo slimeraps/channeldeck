@@ -17,6 +17,7 @@ import {
   SAVE_MODES,
   thumbnailInfoSchema
 } from '../schemas/post'
+import { healthSnapshotSchema } from '../schemas/health'
 import { settingsPatchSchema, settingsSchema } from '../schemas/settings'
 import {
   clipIdsSchema,
@@ -105,6 +106,7 @@ export const invokeContract = {
       resetsAtUtc: z.string()
     })
   },
+  'health:get': { input: noInput, output: healthSnapshotSchema },
   'app:storage': {
     input: noInput,
     output: z.object({

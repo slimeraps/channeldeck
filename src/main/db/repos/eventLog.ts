@@ -1,4 +1,4 @@
-import { and, desc, eq, type SQL } from 'drizzle-orm'
+import { and, count, desc, eq, type SQL } from 'drizzle-orm'
 import type { EventLevel } from '@shared/constants/enums'
 import { redact } from '../../redact'
 import type { Db } from '../client'
@@ -20,6 +20,8 @@ export interface EventInput {
 export interface EventLogRepo {
   write(event: EventInput): EventLogRow
   recent(options?: { limit?: number; postId?: string; kind?: string }): EventLogRow[]
+  /** How many events of this kind are logged. */
+  count(kind: string): number
 }
 
 export function createEventLogRepo(db: Db, clock: Clock): EventLogRepo {
@@ -53,6 +55,10 @@ export function createEventLogRepo(db: Db, clock: Clock): EventLogRepo {
         .orderBy(desc(eventLog.atUtc), desc(eventLog.id))
         .limit(limit)
         .all()
+    },
+
+    count(kind) {
+      return db.select({ n: count() }).from(eventLog).where(eq(eventLog.kind, kind)).get()?.n ?? 0
     }
   }
 }

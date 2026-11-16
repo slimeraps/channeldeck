@@ -105,6 +105,7 @@ export const INVOKE_CHANNELS = [
   'autopost:swapClip',
   'app:quota',
   'app:storage',
+  'health:get',
   'backup:export',
   'backup:import',
   'posts:renderVertical',
