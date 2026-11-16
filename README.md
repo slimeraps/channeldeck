@@ -243,6 +243,7 @@ Newest first. The website's [changelog page](https://slimeraps.github.io/channel
 ### Unreleased
 
 - **Health page event glossary (2026-11-16):** every event in Recent events now shows a friendly name above its raw kind, with a short explanation when you hover it. Warnings (a sign-in that expired, an empty clip bank, a failed clip sync, YouTube keeping a video private) and posts that moved to failed also show a "Check:" hint. A collapsible **What do these events mean?** section at the bottom lists every event. The text is built into the app; the health snapshot and what the app logs are unchanged. The Health tests now use the real `post.status` event shape instead of an event the app never writes.
+- **Development:** shared test files are no longer part of the renderer's typecheck (`tsconfig.web.json`); `tsconfig.node.json` still checks them. Node's types stay out of the renderer, so renderer code that uses `Buffer` or `process` fails the typecheck again.
 
 ### 2.1.0 (2026-11-15)
 

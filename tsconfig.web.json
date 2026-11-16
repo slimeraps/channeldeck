@@ -1,6 +1,9 @@
 {
   "extends": "./tsconfig.base.json",
   "include": ["src/renderer/src/**/*", "src/shared/**/*"],
+  // Shared tests run under Node (vitest) and are typechecked by tsconfig.node.json. Leaving them
+  // out here keeps Node types out of the renderer, so Buffer/process in renderer code still fail.
+  "exclude": ["src/shared/**/*.test.ts"],
   "compilerOptions": {
     "composite": true,
     "target": "ES2023",
