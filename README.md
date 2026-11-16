@@ -118,6 +118,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Quota meter (today's uploads / 100 and units / 10,000, resets at midnight Pacific) in the sidebar and Settings
 - ✅ Disk usage per Twitch channel, and "delete local files N days after posting"
 - ✅ Backup export/import as JSON, never with tokens or secrets (channels come back signed out, rules switched off)
+- ✅ Health page (Settings → Advanced, off by default): read-only tiles for the app and database, Dry Run, jobs, quota, post and clip counts, channel sign-in and recent events
 - ✅ App icon
 - ✅ `.dmg` for Apple Silicon (`npm run dist`) and a first-run setup checklist
 
@@ -185,7 +186,7 @@ Clips are saved to `~/Movies/ChannelDeck/Clips/<channel>/<year>/<year-month>/` (
 
 ### Backups
 
-**Settings → Backup → Export backup…** saves a JSON file with your settings, channels, Twitch channels, templates, series, layouts, rules and posts not yet on YouTube. It never contains sign-in tokens or secrets. When you import it on a new Mac, click **Reconnect** on each channel and turn the rules back on. Import restores your settings except Dry Run and “delete local files after posting”, which keep the values already set on that Mac. Clips come back from Twitch on the next sync.
+**Settings → Backup → Export backup…** saves a JSON file with your settings, channels, Twitch channels, templates, series, layouts, rules and posts not yet on YouTube. It never contains sign-in tokens or secrets. When you import it on a new Mac, click **Reconnect** on each channel and turn the rules back on. Import restores your settings except Dry Run, “delete local files after posting” and Show Health page, which keep the values already set on that Mac. Clips come back from Twitch on the next sync.
 
 ### YouTube quota
 
@@ -238,7 +239,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
 
-### Unreleased
+### 2.1.0 (2026-11-15)
 
 - **Health page (early):** a new **Show Health page** switch under Settings → Advanced adds a read-only Health page to the sidebar. It's off by default and per Mac, and importing a backup doesn't change it. The page shows tiles for the app (version, database version and size), Dry Run and background jobs (running or paused), today's YouTube quota, post counts for every status, clip download counts, whether each connected channel is signed in, and the latest 50 events. It never shows tokens or secrets, and events hide file paths (and post titles when **Hide post titles** is on).
 - **Queue filters stay reachable:** if all your posts are published or canceled, the Queue now shows "No active posts" with a **Show finished posts** button instead of the first-run "Nothing in the queue yet" screen, which hid the status filter. The first-run screen appears only when you have no posts at all.
