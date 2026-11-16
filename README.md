@@ -11,7 +11,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 2.0.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 2.1.1. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -88,6 +88,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Full backfill from a start date, resumable after a quit
 - ✅ Downloads landscape and portrait files, thumbnail and metadata, named so Finder sorts oldest to newest
 - ✅ Clips page: sort, filter (game, length, views, featured, posted, dates, title), preview, bulk actions, disk usage
+- ✅ Clip viewer: **Horizontal** / **Vertical** switch plays the landscape or portrait file (keeps your place in the clip); a version that isn't on disk is greyed out and its tooltip says why
 - ✅ A color per Twitch channel (picked on the Channels page, like YouTube channels), shown on clip cards, Clips tabs, autopost rules and layouts
 - ✅ **All channels** view on the Clips page: sort, filter and bulk-select clips from every channel at once, or pick a few channels to show
 - ✅ Add clips as draft posts to any YouTube channel; a clip can never be added twice to the same channel
@@ -239,6 +240,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
+
+### Unreleased
+
+- **Clip viewer orientation switch:** the Landscape/Portrait badges in the bottom-left of the clip viewer are now a **Horizontal** / **Vertical** switch. Click one to play that file; the selected one is highlighted, and playback picks up at the same moment. A version that isn't on disk is greyed out, and hovering it says why (still downloading, download failed, not downloadable, files deleted, or Twitch had no such version). Vertical clips are shown whole inside the same 16:9 box, so switching doesn't resize the window or stretch the video. The viewer still opens on the vertical file when there is one. Screenshot mode now gives some demo clips a vertical file and captures the viewer.
 
 ### 2.1.1 (2026-11-16)
 

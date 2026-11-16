@@ -3,13 +3,15 @@ import {
   Clapperboard,
   ExternalLink,
   Filter,
+  RectangleHorizontal,
+  RectangleVertical,
   Scissors,
   Search,
   Send,
   X
 } from 'lucide-react'
 import { toast } from 'sonner'
-import { useMemo, useState } from 'react'
+import { useMemo, useRef, useState } from 'react'
 import type { PickOrder } from '@shared/constants/enums'
 import type { ClipSearchInput, ClipView } from '@shared/schemas/twitch'
 import { ClipCard } from '@renderer/components/clips/ClipCard'
@@ -41,8 +43,15 @@ import {
   SelectValue
 } from '@renderer/components/ui/select'
 import { Switch } from '@renderer/components/ui/switch'
+import { Tooltip, TooltipContent, TooltipTrigger } from '@renderer/components/ui/tooltip'
 import { useAccounts } from '@renderer/hooks/useAccounts'
 import { useClipSearch, useTwitchAccounts, useTwitchAction } from '@renderer/hooks/useTwitch'
+import {
+  type ClipOrientation,
+  ORIENTATION_LABEL,
+  orientationOptions,
+  pickOrientation
+} from '@renderer/lib/clipOrientation'
 import { invoke } from '@renderer/lib/ipc'
 import { formatBytes, formatDuration } from '@renderer/lib/status'
 import { cn } from '@renderer/lib/utils'
@@ -80,7 +89,30 @@ function ClipPreview({
   onPost: () => void
   onEdit: () => void
 }): React.JSX.Element {
-  const video = clip.portraitUrl ?? clip.landscapeUrl
+  const [wanted, setWanted] = useState<ClipOrientation | null>(null)
+  const videoRef = useRef<HTMLVideoElement>(null)
+  // Where to pick up after switching version, so the clip keeps playing from the same spot.
+  const resumeAt = useRef<{ time: number; paused: boolean } | null>(null)
+  const options = orientationOptions(clip)
+  const shown = pickOrientation(clip, wanted)
+  const video = options.find((o) => o.orientation === shown)?.url ?? null
+
+  function choose(orientation: ClipOrientation): void {
+    if (orientation === shown) return
+    const el = videoRef.current
+    resumeAt.current = el ? { time: el.currentTime, paused: el.paused } : null
+    setWanted(orientation)
+  }
+
+  function onLoadedMetadata(): void {
+    const el = videoRef.current
+    const resume = resumeAt.current
+    resumeAt.current = null
+    if (!el || !resume) return
+    el.currentTime = Math.min(resume.time, el.duration || resume.time)
+    if (resume.paused) el.pause()
+  }
+
   return (
     <Dialog open onOpenChange={(open) => !open && onClose()}>
       <DialogContent className="sm:max-w-3xl">
@@ -100,8 +132,18 @@ function ClipPreview({
           </DialogDescription>
         </DialogHeader>
         {video ? (
-          <div className="flex justify-center overflow-hidden rounded-lg bg-black">
-            <video src={video} controls autoPlay className="max-h-[60vh]" />
+          // A fixed 16:9 box: the vertical file is pillarboxed inside it, so switching
+          // versions never resizes the dialog or stretches the video.
+          <div className="mx-auto flex aspect-video max-h-[60vh] w-full justify-center overflow-hidden rounded-lg bg-black">
+            <video
+              key={video}
+              ref={videoRef}
+              src={video}
+              controls
+              autoPlay
+              onLoadedMetadata={onLoadedMetadata}
+              className="h-full w-full object-contain"
+            />
           </div>
         ) : (
           <p className="rounded-lg border border-dashed p-6 text-center text-sm text-muted-foreground">
@@ -109,13 +151,40 @@ function ClipPreview({
             {clip.downloadError ? ` ${clip.downloadError}` : ''}
           </p>
         )}
-        <div className="flex flex-wrap gap-2 text-xs">
-          {clip.landscapeUrl ? (
-            <span className="rounded bg-muted px-2 py-1">Landscape file</span>
-          ) : null}
-          {clip.portraitUrl ? (
-            <span className="rounded bg-muted px-2 py-1">Portrait file</span>
-          ) : null}
+        <div className="flex flex-wrap items-center gap-2 text-xs">
+          <div className="flex rounded-md border p-0.5" role="group" aria-label="Clip version">
+            {options.map((o) => {
+              const Icon = o.orientation === 'landscape' ? RectangleHorizontal : RectangleVertical
+              const on = o.orientation === shown
+              return (
+                <Tooltip key={o.orientation}>
+                  <TooltipTrigger asChild>
+                    {/* A disabled button gets no pointer events; the span keeps the tooltip working. */}
+                    <span tabIndex={o.enabled ? undefined : 0} className="inline-flex">
+                      <button
+                        type="button"
+                        aria-pressed={on}
+                        disabled={!o.enabled}
+                        onClick={() => choose(o.orientation)}
+                        className={cn(
+                          'inline-flex items-center gap-1 rounded px-2 py-1',
+                          on
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground',
+                          !o.enabled &&
+                            'cursor-not-allowed line-through opacity-50 hover:text-muted-foreground'
+                        )}
+                      >
+                        <Icon aria-hidden className="size-3.5" />
+                        {ORIENTATION_LABEL[o.orientation]}
+                      </button>
+                    </span>
+                  </TooltipTrigger>
+                  <TooltipContent>{o.hint}</TooltipContent>
+                </Tooltip>
+              )
+            })}
+          </div>
           <Button variant="ghost" size="sm" asChild className="ml-auto">
             <a href={clip.url} target="_blank" rel="noreferrer">
               Open on Twitch <ExternalLink aria-hidden />
@@ -637,6 +706,7 @@ export function ClipsPage(): React.JSX.Element {
 
       {preview ? (
         <ClipPreview
+          key={preview.id}
           clip={preview}
           onClose={() => setPreview(null)}
           onPost={() => {
