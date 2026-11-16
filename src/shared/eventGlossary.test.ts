@@ -1,5 +1,3 @@
-// src/shared is also in the web (renderer) typecheck project, which has no Node types.
-/// <reference types="node" />
 import { readdirSync, readFileSync } from 'node:fs'
 import { dirname, join, resolve } from 'node:path'
 import { fileURLToPath } from 'node:url'
