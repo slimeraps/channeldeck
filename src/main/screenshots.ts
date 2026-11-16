@@ -153,6 +153,22 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
     'ultrafast',
     video
   ])
+  // A vertical version for some clips, so the clip viewer can switch between the two.
+  const portraitVideo = join(clipsRoot, 'demo', 'demo_portrait.mp4')
+  await runFfmpeg([
+    '-hide_banner',
+    '-nostdin',
+    '-y',
+    '-f',
+    'lavfi',
+    '-i',
+    'testsrc2=size=720x1280:rate=30:duration=3',
+    '-c:v',
+    'libx264',
+    '-preset',
+    'ultrafast',
+    portraitVideo
+  ])
   // The caption model, when given (it's 190 MB, so screenshots only use one you already have).
   const model = process.env['CHANNELDECK_DEMO_WHISPER_MODEL']
   if (model && existsSync(model)) {
@@ -289,7 +305,13 @@ export async function seedDemoData(dir: string, repos: Repos): Promise<void> {
     repos.clips.setDownload(id, {
       downloadStatus: status,
       ...(status === 'downloaded'
-        ? { landscapePath: video, thumbPath: thumbs[i % thumbs.length], fileSize: 18_000_000 }
+        ? {
+            // Every fourth clip has both versions, DemoClip1 only the vertical one.
+            landscapePath: i === 1 ? null : video,
+            portraitPath: i % 4 === 0 || i === 1 ? portraitVideo : null,
+            thumbPath: thumbs[i % thumbs.length],
+            fileSize: 18_000_000
+          }
         : { downloadError: status === 'failed' ? 'Twitch returned HTTP 503' : null })
     })
   }
@@ -719,8 +741,34 @@ export async function captureScreens(
     await settle(1500)
     await shot('data-editor-projects')
   }
-  // Clips page: select two clips and join them in a new edit.
+  // The clip viewer: both versions (vertical, then switched to horizontal), only the
+  // vertical file, only the horizontal file, and a clip that failed to download.
   await go('Clips')
+  // The page opens oldest first; switch the sort (the first select) to Newest first.
+  await mouseClick('main [role="combobox"]')
+  await key('Down')
+  await key('Return', 800)
+  // Newest first and DemoClip3 is hidden: cards 0, 1, 2 and 4 are DemoClip0, 1, 2 and 5.
+  const openCard = async (index: number) => {
+    await js(`document.querySelectorAll('main p[title]')[${index}]?.click()`)
+    await settle(1200)
+  }
+  for (const [index, name] of [
+    [0, 'clip-viewer-both'],
+    [1, 'clip-viewer-portrait-only'],
+    [2, 'clip-viewer-landscape-only'],
+    [4, 'clip-viewer-none']
+  ] as const) {
+    await openCard(index)
+    await shot(name)
+    if (index === 0) {
+      await click('Horizontal')
+      await settle(600)
+      await shot('clip-viewer-both-horizontal')
+    }
+    await escape()
+  }
+  // Clips page: select two clips and join them in a new edit.
   await mouseClick('[aria-label="Select clip"]')
   await mouseClick('[aria-label="Select clip"]')
   if (await click('Edit together…')) {
