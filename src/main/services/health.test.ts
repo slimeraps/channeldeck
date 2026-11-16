@@ -137,18 +137,25 @@ describe('buildHealthSnapshot', () => {
     expect(event?.message).toBe('Could not read [path] with code=[REDACTED]')
   })
 
+  // The two title tests below are defensive. No writer currently puts a post title in an event
+  // message (post.status carries only a short reason), but the sanitizer must still cope if one
+  // ever does. The fixtures use the real post.status shape: "<from> → <to> (<event>): <reason>".
   it('shows post titles only while Hide post titles is off', () => {
     const account = seedAccount(t.repos)
     const post = newPost(account.id, 'Secret Giveaway')
     t.repos.eventLog.write({
-      kind: 'post.failed',
-      message: 'Upload of Secret Giveaway failed',
+      kind: 'post.status',
+      message: 'queued → failed (upload): Secret Giveaway could not be sent',
       postId: post.id
     })
-    expect(snapshot().events[0]?.message).toBe('Upload of Secret Giveaway failed')
+    expect(snapshot().events[0]?.message).toBe(
+      'queued → failed (upload): Secret Giveaway could not be sent'
+    )
 
     t.repos.settings.update({ hidePostTitles: true })
-    expect(snapshot().events[0]?.message).toBe('Upload of a video failed')
+    expect(snapshot().events[0]?.message).toBe(
+      'queued → failed (upload): a video could not be sent'
+    )
   })
 
   it('turns a quoted title into "a video" when its post no longer exists', () => {
@@ -160,8 +167,8 @@ describe('buildHealthSnapshot', () => {
       visibilityMode: 'private'
     })
     t.repos.eventLog.write({
-      kind: 'post.failed',
-      message: 'Upload of "Deleted Draft Title" failed; “Other Gone Title” too',
+      kind: 'post.status',
+      message: 'queued → failed (upload): "Deleted Draft Title" failed; “Other Gone Title” too',
       postId: draft.id
     })
     t.repos.posts.deleteDraft(draft.id)
@@ -169,7 +176,7 @@ describe('buildHealthSnapshot', () => {
 
     t.repos.settings.update({ hidePostTitles: true })
     const [event] = snapshot().events
-    expect(event?.message).toBe('Upload of a video failed; a video too')
+    expect(event?.message).toBe('queued → failed (upload): a video failed; a video too')
     expect(JSON.stringify(snapshot())).not.toContain('Gone Title')
     expect(JSON.stringify(snapshot())).not.toContain('Deleted Draft Title')
   })
