@@ -1,4 +1,5 @@
 import { POST_STATUSES } from '@shared/constants/enums'
+import { describeEvent, EVENT_GLOSSARY, EVENT_KINDS } from '@shared/eventGlossary'
 import type { HealthSnapshot } from '@shared/schemas/health'
 import { Alert, AlertDescription } from '@renderer/components/ui/alert'
 import { Badge } from '@renderer/components/ui/badge'
@@ -87,6 +88,54 @@ function Counts<K extends string>({
 }
 
 const LEVEL_TONES = { info: 'text-muted-foreground', warn: 'text-amber-300', error: 'text-red-400' }
+
+/** One recent event: friendly label over the raw kind, the explanation on hover. */
+function EventRow({ e }: { e: HealthSnapshot['events'][number] }): React.JSX.Element {
+  const d = describeEvent(e.kind, e.message)
+  return (
+    <li
+      className="flex gap-3 py-1.5 text-xs"
+      title={d.check ? `${d.explanation}\nWhat to check: ${d.check}` : d.explanation}
+    >
+      <span className="w-36 shrink-0 text-muted-foreground">{formatLocal(e.atUtc)}</span>
+      <span className="w-52 shrink-0">
+        <span className={cn('block', d.known ? 'text-foreground' : 'text-muted-foreground')}>
+          {d.label}
+        </span>
+        <span className="block break-all font-mono text-muted-foreground">{e.kind}</span>
+      </span>
+      <span className="min-w-0">
+        <span className={cn('block break-words', LEVEL_TONES[e.level])}>{e.message}</span>
+        {d.check ? <span className="block text-amber-300">Check: {d.check}</span> : null}
+      </span>
+    </li>
+  )
+}
+
+/** Every event the app can log, in plain English. Static text; collapsed until opened. */
+function EventGlossary(): React.JSX.Element {
+  return (
+    <details className="mt-3 border-t pt-3 text-xs">
+      <summary className="cursor-pointer text-sm">What do these events mean?</summary>
+      <dl className="mt-2 space-y-2">
+        {EVENT_KINDS.map((kind) => {
+          const entry: { label: string; explanation: string; check?: string } = EVENT_GLOSSARY[kind]
+          return (
+            <div key={kind}>
+              <dt>
+                {entry.label} <span className="font-mono text-muted-foreground">{kind}</span>
+              </dt>
+              <dd className="text-muted-foreground">
+                {entry.explanation}
+                {entry.check ? <span className="text-amber-300"> Check: {entry.check}</span> : null}
+              </dd>
+            </div>
+          )
+        })}
+      </dl>
+    </details>
+  )
+}
 
 function Snapshot({ h }: { h: HealthSnapshot }): React.JSX.Element {
   return (
@@ -180,19 +229,11 @@ function Snapshot({ h }: { h: HealthSnapshot }): React.JSX.Element {
         ) : (
           <ul className="divide-y">
             {h.events.map((e) => (
-              <li key={e.id} className="flex gap-3 py-1.5 text-xs">
-                <span className="w-36 shrink-0 text-muted-foreground">{formatLocal(e.atUtc)}</span>
-                <span
-                  className="w-52 shrink-0 break-all font-mono text-muted-foreground"
-                  title={e.kind}
-                >
-                  {e.kind}
-                </span>
-                <span className={cn('min-w-0 break-words', LEVEL_TONES[e.level])}>{e.message}</span>
-              </li>
+              <EventRow key={e.id} e={e} />
             ))}
           </ul>
         )}
+        <EventGlossary />
       </Tile>
     </div>
   )
