@@ -63,6 +63,18 @@
             <td><code>~/Movies/ChannelDeck/Clips</code> (you can change it in Settings)</td>
           </tr>
           <tr>
+            <td>Rendered Shorts and edits</td>
+            <td><code>_renders</code> inside your clip folder</td>
+          </tr>
+          <tr>
+            <td>Stickers and logos for the editor</td>
+            <td><code>~/Library/Application Support/ChannelDeck/editor-assets</code></td>
+          </tr>
+          <tr>
+            <td>Caption speech model (190 MB, only if you turn on captions)</td>
+            <td><code>~/Library/Application Support/ChannelDeck/models</code></td>
+          </tr>
+          <tr>
             <td>Logs</td>
             <td><code>~/Library/Logs/ChannelDeck/main.log</code></td>
           </tr>
@@ -91,6 +103,10 @@
       <p>
         Import adds what's missing and leaves Dry Run, "delete local files after posting" and Show
         Health page as they are on that Mac. Clips come back from Twitch on the next sync.
+      </p>
+      <p>
+        Backups don't include editor projects, stickers or styles yet, so a restored rule or layout
+        comes back without its style.
       </p>
 
       <h2 id="quota">YouTube quota</h2>

@@ -6,7 +6,7 @@
     <title>Features · ChannelDeck</title>
     <meta
       name="description"
-      content="Everything ChannelDeck does: scheduling, queue, uploads, calendar, analytics, Twitch clip bank and autoposting."
+      content="Everything ChannelDeck does: scheduling, queue, uploads, calendar, analytics, Twitch clip bank, autoposting and the video editor."
     />
     <meta name="theme-color" content="#10151d" />
     <link rel="icon" href="icon.png" />
@@ -46,7 +46,7 @@
           <li><a href="#analytics">Analytics</a></li>
           <li><a href="#clips">Twitch clip bank</a></li>
           <li><a href="#autopost">Autoposting</a></li>
-          <li><a href="#editor">Video editor</a></li>
+          <li><a href="#video-editor">Video editor</a></li>
           <li><a href="#mac">Mac app</a></li>
         </ul>
       </div>
@@ -183,6 +183,10 @@
           Change an uploaded video's publish time (YouTube is updated too), keep it private, or
           delete it from YouTube.
         </li>
+        <li>
+          If a publish time passes before the video is uploaded, the post waits as
+          <strong>Needs decision</strong>: publish now, pick a new time, or unschedule it.
+        </li>
       </ul>
 
       <h2 id="calendar">Calendar</h2>
@@ -196,7 +200,10 @@
         />
       </figure>
       <ul>
-        <li>Week and month views colored by channel, with a clip icon on Twitch posts.</li>
+        <li>
+          Week and month views colored by channel, with a clip icon on Twitch posts and a channel
+          filter.
+        </li>
         <li>
           Drag a post to reschedule it (YouTube is updated if it's already uploaded), or click an
           empty slot to start a post at that time.
@@ -295,12 +302,18 @@
           made on your Mac for each clip.
         </li>
         <li>
+          <strong>Branded layouts:</strong> attach a saved vertical style (logos, text, captions) to
+          a layout preset, so each channel's Shorts carry its own branding. New autoposts pick it up
+          from their layout; a style chosen on the rule wins.
+        </li>
+        <li>
           Unscheduling an autopost refills its slot with the next clip, and that rule never picks
           the skipped clip again.
         </li>
         <li>
           <strong>Sync…</strong> re-queues a rule's failed autoposts so their clips upload on
-          schedule. <strong>Duplicate…</strong> copies a rule, skipped clips included.
+          schedule. <strong>Duplicate…</strong> copies a rule with its skipped and queued clips, so
+          deleting the original never re-posts them.
         </li>
         <li>
           An "out of clips" notification, and a warning when your rules would go over YouTube's
@@ -308,7 +321,7 @@
         </li>
       </ul>
 
-      <h2 id="editor">Video editor</h2>
+      <h2 id="video-editor">Video editor</h2>
       <ul>
         <li>
           An <strong>Editor</strong> page with your saved projects; open a clip, a video file, or
@@ -359,6 +372,7 @@
           disk usage per Twitch channel.
         </li>
         <li>Optionally delete local clip files a number of days after they're posted.</li>
+        <li>A setup checklist on first launch that walks you through Google and Twitch.</li>
         <li>
           Backups as a JSON file, never with sign-in tokens or secrets. See
           <a href="data.html#backups">Your data</a>.
