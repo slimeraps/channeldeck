@@ -34,6 +34,7 @@ export const INVOKE_CHANNELS = [
   'posts:reveal',
   'posts:uploadNow',
   'posts:retry',
+  'posts:retryChannel',
   'posts:decide',
   'posts:reschedule',
   'posts:keepPrivate',

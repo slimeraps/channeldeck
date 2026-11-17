@@ -49,6 +49,7 @@ export function registerPostHandlers(): void {
   })
   handle('posts:uploadNow', ({ id }) => posts().uploadNow(id))
   handle('posts:retry', ({ id }) => posts().retry(id))
+  handle('posts:retryChannel', ({ accountId }) => posts().retryChannel(accountId))
   handle('posts:decide', (input) =>
     posts().decide(
       input.id,

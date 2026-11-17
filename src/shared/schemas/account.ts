@@ -31,6 +31,8 @@ export const accountViewSchema = z.object({
   color: z.string().regex(HEX_COLOR),
   tokenStatus: z.enum(TOKEN_STATUSES),
   enabled: z.boolean(),
+  /** Set while YouTube's per-channel upload limit holds this channel's uploads back. */
+  uploadLimitedUntilUtc: z.string().nullable(),
   defaults: accountDefaultsSchema,
   createdAt: z.string(),
   counts: z.object({ pending: z.number().int(), scheduled: z.number().int() }),

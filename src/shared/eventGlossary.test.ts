@@ -38,6 +38,7 @@ const WRITTEN_KINDS = [
   'autopost.bank_empty',
   'autopost.planned',
   'account.needs_reauth',
+  'account.upload_limited',
   'account.added',
   'account.reconnected',
   'account.removed',
@@ -115,6 +116,7 @@ describe('event glossary coverage', () => {
       'clips.sync_failed',
       'autopost.bank_empty',
       'account.needs_reauth',
+      'account.upload_limited',
       'twitch.needs_reauth'
     ] as const
     for (const kind of warnKinds) {

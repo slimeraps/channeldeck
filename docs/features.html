@@ -169,7 +169,9 @@
         </li>
         <li>
           Network errors and YouTube server errors retry with backoff. Out of quota or over the
-          daily upload limit, a post waits until midnight Pacific instead of failing.
+          daily upload limit, a post waits until midnight Pacific instead of failing. If one channel
+          hits YouTube's own per-channel upload limit, only that channel waits: a banner names it
+          and says when it resumes, and your other channels keep uploading.
         </li>
         <li>
           <strong>Dry Run</strong> shows exactly what would be sent to YouTube without uploading
