@@ -294,6 +294,66 @@ describe('upload engine', () => {
     expect(t.repos.posts.require(second).status).toBe('processing')
   })
 
+  it('holds back only the channel that hit its upload limit; other channels keep uploading', async () => {
+    const other = t.repos.accounts.create({
+      channelId: 'UCother',
+      channelTitle: 'Other Channel',
+      encRefreshToken: await secrets.encrypt('rt-initial')
+    }).id
+    google.failStartWith = { status: 403, reason: 'uploadLimitExceeded' }
+    const first = await queue()
+    const second = await queue({ title: 'Day 10', publishAtUtc: '2026-11-13T11:00:00.000Z' })
+    const elsewhere = await queue({
+      accountId: other,
+      title: 'Other day 1',
+      publishAtUtc: '2026-11-13T11:30:00.000Z'
+    })
+    await tick()
+
+    const limited = t.repos.posts.require(first)
+    expect(limited.status).toBe('waiting_quota')
+    expect(limited.retryAfterUtc).toBe('2026-11-13T08:00:00.000Z')
+    expect(limited.lastError).toMatch(/not your API quota/)
+    expect(t.repos.accounts.require(accountId).uploadLimitedUntilUtc).toBe(
+      '2026-11-13T08:00:00.000Z'
+    )
+    // Same channel: held back, not burned. Other channel: uploaded in the same tick.
+    expect(t.repos.posts.require(second).status).toBe('queued')
+    expect(t.repos.posts.require(elsewhere).status).toBe('processing')
+    expect(job.pausedUntil()).toBeNull()
+    expect(notify).toHaveBeenCalledWith(
+      'Drift Channel hit its upload limit',
+      expect.stringContaining('your other channels keep uploading')
+    )
+    expect(t.repos.eventLog.count('account.upload_limited')).toBe(1)
+    expect(await tick()).toEqual([])
+
+    // A relaunch doesn't turn the channel's limit into a pause for everyone.
+    setup()
+    expect(job.pausedUntil()).toBeNull()
+
+    // After midnight Pacific the channel goes again.
+    t.clock.set('2026-11-13T08:01:00.000Z')
+    await tick()
+    expect(t.repos.posts.require(first).status).toBe('processing')
+    expect(t.repos.posts.require(second).status).toBe('processing')
+    expect(t.repos.accounts.require(accountId).uploadLimitedUntilUtc).toBeNull()
+  })
+
+  it('"Try now" on a limited channel puts its parked posts back and uploads them', async () => {
+    google.failStartWith = { status: 403, reason: 'uploadLimitExceeded' }
+    const first = await queue()
+    const second = await queue({ title: 'Day 10', publishAtUtc: '2026-11-13T11:00:00.000Z' })
+    await tick()
+    expect(t.repos.posts.require(first).status).toBe('waiting_quota')
+
+    expect(posts.retryChannel(accountId)).toEqual({ retried: 1 })
+    expect(t.repos.accounts.require(accountId).uploadLimitedUntilUtc).toBeNull()
+    await tick()
+    expect(t.repos.posts.require(first).status).toBe('processing')
+    expect(t.repos.posts.require(second).status).toBe('processing')
+  })
+
   it('restarts cleanly after a quit mid-upload, and never inserts twice', async () => {
     const id = await queue()
     // Simulate a quit during the upload: status uploading, insert step running.

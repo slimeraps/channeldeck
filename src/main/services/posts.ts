@@ -612,7 +612,7 @@ export function createPostsService(deps: PostsServiceDeps) {
       if (post.status !== 'queued') {
         throw new UserFacingError(
           post.status === 'waiting_quota'
-            ? "Today's YouTube quota is used up. This post will upload after midnight Pacific."
+            ? 'This post is waiting for a YouTube limit to reset after midnight Pacific. Use Retry to try it now.'
             : `Only queued posts can be uploaded now; this one is ${post.status.replace('_', ' ')}.`
         )
       }
@@ -624,6 +624,10 @@ export function createPostsService(deps: PostsServiceDeps) {
             : 'Uploads for this channel are switched off on the Channels page.'
         )
       }
+      // You asked for it now: also test whether the channel's upload limit has lifted.
+      if (account.uploadLimitedUntilUtc) {
+        repos.accounts.update(account.id, { uploadLimitedUntilUtc: null })
+      }
       const updated = repos.posts.update(id, {
         uploadAfterUtc: clock().toISOString(),
         retryAfterUtc: null
@@ -631,6 +635,29 @@ export function createPostsService(deps: PostsServiceDeps) {
       deps.emitChanged()
       deps.kickJobs?.()
       return toListItem(updated, accountLookup())
+    },
+
+    /**
+     * "Try now" on a channel that hit YouTube's upload limit: forget the limit and put its
+     * parked posts back in the queue. If YouTube still refuses, the channel is limited again.
+     */
+    retryChannel(accountId: number): { retried: number } {
+      const account = repos.accounts.require(accountId)
+      repos.accounts.update(account.id, { uploadLimitedUntilUtc: null })
+      const now = clock().toISOString()
+      let retried = 0
+      for (const post of repos.posts.list({ statuses: ['waiting_quota'] })) {
+        if (post.accountId !== accountId) continue
+        repos.postSteps.resetUnfinished(post.id)
+        repos.posts.transition(post.id, 'retry', {
+          patch: { lastError: null, retryAfterUtc: null, uploadAfterUtc: now },
+          reason: 'channel retried by you'
+        })
+        retried += 1
+      }
+      deps.emitChanged()
+      deps.kickJobs?.()
+      return { retried }
     },
 
     /** Try a failed post again; a post already on YouTube only redoes its unfinished steps. */
@@ -642,6 +669,13 @@ export function createPostsService(deps: PostsServiceDeps) {
         )
       }
       repos.postSteps.resetUnfinished(id)
+      // Retrying a post parked by its channel's upload limit tries the channel again too.
+      if (post.status === 'waiting_quota') {
+        const account = repos.accounts.get(post.accountId)
+        if (account?.uploadLimitedUntilUtc) {
+          repos.accounts.update(account.id, { uploadLimitedUntilUtc: null })
+        }
+      }
       const updated = repos.posts.transition(id, 'retry', {
         patch: { lastError: null, retryAfterUtc: null, uploadAfterUtc: clock().toISOString() },
         reason: 'retried by you'

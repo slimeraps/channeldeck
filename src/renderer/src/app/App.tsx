@@ -7,6 +7,7 @@ import { getPage } from '@renderer/app/nav'
 import { AppSidebar } from '@renderer/components/AppSidebar'
 import { PostEditor } from '@renderer/components/post-editor/PostEditor'
 import { ReauthBanner } from '@renderer/components/ReauthBanner'
+import { UploadLimitBanner } from '@renderer/components/UploadLimitBanner'
 import { SetupChecklist } from '@renderer/components/SetupChecklist'
 import { accountsKey } from '@renderer/hooks/useAccounts'
 import { postsKey } from '@renderer/hooks/usePosts'
@@ -158,6 +159,7 @@ export function App(): React.JSX.Element {
           <h1 className="text-sm font-semibold">{page.label}</h1>
         </header>
         <ReauthBanner />
+        <UploadLimitBanner />
         <div className="min-h-0 flex-1 overflow-auto">
           <PageContent id={page.id} />
         </div>

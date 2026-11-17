@@ -128,6 +128,10 @@ export function createYouTubeAccountsService(deps: YouTubeAccountsDeps) {
       color: account.color,
       tokenStatus: account.tokenStatus,
       enabled: account.enabled,
+      uploadLimitedUntilUtc:
+        account.uploadLimitedUntilUtc && account.uploadLimitedUntilUtc > now
+          ? account.uploadLimitedUntilUtc
+          : null,
       defaults: defaults.success ? defaults.data : {},
       createdAt: account.createdAt,
       counts: {

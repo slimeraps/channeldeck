@@ -182,7 +182,7 @@ export function classifyGoogleError(error: unknown): ClassifiedError {
       reason,
       message:
         reason === 'uploadLimitExceeded'
-          ? "This channel hit YouTube's daily upload limit. ChannelDeck will try again after midnight Pacific."
+          ? "This channel hit YouTube's daily upload limit for the channel (not your API quota). Its uploads wait until midnight Pacific; other channels keep uploading."
           : "Today's YouTube API quota is used up. ChannelDeck will try again after midnight Pacific.",
       retryAfterMs
     }

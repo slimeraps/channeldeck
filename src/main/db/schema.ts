@@ -62,6 +62,11 @@ export const accounts = sqliteTable('accounts', {
    * Removed channels are hidden and have no token; adding the channel again restores it.
    */
   removedAt: text('removed_at'),
+  /**
+   * Set when YouTube refused an upload with uploadLimitExceeded: the channel's own daily
+   * upload cap (not the project's API quota). Only this channel's uploads wait until then.
+   */
+  uploadLimitedUntilUtc: text('upload_limited_until_utc'),
   createdAt: createdAt(),
   updatedAt: updatedAt()
 })

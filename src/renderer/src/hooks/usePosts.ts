@@ -120,6 +120,19 @@ export function useRetryPost(): UseMutationResult<PostListItem, Error, string> {
   })
 }
 
+/** "Try now" for a channel that hit YouTube's per-channel upload limit. */
+export function useRetryChannel(): UseMutationResult<{ retried: number }, Error, number> {
+  const invalidate = useInvalidate()
+  return useMutation({
+    mutationFn: (accountId: number) => invoke('posts:retryChannel', { accountId }),
+    onSuccess: () => {
+      invalidate()
+      toast.success('Trying the channel’s uploads again')
+    },
+    onError: (e) => toast.error(e.message)
+  })
+}
+
 function useAction<TVars>(
   fn: (vars: TVars) => Promise<PostListItem>,
   success: (post: PostListItem) => string

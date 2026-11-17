@@ -63,6 +63,7 @@ Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to Y
 - ✅ Each step (video → thumbnail → playlist) is tracked and retried on its own; a video is never uploaded twice
 - ✅ Network errors and YouTube 5xx retry with exponential backoff (5 attempts)
 - ✅ Out of quota or over the daily upload limit: the post waits until midnight Pacific instead of failing
+- ✅ A channel at YouTube's own per-channel upload limit waits on its own (banner, Queue rows, Channels badge, one notification, **Try now**); other channels keep uploading
 - ✅ "File missing" check before uploading; quitting mid-upload restarts cleanly next launch
 - ✅ **Dry Run**: logs exactly which YouTube calls would run, with their data, without uploading anything
 - ✅ Up to 3 uploads at once (default 1)
@@ -240,6 +241,10 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 ## Changelog
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
+
+### Unreleased
+
+- **Per-channel upload limit:** when YouTube refuses an upload with `uploadLimitExceeded` (the channel's own daily cap, not your project's API quota), only that channel waits until midnight Pacific. Before, one channel at its limit paused uploads for **every** channel, so autoposts on the others missed their times while the sidebar quota looked nearly empty. Now a banner says which channel hit its limit, and when its uploads resume; its Queue rows show **Channel limit**; the Channels page shows an **Upload limit** badge; and you get one notification explaining it. **Try now** on the banner (or Retry / Upload now on one of its posts) tests whether the limit has lifted. The limit is saved on the channel (`accounts.upload_limited_until_utc`, migration 0013), so a relaunch keeps it on that channel only. Running out of the project's quota (`quotaExceeded`) still pauses everything, as before. New Health event: `account.upload_limited`.
 
 ### 2.2.0 (2026-11-16)
 

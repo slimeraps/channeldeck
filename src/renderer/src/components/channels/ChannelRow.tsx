@@ -41,6 +41,10 @@ export function ChannelRow({
   const reconnect = useReconnect()
   const refresh = useRefreshAccount()
   const needsReauth = account.tokenStatus === 'needs_reauth'
+  const limitedUntil =
+    account.uploadLimitedUntilUtc && account.uploadLimitedUntilUtc > new Date().toISOString()
+      ? account.uploadLimitedUntilUtc
+      : null
 
   return (
     <div
@@ -72,6 +76,15 @@ export function ChannelRow({
             </Badge>
           )}
           {!account.enabled ? <Badge variant="secondary">Paused</Badge> : null}
+          {limitedUntil ? (
+            <Badge
+              variant="outline"
+              className="border-amber-500/50 text-amber-300"
+              title={`YouTube's per-channel upload limit (not your API quota). Uploads wait until ${formatLocal(limitedUntil)}.`}
+            >
+              Upload limit · resumes {formatRelative(limitedUntil)}
+            </Badge>
+          ) : null}
         </div>
         <div className="mt-0.5 truncate text-xs text-muted-foreground">
           {[

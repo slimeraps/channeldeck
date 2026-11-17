@@ -66,9 +66,10 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
   const clock = deps.clock ?? (() => new Date())
   let quotaPausedUntil: Date | null = null
 
-  // Uploads already parked for quota keep the whole queue paused until the reset.
+  // Uploads already parked for project quota keep the whole queue paused until the reset.
+  // Posts parked by one channel's upload limit only hold back that channel (see channelLimited).
   for (const post of repos.posts.list({ statuses: ['waiting_quota'] })) {
-    if (post.retryAfterUtc) {
+    if (post.retryAfterUtc && !repos.accounts.get(post.accountId)?.uploadLimitedUntilUtc) {
       const at = new Date(post.retryAfterUtc)
       if (!quotaPausedUntil || at > quotaPausedUntil) quotaPausedUntil = at
     }
@@ -77,6 +78,23 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
   function accountReady(accountId: number): boolean {
     const account = repos.accounts.get(accountId)
     return Boolean(account && !account.removedAt && account.enabled && account.tokenStatus === 'ok')
+  }
+
+  /** The channel hit YouTube's per-channel upload limit and it hasn't lifted yet. */
+  function channelLimited(accountId: number, now: Date): boolean {
+    const until = repos.accounts.get(accountId)?.uploadLimitedUntilUtc
+    return Boolean(until && until > now.toISOString())
+  }
+
+  /** Forget per-channel limits whose wait is over, so the channel's posts go out again. */
+  function liftExpiredLimits(now: Date): void {
+    const iso = now.toISOString()
+    for (const account of repos.accounts.list()) {
+      if (account.uploadLimitedUntilUtc && account.uploadLimitedUntilUtc <= iso) {
+        repos.accounts.update(account.id, { uploadLimitedUntilUtc: null })
+        deps.emitChanged()
+      }
+    }
   }
 
   function stepsFor(post: PostRow): PostStepName[] {
@@ -316,7 +334,30 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
     }
 
     const c = classify(error)
-    if (c.kind === 'quota') {
+    if (c.kind === 'quota' && c.reason === 'uploadLimitExceeded' && account) {
+      // YouTube's cap on this one channel: park its uploads, let the other channels carry on.
+      const now = clock()
+      const retryAt = nextQuotaReset(now)
+      const alreadyLimited = channelLimited(account.id, now)
+      repos.accounts.update(account.id, { uploadLimitedUntilUtc: retryAt.toISOString() })
+      repos.posts.transition(post.id, 'quota_exhausted', {
+        patch: { retryAfterUtc: retryAt.toISOString(), lastError: c.message },
+        reason: c.reason
+      })
+      repos.postSteps.resetUnfinished(post.id)
+      if (!alreadyLimited) {
+        repos.eventLog.write({
+          kind: 'account.upload_limited',
+          level: 'warn',
+          message: `${account.channelTitle} hit YouTube's upload limit; its uploads wait until ${retryAt.toISOString()}`,
+          accountId: account.id
+        })
+        deps.notify(
+          `${account.channelTitle} hit its upload limit`,
+          `YouTube won't take more uploads from ${account.channelTitle} for now. This is a limit on the channel, not your API quota. Its uploads wait until midnight Pacific; your other channels keep uploading.`
+        )
+      }
+    } else if (c.kind === 'quota') {
       const retryAt = nextQuotaReset(clock())
       quotaPausedUntil = retryAt
       repos.posts.transition(post.id, 'quota_exhausted', {
@@ -357,12 +398,14 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
     findWork(now) {
       if (quotaPausedUntil && now < quotaPausedUntil) return []
       quotaPausedUntil = null
+      liftExpiredLimits(now)
       const iso = now.toISOString()
       return repos.posts
         .list({ statuses: ['queued', 'waiting_quota', 'processing'] })
         .filter((p) => {
           if (!accountReady(p.accountId)) return false
           if (p.status === 'processing') return unfinishedSteps(p)
+          if (channelLimited(p.accountId, now)) return false
           if (p.retryAfterUtc && p.retryAfterUtc > iso) return false
           if (p.status === 'waiting_quota') return p.retryAfterUtc !== null
           return (p.uploadAfterUtc ?? p.createdAt) <= iso
@@ -383,6 +426,8 @@ export function createUploadJob(deps: UploadJobDeps): UploadJob {
       const now = clock()
       // Another upload just ran out of quota: don't start this one until the reset.
       if (quotaPausedUntil && now < quotaPausedUntil && post.status !== 'processing') return
+      // An earlier post of this channel just hit its upload limit.
+      if (channelLimited(post.accountId, now) && post.status !== 'processing') return
 
       if (post.status === 'waiting_quota') {
         post = repos.posts.transition(post.id, 'retry', {

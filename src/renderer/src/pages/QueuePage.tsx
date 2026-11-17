@@ -194,25 +194,36 @@ function UploadProgress({ post }: { post: PostListItem }): React.JSX.Element {
   )
 }
 
+/** Statuses whose upload a channel's upload limit holds back. */
+const LIMIT_HELD: ReadonlySet<string> = new Set(['queued', 'waiting_quota'])
+
 function StatusCell({
   post,
+  limitedUntil,
   onApprove,
   approving
 }: {
   post: PostListItem
+  /** Set while the post's channel is at YouTube's per-channel upload limit. */
+  limitedUntil: string | null
   onApprove: () => void
   approving: boolean
 }): React.JSX.Element {
-  const detail =
-    post.status === 'waiting_quota' && post.retryAfterUtc
+  const heldByLimit = limitedUntil !== null && LIMIT_HELD.has(post.status)
+  const detail = heldByLimit
+    ? `Channel hit YouTube's upload limit. Resumes ${formatRelative(limitedUntil)}.`
+    : post.status === 'waiting_quota' && post.retryAfterUtc
       ? `Retries ${formatRelative(post.retryAfterUtc)}`
       : post.status === 'needs_decision'
         ? 'The publish time passed before it uploaded. Open ⋯ to publish now, pick a new time, or unschedule.'
         : post.lastError
   return (
     <div className="space-y-1">
-      <Badge variant="outline" className={STATUS_TONES[post.status]}>
-        {STATUS_LABELS[post.status]}
+      <Badge
+        variant="outline"
+        className={heldByLimit ? STATUS_TONES.waiting_quota : STATUS_TONES[post.status]}
+      >
+        {heldByLimit ? 'Channel limit' : STATUS_LABELS[post.status]}
       </Badge>
       {post.status === 'uploading' || post.status === 'rendering' ? (
         <UploadProgress post={post} />
@@ -259,6 +270,11 @@ export function QueuePage(): React.JSX.Element {
   const clearSelection = (): void => setSelected(new Set())
 
   const accounts = useAccounts()
+  const nowIso = new Date().toISOString()
+  const limitedUntil = (accountId: number): string | null => {
+    const until = accounts.data?.find((a) => a.id === accountId)?.uploadLimitedUntilUtc ?? null
+    return until && until > nowIso ? until : null
+  }
   const posts = usePosts({
     ...(accountFilter !== ALL ? { accountId: Number(accountFilter) } : {}),
     ...(statusFilter === 'active'
@@ -635,6 +651,7 @@ export function QueuePage(): React.JSX.Element {
                   <td className="px-3 py-2">
                     <StatusCell
                       post={post}
+                      limitedUntil={limitedUntil(post.accountId)}
                       approving={approve.isPending}
                       onApprove={() => approve.mutate(post.id)}
                     />

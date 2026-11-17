@@ -272,6 +272,11 @@ export const invokeContract = {
     input: postIdInput,
     output: postListItemSchema
   },
+  /** Try a channel again that hit YouTube's per-channel upload limit. */
+  'posts:retryChannel': {
+    input: accountIdInput,
+    output: z.object({ retried: z.number().int() })
+  },
   'posts:decide': {
     input: z.discriminatedUnion('action', [
       z.object({ id: z.uuid(), action: z.literal('publish_now') }).strict(),

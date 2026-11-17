@@ -113,6 +113,13 @@ export const EVENT_GLOSSARY = {
       'Google no longer accepts this channel’s saved sign-in, so its uploads are paused.',
     check: 'Open Settings, find the channel and click Reconnect.'
   },
+  'account.upload_limited': {
+    label: 'Channel hit its upload limit',
+    explanation:
+      'YouTube refused an upload because this channel has uploaded as many videos as YouTube allows it for now. This is a limit on the channel, not your API quota. Only this channel waits (until midnight Pacific); the others keep uploading.',
+    check:
+      'Nothing to fix. Spread this channel’s posts out more, or click Try now on the banner later to test whether the limit has lifted.'
+  },
   'account.added': {
     label: 'YouTube channel connected',
     explanation: 'A YouTube channel was signed in and added.'
