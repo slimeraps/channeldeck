@@ -11,7 +11,7 @@ Scheduling uses YouTube's own scheduled publishing: videos upload as private wit
 
 Everything runs locally on your Mac (Apple Silicon, recent macOS). It talks to YouTube and Twitch with your own Google Cloud project and Twitch app. Sign-in tokens are encrypted with the macOS Keychain and never leave the machine.
 
-> **Status:** version 2.2.0. Every feature below is built; see the [changelog](#changelog) at the bottom.
+> **Status:** version 2.2.1. Every feature below is built; see the [changelog](#changelog) at the bottom.
 
 ---
 
@@ -242,7 +242,7 @@ CHANNELDECK_SELF_TEST="$(mktemp -d)" release/mac-arm64/ChannelDeck.app/Contents/
 
 Newest first. The website's [changelog page](https://slimeraps.github.io/channeldeck/changelog.html) has a shorter version of each release.
 
-### Unreleased
+### 2.2.1 (2026-11-16)
 
 - **Per-channel upload limit:** when YouTube refuses an upload with `uploadLimitExceeded` (the channel's own daily cap, not your project's API quota), only that channel waits until midnight Pacific. Before, one channel at its limit paused uploads for **every** channel, so autoposts on the others missed their times while the sidebar quota looked nearly empty. Now a banner says which channel hit its limit, and when its uploads resume; its Queue rows show **Channel limit**; the Channels page shows an **Upload limit** badge; and you get one notification explaining it. **Try now** on the banner (or Retry / Upload now on one of its posts) tests whether the limit has lifted. The limit is saved on the channel (`accounts.upload_limited_until_utc`, migration 0013), so a relaunch keeps it on that channel only. Running out of the project's quota (`quotaExceeded`) still pauses everything, as before. New Health event: `account.upload_limited`.
 
